@@ -3,6 +3,7 @@ import 'package:my_app/models/merchant_product.dart';
 import 'package:my_app/services/merchant_auth_service.dart';
 import 'package:my_app/services/member_api.dart';
 import 'package:my_app/screens/merchant_product_editor.dart';
+import 'package:my_app/screens/merchant_register_screen.dart';
 
 class CloudMerchantLoginScreen extends StatefulWidget {
   const CloudMerchantLoginScreen({super.key, this.service});
@@ -54,6 +55,22 @@ class _CloudMerchantLoginScreenState extends State<CloudMerchantLoginScreen> {
       if (mounted) _open();
     } on MemberApiException catch (e) {
       if (mounted) setState(() => error = e.message);
+    }
+  }
+
+  Future<void> _register() async {
+    final registeredEmail = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MerchantRegisterScreen(service: service),
+      ),
+    );
+    if (registeredEmail != null && mounted) {
+      setState(() {
+        email.text = registeredEmail;
+        password.clear();
+        error = null;
+      });
     }
   }
 
@@ -128,6 +145,10 @@ class _CloudMerchantLoginScreenState extends State<CloudMerchantLoginScreen> {
                     onPressed: service.isBusy ? null : _login,
                     icon: const Icon(Icons.login),
                     label: Text(service.isBusy ? '登入中' : '登入商家後台'),
+                  ),
+                  TextButton(
+                    onPressed: service.isBusy ? null : _register,
+                    child: const Text('註冊商家帳號'),
                   ),
                 ],
               ),

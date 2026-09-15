@@ -56,4 +56,14 @@ function product(body = {}) {
     tags: array(body.tags, '標籤', 40), ingredients: array(body.ingredients, '食材', 60),
     expiresAt, isExpiringSoon: body.isExpiringSoon };
 }
-module.exports = { fail, text, id, integer, credentials, product };
+function registration(body = {}) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw fail(400, '註冊資料格式不正確');
+  const auth = credentials(body);
+  if (!Array.isArray(body.businessWeekdays) || !body.businessWeekdays.length || body.businessWeekdays.length > 7 ||
+      body.businessWeekdays.some((day) => !Number.isInteger(day) || day < 1 || day > 7)) throw fail(400, '請選擇有效的營業日');
+  return { ...auth, businessName: text(body.businessName, '商家名稱', 120),
+    storeName: text(body.storeName, '門市名稱', 120), address: text(body.address, '地址', 255),
+    businessHours: text(body.businessHours, '營業時間', 80), contactPhone: text(body.contactPhone ?? '', '電話', 40, true),
+    businessWeekdays: [...new Set(body.businessWeekdays)].sort() };
+}
+module.exports = { fail, text, id, integer, credentials, product, registration };

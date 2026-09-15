@@ -4,7 +4,7 @@ const { randomUUID, randomBytes } = require('node:crypto');
 const express = require('express');
 const routes = require('../src/merchant/routes');
 const MerchantRepository = require('../src/merchant/repository');
-const { product } = require('../src/merchant/validation');
+const { product, registration } = require('../src/merchant/validation');
 const { hashPassword, tokenHash } = require('../src/auth/passwords');
 
 const fixture = (storeId = '10') => ({ storeId, name: '測試餐點', category: '便當', price: 80, originalPrice: 100,
@@ -27,6 +27,78 @@ function app(repository) {
   server.use((error, req, res, next) => res.status(error.statusCode || 500).json({ message: error.statusCode ? error.message : 'server error' }));
   return server;
 }
+
+const signup = (email = 'owner@example.test') => ({ email, password: 'Merchant-test-password!',
+  businessName: '自行註冊商家', storeName: '第一間門市', address: '測試地址', businessHours: '09:00-20:00',
+  contactPhone: '', businessWeekdays: [1, 2, 3, 4, 5] });
+
+test('merchant self-registration validates fields and cannot assign existing stores or elevated roles', async (t) => {
+  let saved;
+  let hash;
+  const sessions = new Map();
+  const repo = {
+    register: async (data, passwordHash) => {
+      if (saved) throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
+      saved = data; hash = passwordHash;
+    },
+    credentials: async () => ({ id: '1', password_hash: hash, status: 'active' }),
+    account: async () => ({ id: '1', businessName: saved.businessName, email: saved.email, stores: [{ id: 'new-store' }] }),
+    createSession: async (id, hash) => sessions.set(hash, { id }),
+    session: async (hash) => sessions.get(hash),
+  };
+  const call = await serve(t, app(repo));
+  const response = await call('/merchant/auth/register', 'POST', { ...signup('OWNER@example.test'), status: 'pending', role: 'admin', merchantId: '99', storeId: '999' });
+  assert.equal(response.status, 201);
+  assert.equal(response.body.token, undefined);
+  assert.equal(saved.email, 'owner@example.test');
+  for (const key of ['role', 'status', 'storeId', 'merchantId']) assert.equal(saved[key], undefined);
+  assert.notEqual(hash, saved.password);
+  const login = await call('/merchant/auth/login', 'POST', signup());
+  assert.equal(login.status, 200);
+  assert.equal((await call('/merchant/me', 'GET', undefined, login.body.token)).status, 200);
+  assert.equal((await call('/merchant/auth/register', 'POST', signup())).status, 409);
+  for (const change of [{ businessWeekdays: [] }, { businessWeekdays: [0] }, { businessWeekdays: [1.5] },
+    { businessWeekdays: Array(8).fill(1) }, { businessName: '' }, { storeName: '' }, { address: '' },
+    { businessHours: '' }, { email: 'invalid' }, { password: 'short' }]) {
+    assert.equal((await call('/merchant/auth/register', 'POST', { ...signup(), ...change })).status, 400);
+  }
+  assert.deepEqual(registration({ ...signup(), businessWeekdays: [2, 1, 2] }).businessWeekdays, [1, 2]);
+});
+
+test('registration rate limit rejects repeated requests before hashing', async (t) => {
+  const call = await serve(t, app({}));
+  for (let i = 0; i < 30; i++) assert.equal((await call('/merchant/auth/register', 'POST', {})).status, 400);
+  assert.equal((await call('/merchant/auth/register', 'POST', {})).status, 429);
+});
+
+test('registration creates active merchant and a new owned store atomically', async () => {
+  for (const failDay of [false, true]) {
+    const events = [];
+    const connection = {
+      beginTransaction: async () => events.push('begin'), commit: async () => events.push('commit'),
+      rollback: async () => events.push('rollback'), release: () => events.push('release'),
+      execute: async (sql, args) => {
+        if (sql.includes('INSERT INTO merchants')) {
+          assert.match(sql, /'active'/); assert.equal(args[2], 'encoded-hash'); events.push('merchant'); return [{ insertId: 12 }];
+        }
+        if (sql.includes('INSERT INTO stores')) {
+          assert.equal(args[0], 12); events.push('store'); return [{ insertId: 34 }];
+        }
+        assert.equal(args[0], 34);
+        if (failDay) throw new Error('day write failed');
+        return [{}];
+      },
+    };
+    const repo = new MerchantRepository({ getConnection: async () => connection });
+    if (failDay) {
+      await assert.rejects(repo.register(registration(signup()), 'encoded-hash'), /day write failed/);
+      assert.deepEqual(events, ['begin', 'merchant', 'store', 'rollback', 'release']);
+    } else {
+      assert.deepEqual(await repo.register(registration(signup()), 'encoded-hash'), { merchantId: '12', storeId: '34', status: 'active' });
+      assert.deepEqual(events, ['begin', 'merchant', 'store', 'commit', 'release']);
+    }
+  }
+});
 
 test('merchant product validation rejects forged values, malformed dates and unsafe image schemes', () => {
   const valid = fixture();
@@ -170,11 +242,27 @@ test('MySQL integration: merchant ownership, draft replay, publication, edit con
   }
   const UserRepository = require('../src/auth/user_repository');
   const users = new UserRepository(pool);
-  userId = (await users.create({ name: 'Merchant test member', email: `member-${randomUUID()}@example.test`, passwordHash: 'disabled-test-login' })).id;
+  const userEmail = `member-${randomUUID()}@example.test`;
+  userId = (await users.create({ name: 'Merchant test member', email: userEmail, passwordHash: 'disabled-test-login' })).id;
   const memberToken = randomBytes(32).toString('hex');
   await users.createSession(userId, tokenHash(memberToken), new Date(Date.now() + 600000));
   const createApp = require('../src/app');
   const call = await serve(t, createApp({ userRepository: users }));
+  const registered = await call('/merchant/auth/register', 'POST', signup(userEmail));
+  const record = await repo.credentials(userEmail);
+  if (record) merchants.push(record.id);
+  assert.equal(registered.status, 201);
+  assert.equal(record.status, 'active');
+  assert.notEqual(record.password_hash, signup().password);
+  const login = await call('/merchant/auth/login', 'POST', signup(userEmail));
+  assert.equal(login.status, 200);
+  assert.equal(login.body.merchant.stores.length, 1);
+  const firstStore = login.body.merchant.stores[0].id;
+  const [days] = await pool.execute('SELECT weekday FROM store_business_weekdays WHERE store_id = ? ORDER BY weekday', [firstStore]);
+  assert.deepEqual(days.map((d) => d.weekday), [1, 2, 3, 4, 5]);
+  assert.equal((await call('/merchant/auth/register', 'POST', signup(userEmail))).status, 409);
+  assert.equal((await call('/me', 'GET', undefined, login.body.token)).status, 401);
+  assert.equal((await call('/merchant/products', 'POST', fixture(firstStore), login.body.token, randomUUID())).status, 201);
   assert.equal((await call('/merchant/me', 'GET', undefined, memberToken)).status, 401);
   assert.equal((await call('/me', 'GET', undefined, tokens[0])).status, 401);
   const data = fixture(stores[0]);

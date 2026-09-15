@@ -1,8 +1,7 @@
 # 膳解人意 Backend
 
-會員註冊、登入、登出及會員資料 API 使用 MySQL；商品與推薦清單目前仍是模擬資料。
-首次建置先匯入 database/schema.sql，再執行 database/migrations/001_user_sessions.sql。
-已建好 14 張資料表的環境只需執行 migration。
+會員、商品目錄、會員活動與商家管理 API 使用 MySQL；推薦 API 尚未完成。商家可自行註冊，不需審核，註冊時建立第一間門市。
+初始化或升級請依部署文件核對結構；學校已套用 001、002、003，勿重匯 schema 或重跑遷移。本次自行註冊沒有新增遷移。
 
 部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)。
 

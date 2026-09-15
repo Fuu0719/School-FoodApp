@@ -9,6 +9,24 @@ const values = (p) => [p.name, p.category, p.price, p.originalPrice, p.stockCoun
 
 class MerchantRepository {
   constructor(pool) { this.pool = pool; }
+  async register(data, passwordHash) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [merchant] = await connection.execute(`INSERT INTO merchants
+        (business_name, email, password_hash, contact_phone, status) VALUES (?, ?, ?, ?, 'active')`,
+      [data.businessName, data.email, passwordHash, data.contactPhone]);
+      const [store] = await connection.execute(`INSERT INTO stores
+        (merchant_id, name, address, business_hours, contact_phone) VALUES (?, ?, ?, ?, ?)`,
+      [merchant.insertId, data.storeName, data.address, data.businessHours, data.contactPhone]);
+      for (const day of data.businessWeekdays) {
+        await connection.execute('INSERT INTO store_business_weekdays VALUES (?, ?)', [store.insertId, day]);
+      }
+      await connection.commit();
+      return { merchantId: String(merchant.insertId), storeId: String(store.insertId), status: 'active' };
+    } catch (error) { await connection.rollback(); throw error; }
+    finally { connection.release(); }
+  }
   async credentials(email) {
     const [rows] = await this.pool.execute('SELECT id, password_hash, status FROM merchants WHERE email = ?', [email]);
     return rows[0];

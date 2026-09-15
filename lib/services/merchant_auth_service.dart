@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/merchant_account.dart';
 import 'package:my_app/models/merchant_product.dart';
+import 'package:my_app/models/merchant_registration.dart';
 import 'package:my_app/services/member_api.dart';
 import 'package:my_app/services/request_id.dart';
 
@@ -85,6 +86,15 @@ class MerchantAuthService extends ChangeNotifier {
       await _restorePending();
     });
   }
+
+  Future<void> register(MerchantRegistration registration) => _run(() async {
+    if (isLoggedIn) throw const MemberApiException('請先登出目前商家');
+    await _api.request(
+      'POST',
+      '/merchant/auth/register',
+      body: registration.toJson(),
+    );
+  });
 
   Future<void> login(String email, String password) async {
     await _run(() async {

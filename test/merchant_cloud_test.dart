@@ -7,10 +7,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:my_app/models/merchant_product.dart';
+import 'package:my_app/models/merchant_registration.dart';
 import 'package:my_app/services/member_api.dart';
 import 'package:my_app/services/merchant_auth_service.dart';
 import 'package:my_app/screens/merchant_products_screen.dart';
 import 'package:my_app/screens/merchant_product_editor.dart';
+import 'package:my_app/screens/merchant_register_screen.dart';
 
 const merchant = {
   'id': '1',
@@ -90,6 +92,108 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
   });
+
+  const signup = MerchantRegistration(
+    email: 'owner@example.test',
+    password: 'Merchant-test-password!',
+    businessName: 'Test merchant',
+    storeName: 'Test store',
+    address: 'Test address',
+    businessHours: '09:00-20:00',
+    contactPhone: '',
+    businessWeekdays: [1, 2, 3],
+  );
+  testWidgets(
+    'registration form validates and retains fields after rejection at narrow width',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var calls = 0;
+      final service = MerchantAuthService(
+        useCloud: true,
+        api: api((request) async {
+          calls++;
+          return response({'message': 'Email already registered'}, 409);
+        }),
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: MerchantRegisterScreen(service: service)),
+      );
+      await tester.tap(find.text('建立商家帳號'));
+      await tester.pumpAndSettle();
+      expect(calls, 0);
+      final inputs = find.byType(TextFormField);
+      final values = [
+        'Test merchant',
+        'owner@example.test',
+        'Merchant-test-password!',
+        'Merchant-test-password!',
+        'Test store',
+        'Test address',
+        '09:00-20:00',
+        '',
+      ];
+      for (var i = 0; i < values.length; i++) {
+        await tester.enterText(inputs.at(i), values[i]);
+      }
+      await tester.tap(find.text('建立商家帳號'));
+      await tester.pumpAndSettle();
+      expect(find.text('請至少選擇一個營業日'), findsOneWidget);
+      expect(calls, 0);
+      await tester.tap(find.text('週一'));
+      await tester.tap(find.text('建立商家帳號'));
+      await tester.pumpAndSettle();
+      expect(calls, 1);
+      expect(find.text('Email already registered'), findsOneWidget);
+      expect(find.text('owner@example.test'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      service.dispose();
+    },
+  );
+  test(
+    'registration sends merchant fields without creating a session',
+    () async {
+      var calls = 0;
+      final service = MerchantAuthService(
+        useCloud: true,
+        api: api((request) async {
+          calls++;
+          expect(request.method, 'POST');
+          expect(request.url.path, '/api/merchant/auth/register');
+          expect(jsonDecode(request.body), signup.toJson());
+          expect(request.headers['authorization'], isNull);
+          return response({'message': 'registered'}, 201);
+        }),
+      );
+      await service.register(signup);
+      expect(calls, 1);
+      expect(service.isLoggedIn, isFalse);
+      expect(service.isBusy, isFalse);
+      expect(await const FlutterSecureStorage().readAll(), isEmpty);
+      service.dispose();
+    },
+  );
+  test(
+    'duplicate registration remains logged out and exposes server error',
+    () async {
+      final service = MerchantAuthService(
+        useCloud: true,
+        api: api((request) async {
+          return response({'message': 'Email already registered'}, 409);
+        }),
+      );
+      await expectLater(
+        service.register(signup),
+        throwsA(isA<MemberApiException>()),
+      );
+      expect(service.errorMessage, 'Email already registered');
+      expect(service.isLoggedIn, isFalse);
+      expect(service.isBusy, isFalse);
+      expect(await const FlutterSecureStorage().readAll(), isEmpty);
+      service.dispose();
+    },
+  );
 
   test(
     'cloud login cannot use demo and merchant session is stored separately',

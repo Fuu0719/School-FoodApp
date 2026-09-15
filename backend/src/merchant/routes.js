@@ -2,13 +2,23 @@ const express = require('express');
 const { rateLimit } = require('express-rate-limit');
 const { randomBytes } = require('node:crypto');
 const { hashPassword, verifyPassword, tokenHash } = require('../auth/passwords');
-const { fail, id, integer, credentials, product } = require('./validation');
+const { fail, id, integer, credentials, product, registration } = require('./validation');
 const run = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 module.exports = function merchantRoutes(repository) {
   const router = express.Router();
   let dummy;
   const limiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: 'draft-7', legacyHeaders: false,
     message: { message: '嘗試次數過多，請稍後再試' } });
+  router.post('/auth/register', limiter, run(async (req, res) => {
+    const data = registration(req.body);
+    try {
+      await repository.register(data, await hashPassword(data.password));
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') throw fail(409, '此商家 Email 已註冊，請登入');
+      throw error;
+    }
+    res.status(201).json({ message: '商家註冊成功，請登入' });
+  }));
   router.post('/auth/login', limiter, run(async (req, res) => {
     const { email, password } = credentials(req.body);
     const record = await repository.credentials(email);

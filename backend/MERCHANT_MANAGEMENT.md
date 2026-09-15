@@ -12,7 +12,8 @@
 
 雲端模式的商家登入與一般會員分開。商家使用 scrypt 密碼雜湊、隨機 256-bit token、獨立 merchant_sessions；只保存 token 的 SHA-256 雜湊，有效期 8 小時。
 登入有限流；停用商家、過期或已撤銷 session 無法管理商品。一般會員 token 不可使用商家 API，商家 token 也不等於會員登入。
-沒有公開商家註冊或自行核准權限。管理者在學校主機本機建立已核准的商家與第一間門市。
+2026-09-15 起採商家自行註冊，不需審核。App 雲端模式的商家登入頁可選「註冊商家帳號」，填寫帳號密碼、商家與第一間門市資料及營業日。註冊成功後返回登入頁，以新帳號登入。
+後端在同一交易建立 active 商家、新門市及營業日；失敗全部回復。一般會員與商家分別存放於 users、merchants，同一 Email 可各自註冊，但密碼及登入 session 不共用。客戶端不可指定既有門市所有權或管理員角色。
 此階段可新增草稿、列出／編輯自有商品、上架與下架；不是金流、商家訂單接單、圖片檔案上傳、Email 驗證或忘記密碼功能。
 
 商品包含名稱、分類、售價／原價、庫存、營養、食材、標籤、HTTPS 圖片網址與即期期限。
@@ -22,10 +23,11 @@ eco_priority_score 由後端暫定規則計算（即期品 0.8，其餘 0），�
 
 ## API
 
-除登入外，皆需商家 Bearer token；未知路徑不退回展示用原型。
+除註冊與登入外，皆需商家 Bearer token；未知路徑不退回展示用原型。註冊與登入共用限流。
 
 | Method | 路徑 | 用途 |
 | --- | --- | --- |
+| POST | /api/merchant/auth/register | email/password、businessName、storeName、address、businessHours、businessWeekdays（1–7）、contactPhone（選填）；成功 201，重複商家 Email 409 |
 | POST | /api/merchant/auth/login | email/password；只有 active 商家可登入 |
 | POST | /api/merchant/auth/logout | 撤銷目前商家 token |
 | GET | /api/merchant/me | 商家資料及其可管理門市 ID，不回傳密碼 |
@@ -44,7 +46,7 @@ App 在送出新草稿前，先依 API 網址及商家 ID 保存 UUID 與完整�
 
 ## 學校伺服器部署
 
-**這次需要 003 遷移。請勿只 git pull 後直接重啟；未套用 003 時，新版服務會拒絕啟動。**
+**自行註冊沿用 003 結構，沒有新增遷移。學校已驗證套用 003，不必重跑。以下首次部署程序僅供尚未套用 003 的環境參考。**
 僅在學校遠端桌面的管理員 PowerShell 操作，保持 MySQLFoodApp 3307、AppServ 3306、Apache 與防火牆既有設定不變。
 每一步成功才繼續，有錯誤請停下並保留輸出；不要一次貼完所有區段。
 
@@ -117,7 +119,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -A
 test:mysql 現在包含商家真實 MySQL 測試，須零失敗且零跳過。它只建立／清理自己的臨時測試資料，不會建立可供使用者登入的永久帳號。
 測試若失敗，勿繼續 Start 或重跑遷移；保留完整錯誤供查核。這是服務重啟，不是整台主機重開機驗收。
 
-## 建立第一個已核准商家
+## 管理者代建帳號（選用）
+
+日常註冊改由 App 完成，不需執行此工具。下列工具僅保留給管理者代建帳號，不代表仍有審核流程。
 
 上述步驟通過後，才在學校主機的管理員 PowerShell 執行：
 
