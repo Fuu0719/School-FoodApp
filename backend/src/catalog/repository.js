@@ -1,7 +1,7 @@
 const select = `SELECT f.*, s.name AS store_name, s.brand, s.address AS store_address,
   s.business_hours, s.contact_phone, s.distance_meters
   FROM foods f JOIN stores s ON s.id = f.store_id JOIN merchants m ON m.id = s.merchant_id`;
-const published = "m.status = 'active' AND f.status = 'active' AND f.stock_count > 0 AND (f.expires_at IS NULL OR f.expires_at > UTC_TIMESTAMP())";
+const published = "s.deleted_at IS NULL AND m.status = 'active' AND f.status = 'active' AND f.stock_count > 0 AND (f.expires_at IS NULL OR f.expires_at > UTC_TIMESTAMP())";
 const escapeLike = (text) => text.replace(/[!%_]/g, (character) => `!${character}`);
 
 class CatalogRepository {
@@ -66,7 +66,7 @@ class CatalogRepository {
   async store(id) {
     const [rows] = await this.pool.execute(`SELECT s.id, s.name, s.brand, s.address,
       s.distance_meters AS distanceMeters, s.business_hours AS businessHours, s.contact_phone AS contactPhone
-      FROM stores s JOIN merchants m ON m.id = s.merchant_id WHERE s.id = ? AND m.status = 'active'`, [id]);
+      FROM stores s JOIN merchants m ON m.id = s.merchant_id WHERE s.id = ? AND s.deleted_at IS NULL AND m.status = 'active'`, [id]);
     if (!rows.length) return null;
     const [days] = await this.pool.execute('SELECT weekday FROM store_business_weekdays WHERE store_id = ? ORDER BY weekday', [id]);
     return { ...rows[0], id: String(rows[0].id), businessWeekdays: days.map((day) => day.weekday) };

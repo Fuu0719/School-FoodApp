@@ -4,6 +4,7 @@ const { randomBytes } = require('node:crypto');
 const { hashPassword, verifyPassword, tokenHash } = require('./passwords');
 const ActivityRepository = require('../activity/repository');
 const activityRoutes = require('../activity/routes');
+const { phone: validatePhone } = require('../validation/phone');
 
 const run = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 function invalid(message) { return Object.assign(new Error(message), { statusCode: 400 }); }
@@ -26,7 +27,7 @@ function credentials(body) {
 function validateProfile(body) {
   body = body || {};
   const name = text(body.name, '姓名', 80);
-  const phone = text(body.phone, '電話', 40, false);
+  const phone = validatePhone(body.phone ?? '');
   const inRange = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
   if (!inRange(body.heightCm, 50, 250) || !inRange(body.weightKg, 10, 400)) {
     throw invalid('身高須為 50–250 公分，體重須為 10–400 公斤');

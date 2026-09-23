@@ -8,7 +8,8 @@ function profile(row) {
   if (!row) return null;
   return {
     id: String(row.id), name: row.name, email: row.email, phone: row.phone || '',
-    heightCm: Number(row.height_cm ?? 170), weightKg: Number(row.weight_kg ?? 65),
+    heightCm: row.height_cm == null ? null : Number(row.height_cm),
+    weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
     healthGoal: goalsFromDb[row.health_goal],
     dietaryTags: typeof row.dietary_tags === 'string'
       ? JSON.parse(row.dietary_tags) : row.dietary_tags || [],
@@ -35,7 +36,7 @@ class UserRepository {
   async create({ name, email, passwordHash }) {
     return this.transaction(async (connection) => {
       const [result] = await connection.execute(
-        'INSERT INTO users (name, email, password_hash, height_cm, weight_kg) VALUES (?, ?, ?, 170, 65)',
+        'INSERT INTO users (name, email, password_hash, height_cm, weight_kg) VALUES (?, ?, ?, NULL, NULL)',
         [name, email, passwordHash]);
       await connection.execute(
         'INSERT INTO user_preferences (user_id, dietary_tags, budget_max, distance_limit_meters) VALUES (?, ?, 150, 1000)',

@@ -14,11 +14,11 @@ test('startup schema check requires the correct unique member request index', as
   await assert.rejects(check(pool), { code: 'ACTIVITY_SCHEMA_MISSING' });
 });
 
-function fixture({ failure, previous, closed = false, expired = false, stock = 10 } = {}) {
+function fixture({ failure, previous, closed = false, expired = false, deleted = false, stock = 10 } = {}) {
   const events = [];
   const writes = [];
   const food = { id: '1', store_id: '2', name: 'Original meal', store_name: 'Original store',
-    merchant_status: 'active', status: 'active', price: 100, original_price: 120,
+    merchant_status: 'active', store_deleted_at: deleted ? new Date() : null, status: 'active', price: 100, original_price: 120,
     stock_count: stock, is_expiring_soon: 1, eco_priority_score: '0.5',
     expires_at: expired ? new Date(0) : null, calories: 400 };
   const connection = {
@@ -69,7 +69,7 @@ test('order item failure rolls back the header instead of leaving a partial orde
   assert.deepEqual(events, ['begin', 'rollback', 'release']);
 });
 
-for (const [name, options] of [['closed store', { closed: true }], ['expired food', { expired: true }],
+for (const [name, options] of [['deleted store', { deleted: true }], ['closed store', { closed: true }], ['expired food', { expired: true }],
   ['insufficient stock', { stock: 1 }]]) {
   test(`checkout rejects ${name} before inserting an order`, async () => {
     const { repository, events, writes } = fixture(options);

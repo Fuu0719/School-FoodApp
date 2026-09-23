@@ -1,7 +1,7 @@
 const { createHash } = require('node:crypto');
 
 const fail = (statusCode, message) => Object.assign(new Error(message), { statusCode });
-const foodColumns = `SELECT f.*, s.name AS store_name, m.status AS merchant_status
+const foodColumns = `SELECT f.*, s.name AS store_name, s.deleted_at AS store_deleted_at, m.status AS merchant_status
   FROM foods f JOIN stores s ON s.id = f.store_id JOIN merchants m ON m.id = s.merchant_id`;
 const asJson = (value) => typeof value === 'string' ? JSON.parse(value) : value;
 
@@ -26,8 +26,9 @@ class ActivityRepository {
 
   async favorites(userId, before) {
     const [rows] = await this.pool.execute(
-      `SELECT food_id AS foodId, created_at AS createdAt FROM favorites
-       WHERE user_id = ? AND food_id < ? ORDER BY food_id DESC LIMIT 50`, [userId, before]);
+      `SELECT v.food_id AS foodId, v.created_at AS createdAt FROM favorites v
+       JOIN foods f ON f.id = v.food_id JOIN stores s ON s.id = f.store_id
+       WHERE v.user_id = ? AND v.food_id < ? AND s.deleted_at IS NULL ORDER BY v.food_id DESC LIMIT 50`, [userId, before]);
     return rows.map((row) => ({ ...row, foodId: String(row.foodId) }));
   }
 
@@ -45,16 +46,17 @@ class ActivityRepository {
 
   async availableFood(connection, foodId) {
     const [rows] = await connection.execute(`${foodColumns} WHERE f.id = ?`, [foodId]);
-    if (!rows.length || rows[0].status !== 'active' || rows[0].merchant_status !== 'active') {
+    if (!rows.length || rows[0].store_deleted_at || rows[0].status !== 'active' || rows[0].merchant_status !== 'active') {
       throw fail(404, '餐點不存在或已下架');
     }
     return rows[0];
   }
 
   async history(userId) {
-    const [rows] = await this.pool.execute(`SELECT food_id AS foodId, MAX(viewed_at) AS viewedAt
-      FROM browsing_histories WHERE user_id = ? GROUP BY food_id
-      ORDER BY viewedAt DESC, MAX(id) DESC LIMIT 20`, [userId]);
+    const [rows] = await this.pool.execute(`SELECT h.food_id AS foodId, MAX(h.viewed_at) AS viewedAt
+      FROM browsing_histories h JOIN foods f ON f.id = h.food_id JOIN stores s ON s.id = f.store_id
+      WHERE h.user_id = ? AND s.deleted_at IS NULL GROUP BY h.food_id
+      ORDER BY viewedAt DESC, MAX(h.id) DESC LIMIT 20`, [userId]);
     return rows.map((row) => ({ ...row, foodId: String(row.foodId) }));
   }
 
@@ -116,7 +118,7 @@ class ActivityRepository {
       const lines = [];
       for (const item of sorted) {
         const food = foods.find((row) => String(row.id) === item.foodId);
-        if (!food || food.status !== 'active' || food.merchant_status !== 'active' ||
+        if (!food || food.store_deleted_at || food.status !== 'active' || food.merchant_status !== 'active' ||
             (food.expires_at && new Date(food.expires_at) <= now)) throw fail(409, '部分餐點已下架或過期');
         const [days] = await connection.execute(
           'SELECT weekday FROM store_business_weekdays WHERE store_id = ? AND weekday = ?', [food.store_id, day]);

@@ -2,7 +2,7 @@ const express = require('express');
 const { rateLimit } = require('express-rate-limit');
 const { randomBytes } = require('node:crypto');
 const { hashPassword, verifyPassword, tokenHash } = require('../auth/passwords');
-const { fail, id, integer, credentials, product, registration } = require('./validation');
+const { fail, id, integer, credentials, product, registration, storeInput } = require('./validation');
 const run = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 module.exports = function merchantRoutes(repository) {
   const router = express.Router();
@@ -41,6 +41,15 @@ module.exports = function merchantRoutes(repository) {
     next();
   }));
   router.get('/me', (req, res) => res.json(req.merchant));
+  router.get('/categories', run(async (req, res) => {
+    res.json(await repository.categories(req.merchant.id));
+  }));
+  router.post('/stores', run(async (req, res) => {
+    res.status(201).json(await repository.createStore(req.merchant.id, storeInput(req.body)));
+  }));
+  router.delete('/stores/:id', run(async (req, res) => {
+    res.json(await repository.deleteStore(req.merchant.id, id(req.params.id)));
+  }));
   router.post('/auth/logout', run(async (req, res) => {
     await repository.revoke(req.merchantSession);
     res.json({ message: '商家已登出' });

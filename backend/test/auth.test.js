@@ -78,6 +78,9 @@ async function memberFlow(t, repository, email) {
   assert.deepEqual(saved.body.dietaryTags, update.dietaryTags);
   assert.equal(saved.body.heightCm, 175.5);
   assert.equal(saved.body.healthGoal, 'muscleGain');
+  assert.equal((await call('/me', 'PUT', { ...update, phone: '123' }, token)).status, 400);
+  assert.equal((await call('/me', 'GET', undefined, token)).body.phone, '0912345678');
+  assert.equal((await call('/me', 'PUT', { ...update, phone: '+886 912-345-678' }, token)).body.phone, '0912345678');
   assert.equal((await call('/me', 'PUT', { ...update, heightCm: -1 }, token)).status, 400);
   assert.equal((await call('/me', 'PUT', { ...update, dietaryTags: [123] }, token)).status, 400);
   assert.equal((await call('/me', 'GET', undefined, token)).body.heightCm, 175.5);

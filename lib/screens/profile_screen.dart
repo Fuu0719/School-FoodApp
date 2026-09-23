@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/validation/phone.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/user_profile.dart';
 import 'package:my_app/screens/merchant_login_screen.dart';
@@ -24,12 +25,14 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserProfileService _profileService = UserProfileService.instance;
   final UserActivityService _activityService = UserActivityService.instance;
+  bool _editing = false;
 
   @override
   void initState() {
     super.initState();
     _profileService.addListener(_refresh);
     _activityService.addListener(_refresh);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _completeProfile());
   }
 
   @override
@@ -68,7 +71,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildLoginView() {
     return MemberLoginForm(
       service: _profileService,
-      onLoginComplete: widget.onLoginComplete,
+      onLoginComplete: () async {
+        await _completeProfile();
+        if (mounted &&
+            _profileService.profile?.needsProfileCompletion == false) {
+          widget.onLoginComplete?.call();
+        }
+      },
       onMerchantLogin: _goToMerchantLogin,
     );
   }
@@ -240,6 +249,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildHealthSummarySection(UserProfile profile) {
+    if (profile.needsProfileCompletion) {
+      return TextButton.icon(
+        onPressed: () => _openEditSheet(profile),
+        icon: const Icon(Icons.edit_outlined),
+        label: const Text('填寫身高與體重'),
+      );
+    }
     final target = profile.dailyNutritionTarget;
     final summary = _buildTodayHealthSummary(profile);
 
@@ -1084,7 +1100,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _openEditSheet(UserProfile profile) {
+  Future<void> _completeProfile() async {
+    if (!mounted || _editing) return;
+    final profile = _profileService.profile;
+    if (profile != null && profile.needsProfileCompletion) {
+      await _openEditSheet(profile);
+    }
+  }
+
+  Future<void> _openEditSheet(UserProfile profile) async {
+    if (_editing) return;
+    _editing = true;
     final nameController = TextEditingController(text: profile.name);
     final emailController = TextEditingController(text: profile.email);
     final phoneController = TextEditingController(text: profile.phone);
@@ -1100,6 +1126,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     var healthGoal = profile.healthGoal;
     var saving = false;
     String? saveError;
+    String? phoneError;
     final availableTags =
         FoodCatalogRepository.instance.allFoods
             .expand((food) => food.tags)
@@ -1107,7 +1134,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             .toList()
           ..sort();
 
-    showModalBottomSheet<void>(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
@@ -1153,7 +1180,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     TextField(
                       controller: phoneController,
-                      decoration: const InputDecoration(labelText: '電話'),
+                      keyboardType: TextInputType.phone,
+                      enabled: !saving,
+                      onChanged: (value) => setSheetState(() {
+                        phoneError = validateOptionalPhone(value);
+                      }),
+                      decoration: InputDecoration(
+                        labelText: '電話（選填）',
+                        errorText: phoneError,
+                      ),
                     ),
                     TextField(
                       controller: heightController,
@@ -1273,6 +1308,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onPressed: saving
                           ? null
                           : () async {
+                              final validation = validateOptionalPhone(
+                                phoneController.text,
+                              );
+                              if (validation != null) {
+                                setSheetState(() => phoneError = validation);
+                                return;
+                              }
                               setSheetState(() {
                                 saving = true;
                                 saveError = null;
@@ -1282,7 +1324,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   profile.copyWith(
                                     name: nameController.text.trim(),
                                     email: emailController.text.trim(),
-                                    phone: phoneController.text.trim(),
+                                    phone: normalizeOptionalPhone(
+                                      phoneController.text,
+                                    )!,
                                     dietaryTags: selectedTags.toList(),
                                     budgetMax: budgetMax,
                                     distanceLimitMeters: distanceLimit,
@@ -1322,6 +1366,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         );
       },
     );
+    _editing = false;
+    // Controllers belong to the sheet and are released after its exit animation.
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    heightController.dispose();
+    weightController.dispose();
   }
 
   void _refresh() {
@@ -1455,7 +1507,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return value;
   }
 
-  String _decimalLabel(double value) {
+  String _decimalLabel(double? value) {
+    if (value == null) return '';
     if (value == value.roundToDouble()) {
       return value.round().toString();
     }

@@ -19,22 +19,25 @@ class UserProfile {
   final List<String> dietaryTags;
   final int? budgetMax;
   final int? distanceLimitMeters;
-  final double heightCm;
-  final double weightKg;
+  final double? heightCm;
+  final double? weightKg;
+  bool get needsProfileCompletion => heightCm == null || weightKg == null;
   final HealthGoal healthGoal;
 
   double get bmi {
-    final heightMeters = heightCm / 100;
+    final heightMeters = (heightCm ?? 0) / 100;
     if (heightMeters <= 0) {
       return 0;
     }
 
-    return weightKg / (heightMeters * heightMeters);
+    return (weightKg ?? 0) / (heightMeters * heightMeters);
   }
 
-  String get bmiLabel => bmi.toStringAsFixed(1);
+  String get bmiLabel =>
+      needsProfileCompletion ? '未填寫' : bmi.toStringAsFixed(1);
 
   String get bmiStatus {
+    if (needsProfileCompletion) return '未填寫';
     if (bmi < 18.5) {
       return '偏瘦';
     }
@@ -51,6 +54,16 @@ class UserProfile {
   }
 
   DailyNutritionTarget get dailyNutritionTarget {
+    if (needsProfileCompletion) {
+      return const DailyNutritionTarget(
+        calories: 0,
+        proteinGrams: 0,
+        fatGrams: 0,
+        carbsGrams: 0,
+        waterMl: 0,
+      );
+    }
+    final weightKg = this.weightKg!;
     final baseCalories = switch (healthGoal) {
       HealthGoal.muscleGain => weightKg * 34,
       HealthGoal.fatLoss => weightKg * 24,
@@ -140,8 +153,8 @@ class UserProfile {
           demo.dietaryTags,
       budgetMax: json['budgetMax'] as int?,
       distanceLimitMeters: json['distanceLimitMeters'] as int?,
-      heightCm: (json['heightCm'] as num?)?.toDouble() ?? demo.heightCm,
-      weightKg: (json['weightKg'] as num?)?.toDouble() ?? demo.weightKg,
+      heightCm: (json['heightCm'] as num?)?.toDouble(),
+      weightKg: (json['weightKg'] as num?)?.toDouble(),
       healthGoal: HealthGoal.fromName(json['healthGoal'] as String?),
     );
   }

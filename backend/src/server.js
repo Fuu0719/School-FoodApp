@@ -27,7 +27,7 @@ async function start() {
 
 start().catch(async (error) => {
   console.error('Database startup check failed:', error.code,
-    'Check DB settings and apply missing database migrations (001, 002, 003).');
+    'Check DB settings and apply missing database migrations (001, 002, 003, 004).');
   await pool.end();
   process.exitCode = 1;
 });

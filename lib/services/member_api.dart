@@ -33,6 +33,11 @@ class MemberApi {
     }
     final request = http.Request(method, Uri.parse('$baseUrl$path'));
     request.headers['Content-Type'] = 'application/json';
+    if (base.scheme == 'https' &&
+        (base.host.endsWith('.ngrok-free.dev') ||
+            base.host.endsWith('.ngrok-free.app'))) {
+      request.headers['ngrok-skip-browser-warning'] = 'true';
+    }
     if (token != null) request.headers['Authorization'] = 'Bearer $token';
     if (idempotencyKey != null) {
       request.headers['Idempotency-Key'] = idempotencyKey;

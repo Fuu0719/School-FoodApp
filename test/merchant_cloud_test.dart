@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -13,6 +14,7 @@ import 'package:my_app/services/merchant_auth_service.dart';
 import 'package:my_app/screens/merchant_products_screen.dart';
 import 'package:my_app/screens/merchant_product_editor.dart';
 import 'package:my_app/screens/merchant_register_screen.dart';
+import 'package:my_app/validation/phone.dart';
 
 const merchant = {
   'id': '1',
@@ -67,6 +69,11 @@ MemberApi api([
       return response({'merchant': merchant, 'token': 'a' * 64});
     }
     if (request.url.path.endsWith('/merchant/me')) return response(merchant);
+    if (request.url.path.endsWith('/merchant/categories')) {
+      return response({
+        'items': ['便當'],
+      });
+    }
     if (request.url.path.endsWith('/products') && request.method == 'GET') {
       return response({
         'items': [productJson()],
@@ -97,12 +104,275 @@ void main() {
     email: 'owner@example.test',
     password: 'Merchant-test-password!',
     businessName: 'Test merchant',
-    storeName: 'Test store',
-    address: 'Test address',
-    businessHours: '09:00-20:00',
     contactPhone: '',
-    businessWeekdays: [1, 2, 3],
   );
+  testWidgets('optional store phone rejects malformed input before sending', (
+    tester,
+  ) async {
+    var sent = 0;
+    final service = await connect(
+      api((request) async {
+        if (request.url.path.endsWith('/stores') && request.method == 'POST') {
+          sent++;
+          return response(merchant, 201);
+        }
+        return null;
+      }),
+    );
+    await tester.binding.setSurfaceSize(const Size(320, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MerchantRegisterScreen(service: service, createStore: true),
+      ),
+    );
+    await tester.enterText(find.byType(TextFormField).at(0), 'Branch');
+    await tester.enterText(find.byType(TextFormField).at(1), 'Address');
+    await tester.enterText(find.byType(TextFormField).at(2), '123');
+    await tester.tap(find.text('建立門市'));
+    await tester.pumpAndSettle();
+    expect(find.text(phoneFormatMessage), findsOneWidget);
+    expect(sent, 0);
+    await tester.enterText(find.byType(TextFormField).at(2), '');
+    await tester.tap(find.text('週一'));
+    await tester.tap(find.text('建立門市'));
+    await tester.pumpAndSettle();
+    expect(sent, 1);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    service.dispose();
+  });
+
+  testWidgets(
+    'custom categories load, validate, deduplicate and persist with edited product',
+    (tester) async {
+      String? savedCategory;
+      final service = await connect(
+        api((request) async {
+          if (request.url.path.endsWith('/categories')) {
+            return response({
+              'items': ['歷史商品分類'],
+            });
+          }
+          if (request.method == 'PUT') {
+            savedCategory =
+                (jsonDecode(request.body) as Map)['category'] as String;
+            return response({...productJson(), 'category': savedCategory});
+          }
+          return null;
+        }),
+      );
+      await service.refresh();
+      expect(service.categories, contains('歷史商品分類'));
+      await tester.binding.setSurfaceSize(const Size(320, 1000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MerchantProductEditor(
+            service: service,
+            product: MerchantProduct.fromJson(productJson()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('新增分類'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('新增'));
+      await tester.pumpAndSettle();
+      expect(find.text('請輸入分類名稱'), findsOneWidget);
+      final categoryInput = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextFormField),
+      );
+      await tester.enterText(categoryInput, '  自訂甜點  ');
+      await tester.tap(find.text('新增'));
+      await tester.pumpAndSettle();
+      expect(find.text('自訂甜點'), findsWidgets);
+      await tester.tap(find.byTooltip('新增分類'));
+      await tester.pumpAndSettle();
+      await tester.enterText(categoryInput, '自訂甜點');
+      await tester.tap(find.text('新增'));
+      await tester.pumpAndSettle();
+      final dropdown = tester.widget<DropdownButtonFormField<String>>(
+        find.byKey(const ValueKey('category:自訂甜點')),
+      );
+      expect(dropdown.initialValue, '自訂甜點');
+      await tester.scrollUntilVisible(
+        find.text('儲存草稿'),
+        500,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('儲存草稿'));
+      await tester.pumpAndSettle();
+      expect(savedCategory, '自訂甜點');
+      expect(service.categories.where((v) => v == '自訂甜點'), hasLength(1));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      service.dispose();
+    },
+  );
+  testWidgets(
+    'store deletion confirms, keeps data on failure and removes on success',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(320, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      var calls = 0;
+      var fail = true;
+      final service = await connect(
+        api((request) async {
+          if (request.method == 'DELETE') {
+            calls++;
+            expect(request.url.path, '/api/merchant/stores/10');
+            expect(request.headers['Authorization'], 'Bearer ${'a' * 64}');
+            return fail
+                ? response({'message': '刪除未完成，請重試'}, 503)
+                : response({...merchant, 'stores': []});
+          }
+          return null;
+        }),
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: MerchantProductsScreen(service: service)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('門市管理（1）'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('刪除 測試門市'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('既有訂單紀錄會保留'), findsOneWidget);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      expect(calls, 0);
+      await tester.tap(find.byTooltip('刪除 測試門市'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('刪除門市'));
+      await tester.pumpAndSettle();
+      expect(calls, 1);
+      expect(service.account!.stores, hasLength(1));
+      expect(service.products, hasLength(1));
+      expect(find.text('刪除未完成，請重試'), findsWidgets);
+      fail = false;
+      await tester.tap(find.byTooltip('刪除 測試門市'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('刪除門市'));
+      await tester.pumpAndSettle();
+      expect(calls, 2);
+      expect(service.account!.stores, isEmpty);
+      expect(service.products, isEmpty);
+      expect(find.byTooltip('刪除 測試門市'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      service.dispose();
+    },
+  );
+
+  test(
+    'deleting a store discards its pending draft but preserves other stores',
+    () async {
+      var removed = false;
+      final otherStore = {
+        ...(merchant['stores'] as List).first as Map,
+        'id': '11',
+      };
+      final service = await connect(
+        api((request) async {
+          if (request.url.path.endsWith('/products') &&
+              request.method == 'POST') {
+            return response({'message': 'timeout'}, 503);
+          }
+          if (request.method == 'DELETE') {
+            removed = true;
+            return response({
+              ...merchant,
+              'stores': [otherStore],
+            });
+          }
+          if (request.url.path.endsWith('/merchant/me')) {
+            return response({
+              ...merchant,
+              'stores': [
+                if (!removed) ...(merchant['stores'] as List),
+                otherStore,
+              ],
+            });
+          }
+          if (request.url.path.endsWith('/products') &&
+              request.method == 'GET') {
+            return response({
+              'items': [
+                productJson(),
+                {...productJson(), 'id': '8', 'storeId': '11'},
+              ],
+              'nextCursor': null,
+            });
+          }
+          return null;
+        }),
+      );
+      await service.refresh();
+      await expectLater(
+        service.save(MerchantProductInput.fromJson(productJson())),
+        throwsA(isA<MemberApiException>()),
+      );
+      expect(service.hasPendingDraft, isTrue);
+      await service.deleteStore('10');
+      expect(service.hasPendingDraft, isFalse);
+      expect(service.products.map((p) => p.id), ['8']);
+      expect(service.account!.stores.single.id, '11');
+      expect(
+        (await SharedPreferences.getInstance()).getKeys().where(
+          (k) => k.startsWith('merchant_pending:'),
+        ),
+        isEmpty,
+      );
+      service.dispose();
+    },
+  );
+  testWidgets('store uses 24-hour wheels and authenticated structured fields', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 1000));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    Map<String, dynamic>? sent;
+    final service = await connect(
+      api((request) async {
+        if (request.url.path.endsWith('/stores')) {
+          sent = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(request.headers['Authorization'], 'Bearer ${'a' * 64}');
+          return response({'message': 'store duplicate'}, 409);
+        }
+        return null;
+      }),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MerchantRegisterScreen(service: service, createStore: true),
+      ),
+    );
+    expect(find.text('商家 Email'), findsNothing);
+    await tester.enterText(find.byType(TextFormField).at(0), 'Branch');
+    await tester.enterText(find.byType(TextFormField).at(1), 'Address');
+    await tester.tap(find.text('開始營業'));
+    await tester.pumpAndSettle();
+    final picker = tester.widget<CupertinoDatePicker>(
+      find.byType(CupertinoDatePicker),
+    );
+    expect(picker.use24hFormat, isTrue);
+    picker.onDateTimeChanged(DateTime(2026, 1, 1, 8, 30));
+    await tester.tap(find.text('完成'));
+    await tester.pumpAndSettle();
+    expect(find.text('08:30'), findsOneWidget);
+    await tester.tap(find.text('週一'));
+    await tester.tap(find.text('建立門市'));
+    await tester.pumpAndSettle();
+    expect(sent!['opensAt'], '08:30');
+    expect(sent!['closesAt'], '18:00');
+    expect(sent!['merchantId'], isNull);
+    expect(find.text('store duplicate'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    service.dispose();
+  });
   testWidgets(
     'registration form validates and retains fields after rejection at narrow width',
     (tester) async {
@@ -128,9 +398,6 @@ void main() {
         'owner@example.test',
         'Merchant-test-password!',
         'Merchant-test-password!',
-        'Test store',
-        'Test address',
-        '09:00-20:00',
         '',
       ];
       for (var i = 0; i < values.length; i++) {
@@ -138,11 +405,7 @@ void main() {
       }
       await tester.tap(find.text('建立商家帳號'));
       await tester.pumpAndSettle();
-      expect(find.text('請至少選擇一個營業日'), findsOneWidget);
-      expect(calls, 0);
-      await tester.tap(find.text('週一'));
-      await tester.tap(find.text('建立商家帳號'));
-      await tester.pumpAndSettle();
+      expect(find.text('門市名稱'), findsNothing);
       expect(calls, 1);
       expect(find.text('Email already registered'), findsOneWidget);
       expect(find.text('owner@example.test'), findsOneWidget);

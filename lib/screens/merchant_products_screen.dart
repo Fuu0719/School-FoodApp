@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/models/merchant_product.dart';
+import 'package:my_app/models/merchant_account.dart';
 import 'package:my_app/services/merchant_auth_service.dart';
 import 'package:my_app/services/member_api.dart';
 import 'package:my_app/screens/merchant_product_editor.dart';
@@ -234,6 +235,94 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
     }
   }
 
+  Future<void> _deleteStore(MerchantStore store) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('刪除門市及全部商品？'),
+        content: Text('「${store.name}」及所屬全部商品將移除，包含尚未上架的草稿。此操作無法復原，既有訂單紀錄會保留。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('刪除門市'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await _act(() async {
+      await service.deleteStore(store.id);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('門市及所屬商品已移除')));
+      }
+    });
+  }
+
+  Future<void> _manageStores() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * 0.6,
+        child: AnimatedBuilder(
+          animation: service,
+          builder: (context, _) => Column(
+            children: [
+              const ListTile(title: Text('門市管理')),
+              if (service.isBusy) const LinearProgressIndicator(),
+              if (service.errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    service.errorMessage!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: service.account?.stores.isNotEmpty != true
+                    ? const Center(child: Text('尚無門市'))
+                    : ListView.separated(
+                        itemCount: service.account!.stores.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final store = service.account!.stores[index];
+                          return ListTile(
+                            title: Text(store.name),
+                            subtitle: Text(
+                              '${store.address}\n${store.businessHours}',
+                            ),
+                            trailing: IconButton(
+                              tooltip: '刪除 ${store.name}',
+                              icon: const Icon(Icons.delete_outline),
+                              color: Theme.of(context).colorScheme.error,
+                              onPressed: service.isBusy
+                                  ? null
+                                  : () => _deleteStore(store),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+
   void _login() => Navigator.pushReplacement(
     context,
     MaterialPageRoute<void>(
@@ -291,6 +380,31 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              onPressed: service.isBusy
+                                  ? null
+                                  : () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute<void>(
+                                        builder: (_) => MerchantRegisterScreen(
+                                          service: service,
+                                          createStore: true,
+                                        ),
+                                      ),
+                                    ),
+                              icon: const Icon(Icons.add_business_outlined),
+                              label: const Text('新增門市'),
+                            ),
+                            if (service.account!.stores.isNotEmpty)
+                              OutlinedButton.icon(
+                                onPressed: service.isBusy
+                                    ? null
+                                    : _manageStores,
+                                icon: const Icon(Icons.storefront_outlined),
+                                label: Text(
+                                  '門市管理（${service.account!.stores.length}）',
+                                ),
+                              ),
                             FilledButton.icon(
                               onPressed:
                                   service.isBusy ||
@@ -309,7 +423,7 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                               ),
                             ),
                             if (service.account!.stores.isEmpty)
-                              const Text('尚未分配可管理門市'),
+                              const Text('尚無門市'),
                             if (service.pendingCorrupt)
                               const Text('待確認草稿資料異常，請聯絡管理者'),
                             if (error != null)

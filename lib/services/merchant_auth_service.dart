@@ -28,6 +28,19 @@ class MerchantAuthService extends ChangeNotifier {
   String? _cursor;
   bool loaded = false;
   final List<MerchantProduct> _products = [];
+  final Set<String> _categories = {};
+  static const defaultCategories = [
+    '便當',
+    '麵食',
+    '飯糰',
+    '沙拉',
+    '三明治',
+    '麵包',
+    '飲品',
+    '其他',
+  ];
+  List<String> get categories =>
+      List.unmodifiable({...defaultCategories, ..._categories});
   MerchantProductInput? _pendingInput;
   String? _pendingId;
   bool pendingCorrupt = false;
@@ -84,6 +97,7 @@ class MerchantAuthService extends ChangeNotifier {
         await _api.request('GET', '/merchant/me', token: _token),
       );
       await _restorePending();
+      await _discardRemovedStoreDraft();
     });
   }
 
@@ -115,7 +129,44 @@ class MerchantAuthService extends ChangeNotifier {
       _token = token;
       _account = account;
       await _restorePending();
+      await _discardRemovedStoreDraft();
     });
+  }
+
+  Future<void> createStore(Map<String, Object?> data) => _run(() async {
+    _requireAccount();
+    _account = MerchantAccount.fromJson(
+      await _api.request('POST', '/merchant/stores', token: _token, body: data),
+    );
+  });
+
+  Future<void> deleteStore(String id) => _run(() async {
+    _requireAccount();
+    _account = MerchantAccount.fromJson(
+      await _api.request('DELETE', '/merchant/stores/$id', token: _token),
+    );
+    _removeUnavailableProducts();
+    await _discardRemovedStoreDraft();
+  });
+
+  void _removeUnavailableProducts() {
+    final storeIds = _account!.stores.map((store) => store.id).toSet();
+    _products.removeWhere(
+      (product) => !storeIds.contains(product.input.storeId),
+    );
+  }
+
+  Future<void> _discardRemovedStoreDraft() async {
+    if (_pendingInput == null ||
+        _account!.stores.any((store) => store.id == _pendingInput!.storeId)) {
+      return;
+    }
+    final preferences = await SharedPreferences.getInstance();
+    if (!await preferences.remove(_pendingKey)) {
+      throw const MemberApiException('門市已移除，待確認草稿清理失敗，請重新載入');
+    }
+    _pendingInput = null;
+    _pendingId = null;
   }
 
   Future<void> logout() async {
@@ -140,6 +191,7 @@ class MerchantAuthService extends ChangeNotifier {
     _account = null;
     _token = null;
     _products.clear();
+    _categories.clear();
     _cursor = null;
     loaded = false;
     _pendingId = null;
@@ -181,6 +233,13 @@ class MerchantAuthService extends ChangeNotifier {
 
   Future<void> refresh({bool more = false}) => _run(() async {
     _requireAccount();
+    if (!more) {
+      _account = MerchantAccount.fromJson(
+        await _api.request('GET', '/merchant/me', token: _token),
+      );
+      _removeUnavailableProducts();
+      await _discardRemovedStoreDraft();
+    }
     if (more && _cursor == null) return;
     final data = await _api.request(
       'GET',
@@ -196,6 +255,24 @@ class MerchantAuthService extends ChangeNotifier {
             (more && cursor == _cursor))) {
       throw const MemberApiException('商品分頁回應異常');
     }
+    if (!more) {
+      final choices = await _api.request(
+        'GET',
+        '/merchant/categories',
+        token: _token,
+      );
+      final items = choices['items'];
+      if (items is! List ||
+          items.any(
+            (item) =>
+                item is! String || item.trim().isEmpty || item.length > 40,
+          )) {
+        throw const MemberApiException('商品分類回應異常，請重新載入');
+      }
+      _categories
+        ..clear()
+        ..addAll(items.cast<String>());
+    }
     if (!more) _products.clear();
     final ids = _products.map((p) => p.id).toSet();
     _products.addAll(products.where((p) => ids.add(p.id)));
@@ -209,6 +286,7 @@ class MerchantAuthService extends ChangeNotifier {
     );
   });
   void _replace(MerchantProduct product) {
+    _categories.add(product.input.category);
     final index = _products.indexWhere((p) => p.id == product.id);
     if (index < 0) {
       _products.insert(0, product);
@@ -292,6 +370,7 @@ class MerchantAuthService extends ChangeNotifier {
     _token = null;
     _busy = false;
     _products.clear();
+    _categories.clear();
     _pendingId = null;
     _pendingInput = null;
     pendingCorrupt = false;

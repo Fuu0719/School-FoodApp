@@ -16,6 +16,7 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
   final fields = <String, TextEditingController>{};
   late String storeId;
   String category = '便當';
+  final addedCategories = <String>{};
   bool expiring = false;
   DateTime? expires;
   String? error;
@@ -102,6 +103,26 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
     }
   }
 
+  Future<void> _addCategory() async {
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (_) => const _NewCategoryDialog(),
+    );
+    if (selected == null || !mounted) return;
+    final choices = {
+      ...widget.service.categories,
+      ...addedCategories,
+      category,
+    };
+    final existing = choices.where(
+      (choice) => choice.toLowerCase() == selected.toLowerCase(),
+    );
+    setState(() {
+      category = existing.isEmpty ? selected : existing.first;
+      addedCategories.add(category);
+    });
+  }
+
   List<String> _list(String field) => fields[field]!.text
       .split(RegExp(r'[,，、]'))
       .map((v) => v.trim())
@@ -156,17 +177,7 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
     animation: widget.service,
     builder: (context, _) {
       final service = widget.service;
-      final categories = {
-        '便當',
-        '麵食',
-        '飯糰',
-        '沙拉',
-        '三明治',
-        '麵包',
-        '飲品',
-        '其他',
-        category,
-      };
+      final categories = {...service.categories, ...addedCategories, category};
       final stores = service.account?.stores ?? [];
       return PopScope(
         canPop: !service.isBusy,
@@ -220,6 +231,7 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
                                 const SizedBox(height: 12),
                                 _text('name', '餐點名稱', required: true),
                                 DropdownButtonFormField<String>(
+                                  key: ValueKey('category:$category'),
                                   initialValue: category,
                                   isExpanded: true,
                                   decoration: const InputDecoration(
@@ -229,13 +241,26 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
                                       .map(
                                         (v) => DropdownMenuItem(
                                           value: v,
-                                          child: Text(v),
+                                          child: Text(
+                                            v,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
                                         ),
                                       )
                                       .toList(),
                                   onChanged: (v) {
                                     if (v != null) setState(() => category = v);
                                   },
+                                ),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: IconButton(
+                                    tooltip: '新增分類',
+                                    onPressed: service.isBusy || pending
+                                        ? null
+                                        : _addCategory,
+                                    icon: const Icon(Icons.add),
+                                  ),
                                 ),
                                 const SizedBox(height: 12),
                                 ...numberFields.map(
@@ -356,5 +381,57 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
       validator: (value) =>
           required && (value ?? '').trim().isEmpty ? '此欄位不可空白' : null,
     ),
+  );
+}
+
+class _NewCategoryDialog extends StatefulWidget {
+  const _NewCategoryDialog();
+  @override
+  State<_NewCategoryDialog> createState() => _NewCategoryDialogState();
+}
+
+class _NewCategoryDialogState extends State<_NewCategoryDialog> {
+  final form = GlobalKey<FormState>();
+  final controller = TextEditingController();
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  void submit() {
+    if (form.currentState!.validate()) {
+      Navigator.pop(context, controller.text.trim());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('新增分類'),
+    content: Form(
+      key: form,
+      child: TextFormField(
+        controller: controller,
+        autofocus: true,
+        maxLength: 40,
+        decoration: const InputDecoration(labelText: '分類名稱'),
+        textInputAction: TextInputAction.done,
+        onFieldSubmitted: (_) => submit(),
+        validator: (value) {
+          final name = (value ?? '').trim();
+          if (name.isEmpty) return '請輸入分類名稱';
+          if (name.length > 40) return '分類最多 40 個字元';
+          if (RegExp(r'[\x00-\x1f\x7f]').hasMatch(name)) return '分類不可含換行或控制字元';
+          return null;
+        },
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('取消'),
+      ),
+      FilledButton(onPressed: submit, child: const Text('新增')),
+    ],
   );
 }
