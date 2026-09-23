@@ -17,7 +17,9 @@ class RecommendationService {
       final isInBudget =
           food.price >= preference.budgetMin &&
           food.price <= preference.budgetMax;
-      final isNearby = food.distanceMeters <= preference.distanceLimitMeters;
+      final isNearby =
+          !food.hasDistance ||
+          food.distanceMeters <= preference.distanceLimitMeters;
       final avoidsRestrictedIngredients = preference.avoidIngredients.every(
         (ingredient) => !food.ingredients.contains(ingredient),
       );
@@ -56,8 +58,9 @@ class RecommendationService {
     final preferenceScore = preference.preferredTags.isEmpty
         ? 0.5
         : tagMatches / preference.preferredTags.length;
-    final distanceScore =
-        1 - (food.distanceMeters / preference.distanceLimitMeters);
+    final distanceScore = food.hasDistance
+        ? 1 - (food.distanceMeters / preference.distanceLimitMeters)
+        : 0.5;
     final budgetCenter = (preference.budgetMin + preference.budgetMax) / 2;
     final budgetScore = 1 - ((food.price - budgetCenter).abs() / budgetCenter);
     final ecoScore = preference.wasteReductionEnabled

@@ -188,4 +188,27 @@ void main() {
 
     expect(recommendations, [openFood]);
   });
+
+  test('recommendations keep foods whose store distance is not provided', () {
+    const service = RecommendationService();
+    final unknownDistanceFood = MockFoodRepository.allFoods.first.copyWith(
+      businessWeekdays: const [DateTime.wednesday],
+      distanceMeters: 1000001,
+      hasDistance: false,
+    );
+
+    final recommendations = service.getRecommendations(
+      foods: [unknownDistanceFood],
+      preference: UserPreference.defaultPreference,
+      now: wednesday,
+    );
+
+    expect(recommendations, [unknownDistanceFood]);
+    expect(
+      service
+          .scoreFood(unknownDistanceFood, UserPreference.defaultPreference)
+          .distanceScore,
+      0.5,
+    );
+  });
 }
