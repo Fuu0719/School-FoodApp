@@ -10,6 +10,19 @@ class OrderPage {
   final String? nextCursor;
 }
 
+class EcoRanking {
+  const EcoRanking({
+    required this.name,
+    required this.points,
+    required this.rank,
+    required this.isMe,
+  });
+  final String name;
+  final int points;
+  final int rank;
+  final bool isMe;
+}
+
 class MemberActivityApi {
   MemberActivityApi({
     required this.api,
@@ -61,6 +74,20 @@ class MemberActivityApi {
 
   Future<void> clearHistory() async {
     await _request('DELETE', '/me/history');
+  }
+
+  Future<List<EcoRanking>> leaderboard() async {
+    final items = _items(await _request('GET', '/me/leaderboard'));
+    return items.map((item) {
+      final name = item['name'];
+      final points = item['points'];
+      final rank = item['rank'];
+      final isMe = item['isMe'];
+      if (name is! String || points is! int || rank is! int || isMe is! bool) {
+        throw const MemberApiException('排行榜資料格式不正確');
+      }
+      return EcoRanking(name: name, points: points, rank: rank, isMe: isMe);
+    }).toList();
   }
 
   Future<OrderPage> orders({String? before}) async {

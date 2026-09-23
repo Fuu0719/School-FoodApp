@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/cart_item.dart';
 import 'package:my_app/services/user_activity_service.dart';
 import 'package:my_app/widgets/food_photo.dart';
@@ -113,7 +114,27 @@ class _CartScreenState extends State<CartScreen> {
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       itemCount: cartItems.length,
-      itemBuilder: (context, index) => _buildCartTile(cartItems[index]),
+      itemBuilder: (context, index) {
+        final item = cartItems[index];
+        return Dismissible(
+          key: ValueKey('cart-${item.food.id}'),
+          direction: _activityService.cartLocked
+              ? DismissDirection.none
+              : DismissDirection.endToStart,
+          background: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(right: 24),
+            alignment: Alignment.centerRight,
+            color: Theme.of(context).colorScheme.errorContainer,
+            child: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+          ),
+          onDismissed: (_) => _activityService.setCartQuantity(item.food, 0),
+          child: _buildCartTile(item),
+        );
+      },
     );
   }
 
@@ -271,6 +292,14 @@ class _CartScreenState extends State<CartScreen> {
     final record = await _activityService.submitCart();
     if (record == null || !mounted) {
       return;
+    }
+
+    _activityService.applyCheckoutStock(record);
+
+    if (FoodCatalogRepository.instance.useCloud) {
+      await FoodCatalogRepository.instance.load();
+      await _activityService.refreshCloud();
+      if (!mounted) return;
     }
 
     ScaffoldMessenger.of(context).showSnackBar(

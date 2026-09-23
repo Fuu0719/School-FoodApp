@@ -52,13 +52,7 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
     ]) {
       final value = json?[field];
       fields[field] = TextEditingController(
-        text: value is List
-            ? value.join('、')
-            : value?.toString() ??
-                  (numberFields.any((v) => v.$1 == field) &&
-                          field != 'originalPrice'
-                      ? '0'
-                      : ''),
+        text: value is List ? value.join('、') : value?.toString() ?? '',
       );
     }
   }
@@ -73,7 +67,7 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
 
   Future<void> _expiry() async {
     final now = DateTime.now();
-    final lastDate = DateTime(now.year + 10);
+    final lastDate = now.add(const Duration(hours: 24));
     final date = await showDatePicker(
       context: context,
       initialDate:
@@ -140,7 +134,7 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
     if (pending) {
       input = widget.service.pendingInput!;
     } else {
-      int number(String key) => int.parse(fields[key]!.text.trim());
+      int number(String key) => int.tryParse(fields[key]!.text.trim()) ?? 0;
       input = MerchantProductInput(
         storeId: storeId,
         name: fields['name']!.text.trim(),
@@ -268,18 +262,28 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
                                     padding: const EdgeInsets.only(bottom: 12),
                                     child: TextFormField(
                                       controller: fields[field.$1],
+                                      onTap: () {
+                                        final controller = fields[field.$1]!;
+                                        if (controller.text == '0') {
+                                          controller.clear();
+                                        }
+                                      },
                                       keyboardType: TextInputType.number,
                                       decoration: InputDecoration(
                                         labelText: field.$2,
+                                        hintText: field.$1 == 'originalPrice'
+                                            ? null
+                                            : '0',
                                       ),
                                       validator: (value) {
                                         if (field.$1 == 'originalPrice' &&
                                             (value ?? '').trim().isEmpty) {
                                           return null;
                                         }
-                                        final number = int.tryParse(
-                                          (value ?? '').trim(),
-                                        );
+                                        final text = (value ?? '').trim();
+                                        final number = text.isEmpty
+                                            ? 0
+                                            : int.tryParse(text);
                                         if (number == null ||
                                             number < 0 ||
                                             number > field.$3) {

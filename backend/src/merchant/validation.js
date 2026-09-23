@@ -16,11 +16,12 @@ function integer(value, label, max = 1000000) {
   if (!Number.isInteger(value) || value < 0 || value > max) throw fail(400, `${label}須為 0 至 ${max} 的整數`);
   return value;
 }
-function credentials(body = {}) {
+function credentials(body = {}, { registration = false } = {}) {
   const email = text(body.email, 'Email', 160).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw fail(400, 'Email 格式不正確');
-  if (typeof body.password !== 'string' || body.password.length < 12 || body.password.length > 128) {
-    throw fail(400, '密碼長度須為 12 至 128 個字元');
+  const max = registration ? 16 : 128;
+  if (typeof body.password !== 'string' || body.password.length < 8 || body.password.length > max) {
+    throw fail(400, registration ? '密碼長度須為 8 至 16 個字元' : '商家帳號或密碼不正確');
   }
   return { email, password: body.password };
 }
@@ -44,6 +45,12 @@ function product(body = {}) {
     expiresAt = date.toISOString();
   }
   if (body.isExpiringSoon && !expiresAt) throw fail(400, '即期餐點須填寫保存期限');
+  if (body.isExpiringSoon) {
+    const remaining = new Date(expiresAt).getTime() - Date.now();
+    if (remaining <= 0 || remaining > 24 * 60 * 60 * 1000) {
+      throw fail(400, '即期餐點保存期限須在未來 24 小時內');
+    }
+  }
   const imageUrl = text(body.imageUrl, '圖片網址', 600, true);
   if (imageUrl) {
     let url;
@@ -61,7 +68,7 @@ function product(body = {}) {
 }
 function registration(body = {}) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw fail(400, '註冊資料格式不正確');
-  const auth = credentials(body);
+  const auth = credentials(body, { registration: true });
   const account = { ...auth, businessName: text(body.businessName, '商家名稱', 120),
     contactPhone: phone(body.contactPhone ?? '') };
   // Older clients still send the first store during registration.

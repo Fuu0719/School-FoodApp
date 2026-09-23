@@ -79,6 +79,25 @@ class ActivityRepository {
       'DELETE FROM browsing_histories WHERE user_id = ?', [userId]));
   }
 
+  async leaderboard(userId) {
+    const [rows] = await this.pool.execute(`WITH scores AS (
+      SELECT u.id, u.name, COALESCE(SUM(o.eco_points), 0) AS points
+      FROM users u LEFT JOIN purchase_orders o ON o.user_id = u.id
+      GROUP BY u.id, u.name
+    ), ranked AS (
+      SELECT id, name, points, ROW_NUMBER() OVER (ORDER BY points DESC, id ASC) AS rankNumber
+      FROM scores
+    )
+    SELECT id, name, points, rankNumber FROM ranked
+    WHERE rankNumber <= 3 OR id = ? ORDER BY rankNumber`, [userId]);
+    return rows.map((row) => ({
+      name: row.name,
+      points: Number(row.points),
+      rank: Number(row.rankNumber),
+      isMe: String(row.id) === String(userId),
+    }));
+  }
+
   async orders(userId, before) {
     const [rows] = await this.pool.execute(`SELECT id, total_quantity AS totalQuantity,
       total_price AS totalPrice, purchased_at AS purchasedAt FROM purchase_orders

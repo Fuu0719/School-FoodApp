@@ -20,6 +20,8 @@ class _CollectionScreenState extends State<CollectionScreen>
     with SingleTickerProviderStateMixin {
   final UserActivityService _activityService = UserActivityService.instance;
   late final TabController _tabController;
+  final TextEditingController _foodSearchController = TextEditingController();
+  String _foodQuery = '';
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _CollectionScreenState extends State<CollectionScreen>
   @override
   void dispose() {
     _activityService.removeListener(_refresh);
+    _foodSearchController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -111,18 +114,40 @@ class _CollectionScreenState extends State<CollectionScreen>
           : Column(
               children: [
                 if (_activityService.isSyncing) const LinearProgressIndicator(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: TextField(
+                    controller: _foodSearchController,
+                    onChanged: (value) =>
+                        setState(() => _foodQuery = value.trim().toLowerCase()),
+                    decoration: InputDecoration(
+                      hintText: '搜尋收藏或瀏覽紀錄',
+                      prefixIcon: const Icon(Icons.search),
+                      suffixIcon: _foodQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              tooltip: '清除搜尋',
+                              onPressed: () {
+                                _foodSearchController.clear();
+                                setState(() => _foodQuery = '');
+                              },
+                              icon: const Icon(Icons.close),
+                            ),
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: TabBarView(
                     controller: _tabController,
                     children: [
                       _buildFoodList(
-                        foods: _activityService.favorites,
+                        foods: _filterFoods(_activityService.favorites),
                         emptyTitle: '尚未收藏餐點',
                         emptyMessage: '在餐點詳情頁按下收藏，之後就能在這裡快速找到。',
                         removable: true,
                       ),
                       _buildFoodList(
-                        foods: _activityService.history,
+                        foods: _filterFoods(_activityService.history),
                         emptyTitle: '尚無瀏覽紀錄',
                         emptyMessage: '點進餐點詳情後，系統會自動留下最近看過的餐點。',
                       ),
@@ -136,6 +161,18 @@ class _CollectionScreenState extends State<CollectionScreen>
               ],
             ),
     );
+  }
+
+  List<FoodItem> _filterFoods(List<FoodItem> foods) {
+    if (_foodQuery.isEmpty) return foods;
+    return foods
+        .where(
+          (food) =>
+              food.name.toLowerCase().contains(_foodQuery) ||
+              food.storeName.toLowerCase().contains(_foodQuery) ||
+              food.category.toLowerCase().contains(_foodQuery),
+        )
+        .toList();
   }
 
   Widget _buildFoodList({

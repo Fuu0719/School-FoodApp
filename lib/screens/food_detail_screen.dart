@@ -215,6 +215,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
           Icons.eco_rounded,
           '減廢分數',
           '${(food.ecoPriorityScore * 100).round()} 分',
+          onTap: _showEcoScoreExplanation,
         ),
       ],
     );
@@ -228,35 +229,60 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
     return '${food.priceLabel} / 原價 NT\$ ${food.originalPrice}';
   }
 
-  Widget _buildInfoTile(IconData icon, String title, String value) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: const Color(0xFF4E8D57), size: 22),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 12, color: Colors.black54),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2E3A2F),
+  Widget _buildInfoTile(
+    IconData icon,
+    String title,
+    String value, {
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: const Color(0xFF4E8D57), size: 22),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2E3A2F),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEcoScoreExplanation() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Text(
+            '減廢分數用來排序較需要優先被購買的餐點。分數綜合即期狀態、距保存期限的時間、折扣幅度與庫存等資料；分數越高，代表優先購買越有助於降低浪費。缺少資料時不會自行推測，因此分數可能較低。',
+            style: TextStyle(height: 1.6),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -576,13 +602,23 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: isInCart ? _goToCart : _addToCart,
+            onPressed: food.stockCount <= 0
+                ? null
+                : isInCart
+                ? _goToCart
+                : _addToCart,
             icon: Icon(
               isInCart
                   ? Icons.shopping_cart_checkout_rounded
                   : Icons.add_shopping_cart_rounded,
             ),
-            label: Text(isInCart ? '查看購物車' : '加入購物車'),
+            label: Text(
+              food.stockCount <= 0
+                  ? '已售完'
+                  : isInCart
+                  ? '查看購物車'
+                  : '加入購物車',
+            ),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF4E8D57),
               side: const BorderSide(color: Color(0xFF4E8D57)),

@@ -1,4 +1,4 @@
-const select = `SELECT f.*, s.name AS store_name, s.brand, s.address AS store_address,
+const select = `SELECT f.*, s.name AS store_name, m.business_name AS merchant_name, s.brand, s.address AS store_address,
   s.business_hours, s.contact_phone, s.distance_meters
   FROM foods f JOIN stores s ON s.id = f.store_id JOIN merchants m ON m.id = s.merchant_id`;
 const published = "s.deleted_at IS NULL AND m.status = 'active' AND f.status = 'active' AND f.stock_count > 0 AND (f.expires_at IS NULL OR f.expires_at > UTC_TIMESTAMP())";
@@ -11,7 +11,7 @@ class CatalogRepository {
     const conditions = [published, 'f.id > ?'];
     const values = [filters.after];
     if (filters.keyword) {
-      conditions.push("(f.name LIKE ? ESCAPE '!' OR s.name LIKE ? ESCAPE '!')");
+      conditions.push("(f.name LIKE ? ESCAPE '!' OR m.business_name LIKE ? ESCAPE '!')");
       values.push(`%${escapeLike(filters.keyword)}%`, `%${escapeLike(filters.keyword)}%`);
     }
     for (const [key, column] of [['category', 'f.category'], ['storeId', 'f.store_id'], ['brand', 's.brand']]) {
@@ -49,6 +49,7 @@ class CatalogRepository {
     const [weekdays] = await this.pool.execute(`SELECT store_id, weekday FROM store_business_weekdays WHERE store_id IN (${stores.map(() => '?').join(',')}) ORDER BY weekday`, stores);
     return rows.map((row) => ({
       id: String(row.id), name: row.name, storeId: String(row.store_id), storeName: row.store_name,
+      merchantName: row.merchant_name,
       storeBrand: row.brand, storeAddress: row.store_address, businessHours: row.business_hours,
       businessWeekdays: weekdays.filter((day) => String(day.store_id) === String(row.store_id)).map((day) => day.weekday),
       contactPhone: row.contact_phone || '', price: row.price, originalPrice: row.original_price,

@@ -129,8 +129,8 @@ class _CloudMerchantLoginScreenState extends State<CloudMerchantLoginScreen> {
                       ),
                     ),
                     validator: (v) =>
-                        v == null || v.length < 12 || v.length > 128
-                        ? '密碼須為 12 至 128 個字元'
+                        v == null || v.length < 8 || v.length > 128
+                        ? '請輸入正確的密碼'
                         : null,
                   ),
                   const SizedBox(height: 16),

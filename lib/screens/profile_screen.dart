@@ -700,12 +700,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildEcoLeaderboard(_EcoAchievement achievement) {
-    final ranking = [
-      const _EcoRank(name: '陳小美', points: 230),
-      const _EcoRank(name: '王小明', points: 155),
-      _EcoRank(name: '你', points: achievement.points),
-      const _EcoRank(name: '林同學', points: 72),
-    ]..sort((a, b) => b.points.compareTo(a.points));
+    final ranking = _activityService.ecoLeaderboard;
 
     return Container(
       width: double.infinity,
@@ -719,17 +714,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            '好友惜食排行榜',
+            '全體惜食排行榜',
             style: TextStyle(
               color: Color(0xFF2E3A2F),
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 10),
-          ...ranking.take(3).toList().asMap().entries.map((entry) {
-            final rank = entry.key + 1;
-            final item = entry.value;
-            final isMe = item.name == '你';
+          if (ranking.isEmpty)
+            const Text('尚無排名資料', style: TextStyle(color: Colors.black54)),
+          ...ranking.map((item) {
+            final isMe = item.isMe;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -741,7 +736,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ? const Color(0xFFD68A00)
                         : const Color(0xFFEAF5E8),
                     child: Text(
-                      '$rank',
+                      _rankLabel(item.rank),
                       style: TextStyle(
                         color: isMe ? Colors.white : const Color(0xFF4E8D57),
                         fontSize: 12,
@@ -752,7 +747,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      item.name,
+                      isMe ? '你（${item.name}）' : item.name,
                       style: TextStyle(
                         color: isMe ? const Color(0xFFD68A00) : Colors.black87,
                         fontWeight: isMe ? FontWeight.bold : FontWeight.w500,
@@ -1393,6 +1388,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return budgetMax == null ? '不限' : '$budgetMax 元';
   }
 
+  String _rankLabel(int rank) {
+    if (rank <= 3) return '$rank';
+    if (rank < 10) return '$rank';
+    final base = rank < 100 ? (rank ~/ 10) * 10 : (rank ~/ 100) * 100;
+    return '$base+';
+  }
+
   String _distanceLabel(int? distanceLimitMeters) {
     return distanceLimitMeters == null ? '不限' : '$distanceLimitMeters 公尺';
   }
@@ -1623,13 +1625,6 @@ class _EcoAchievement {
 
     return ((points - currentThreshold) / span).clamp(0, 1).toDouble();
   }
-}
-
-class _EcoRank {
-  const _EcoRank({required this.name, required this.points});
-
-  final String name;
-  final int points;
 }
 
 class _SpendingSummary {

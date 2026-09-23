@@ -86,6 +86,8 @@ class UserActivityService extends ChangeNotifier {
   final Map<String, int> _cartQuantities = {};
   final List<PurchaseRecord> _purchaseRecords = [];
   final Map<String, FoodFeedback> _foodFeedback = {};
+  final List<EcoRanking> _ecoLeaderboard = [];
+  List<EcoRanking> get ecoLeaderboard => List.unmodifiable(_ecoLeaderboard);
 
   List<FoodItem> get favorites => List.unmodifiable(_favorites.values);
 
@@ -410,19 +412,33 @@ class UserActivityService extends ChangeNotifier {
 
   Future<bool> refreshCloud() async {
     if (!isCloud || _cloudApi == null || _busy) return false;
+    final knownFoods = <String, FoodItem>{
+      for (final food in _catalog.allFoods) food.id: food,
+      ..._favorites,
+      for (final food in _history) food.id: food,
+      for (final order in _purchaseRecords)
+        for (final item in order.items) item.food.id: item.food,
+    };
+    FoodItem? resolve(String id) => _findFood(id) ?? knownFoods[id];
     final snapshot = await _cloudOperation(
       (api) async {
         final favorites = await api.favorites();
         final history = await api.history();
         final orders = await api.orders();
-        return (favorites: favorites, history: history, orders: orders);
+        final leaderboard = await api.leaderboard();
+        return (
+          favorites: favorites,
+          history: history,
+          orders: orders,
+          leaderboard: leaderboard,
+        );
       },
       (data) {
         _favorites
           ..clear()
           ..addEntries(
             data.favorites
-                .map(_findFood)
+                .map(resolve)
                 .whereType<FoodItem>()
                 .map(
                   (food) => MapEntry(food.id, food.copyWith(isFavorite: true)),
@@ -430,15 +446,44 @@ class UserActivityService extends ChangeNotifier {
           );
         _history
           ..clear()
-          ..addAll(data.history.map(_findFood).whereType<FoodItem>());
+          ..addAll(data.history.map(resolve).whereType<FoodItem>());
         _purchaseRecords
           ..clear()
           ..addAll(data.orders.records);
         _ordersCursor = data.orders.nextCursor;
+        _ecoLeaderboard
+          ..clear()
+          ..addAll(data.leaderboard);
         cloudLoaded = true;
       },
     );
     return snapshot != null;
+  }
+
+  void applyCheckoutStock(PurchaseRecord record) {
+    for (final line in record.items) {
+      void update(FoodItem food) {
+        final remaining = (food.stockCount - line.quantity)
+            .clamp(0, food.stockCount)
+            .toInt();
+        final updated = food.copyWith(stockCount: remaining);
+        if (_favorites.containsKey(food.id)) _favorites[food.id] = updated;
+        final index = _history.indexWhere((item) => item.id == food.id);
+        if (index >= 0) _history[index] = updated;
+      }
+
+      FoodItem? known = _favorites[line.food.id];
+      if (known == null) {
+        for (final food in _history) {
+          if (food.id == line.food.id) {
+            known = food;
+            break;
+          }
+        }
+      }
+      if (known != null) update(known);
+    }
+    notifyListeners();
   }
 
   Future<void> loadMoreOrders() async {
@@ -637,6 +682,7 @@ class UserActivityService extends ChangeNotifier {
     final encodedFeedback = _preferences?.getStringList(_foodFeedbackKey) ?? [];
 
     _foodFeedback.clear();
+    _ecoLeaderboard.clear();
     for (final encodedItem in encodedFeedback) {
       try {
         final decoded = jsonDecode(encodedItem);
@@ -661,6 +707,12 @@ class UserActivityService extends ChangeNotifier {
       if (food.id == foodId) {
         return food;
       }
+    }
+
+    final favorite = _favorites[foodId];
+    if (favorite != null) return favorite;
+    for (final food in _history) {
+      if (food.id == foodId) return food;
     }
 
     return null;

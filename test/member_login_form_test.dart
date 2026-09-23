@@ -53,7 +53,7 @@ void main() {
       );
       await tester.enterText(
         find.byKey(const ValueKey('member-password')),
-        'test-password-123',
+        'TestPass123!',
       );
       await tester.enterText(
         find.byKey(const ValueKey('member-confirmation')),
@@ -66,7 +66,7 @@ void main() {
       expect(find.text('兩次密碼不一致'), findsOneWidget);
       await tester.enterText(
         find.byKey(const ValueKey('member-confirmation')),
-        'test-password-123',
+        'TestPass123!',
       );
       await tester.ensureVisible(find.byKey(const ValueKey('member-submit')));
       await tester.tap(find.byKey(const ValueKey('member-submit')));

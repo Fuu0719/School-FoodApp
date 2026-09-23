@@ -14,13 +14,14 @@ function text(value, label, max, required = true) {
   }
   return value.trim();
 }
-function credentials(body) {
+function credentials(body, { registration = false } = {}) {
   body = body || {};
   const email = text(body.email, 'Email', 160).toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw invalid('請輸入有效的 Email');
   const password = body.password;
-  if (typeof password !== 'string' || password.length < 12 || password.length > 128) {
-    throw invalid('密碼長度須為 12 至 128 個字元');
+  const max = registration ? 16 : 128;
+  if (typeof password !== 'string' || password.length < 8 || password.length > max) {
+    throw invalid(registration ? '密碼長度須為 8 至 16 個字元' : 'Email 或密碼不正確');
   }
   return { email, password };
 }
@@ -68,7 +69,7 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
   });
 
   router.post('/auth/register', limiter, run(async (req, res) => {
-    const { email, password } = credentials(req.body);
+    const { email, password } = credentials(req.body, { registration: true });
     const name = text(req.body.name, '姓名', 80);
     try {
       await repository.create({ name, email, passwordHash: await hashPassword(password) });

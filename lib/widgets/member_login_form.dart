@@ -166,10 +166,15 @@ class _MemberLoginFormState extends State<MemberLoginForm> {
                       ),
                     ),
                   ),
-                  validator: (value) =>
-                      value == null || value.length < 12 || value.length > 128
-                      ? '請輸入 12 至 128 個字元的密碼'
-                      : null,
+                  validator: (value) {
+                    final max = _register ? 16 : 128;
+                    if (value == null ||
+                        value.length < 8 ||
+                        value.length > max) {
+                      return _register ? '請輸入 8 至 16 個字元的密碼' : '請輸入正確的密碼';
+                    }
+                    return null;
+                  },
                   onFieldSubmitted: (_) {
                     if (!_register) _submit();
                   },

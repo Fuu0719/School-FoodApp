@@ -18,7 +18,10 @@ function checkoutItems(body) {
 
 function activityRoutes(repository, requireMember) {
   const router = express.Router();
-  router.use(['/me/favorites', '/me/history', '/me/orders'], requireMember);
+  router.use(['/me/favorites', '/me/history', '/me/orders', '/me/leaderboard'], requireMember);
+  router.get('/me/leaderboard', run(async (req, res) => {
+    res.json({ items: await repository.leaderboard(req.member.id) });
+  }));
   router.get('/me/favorites', run(async (req, res) => {
     const items = await repository.favorites(req.member.id, id(req.query.before || maxId));
     res.json({ items, nextCursor: items.length === 50 ? items.at(-1).foodId : null });

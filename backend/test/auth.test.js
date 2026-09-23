@@ -52,7 +52,7 @@ async function serve(t, repository) {
 
 async function memberFlow(t, repository, email) {
   const call = await serve(t, repository);
-  const password = 'Test-only-password!248';
+  const password = 'TestPass123!';
   const registration = { name: '會員測試', email, password };
   assert.equal((await call('/auth/register', 'POST', registration)).status, 201);
   assert.equal((await call('/auth/register', 'POST', { ...registration, email: email.toUpperCase() })).status, 409);
@@ -101,7 +101,7 @@ test('member registration, authenticated profile persistence and logout', async 
 test('accounts are isolated, expired sessions rejected, prototype endpoints disabled', async (t) => {
   const repository = new MemoryUsers();
   const call = await serve(t, repository);
-  const password = 'Another-test-password!';
+  const password = 'TestPass456!';
   for (const email of ['a@example.com', 'b@example.com']) {
     await call('/auth/register', 'POST', { name: email, email, password });
   }

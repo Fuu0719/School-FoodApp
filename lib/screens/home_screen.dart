@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/food_item.dart';
@@ -23,7 +25,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const int _fallbackExpiringDistanceLimitMeters = 1500;
   static const List<_MoodQuickFilter> _moodQuickFilters = [
     _MoodQuickFilter(
@@ -77,14 +79,17 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   int _collectionTabIndex = 0;
   bool _catalogRefreshing = false;
+  Timer? _catalogTimer;
+  String? _lastAccountId;
 
-  Future<void> _reloadCatalog() async {
+  Future<void> _reloadCatalog({bool silent = false}) async {
+    if (_catalogRefreshing || !FoodCatalogRepository.instance.useCloud) return;
     setState(() => _catalogRefreshing = true);
     try {
       await FoodCatalogRepository.instance.load();
       await _activityService.initialize();
     } catch (_) {
-      if (mounted) {
+      if (mounted && !silent) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('商品更新失敗，目前保留上次載入的資料')));
@@ -109,12 +114,29 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _activityService.addListener(_refresh);
     _profileService.addListener(_refresh);
+    _lastAccountId = _profileService.profile?.id;
+    if (FoodCatalogRepository.instance.useCloud) {
+      _catalogTimer = Timer.periodic(
+        const Duration(seconds: 30),
+        (_) => _reloadCatalog(silent: true),
+      );
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _reloadCatalog(silent: true);
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _catalogTimer?.cancel();
     _activityService.removeListener(_refresh);
     _profileService.removeListener(_refresh);
     _homeSearchController.dispose();
@@ -367,47 +389,59 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F9F4),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          _buildHomeBody(),
-          const RecommendationScreen(),
-          const WheelScreen(),
-          CollectionScreen(initialTabIndex: _collectionTabIndex),
-          ProfileScreen(
-            onOpenCollectionTab: (tabIndex) =>
-                _goToCollection(initialTabIndex: tabIndex),
-            onLoginComplete: _goToHome,
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _currentIndex != 0) setState(() => _currentIndex = 0);
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F9F4),
+        body: IndexedStack(
+          index: _currentIndex,
+          children: [
+            _buildHomeBody(),
+            const RecommendationScreen(),
+            const WheelScreen(),
+            CollectionScreen(initialTabIndex: _collectionTabIndex),
+            ProfileScreen(
+              onOpenCollectionTab: (tabIndex) =>
+                  _goToCollection(initialTabIndex: tabIndex),
+              onLoginComplete: _goToHome,
+            ),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: _onNavTap,
+            type: BottomNavigationBarType.fixed,
+            selectedItemColor: const Color(0xFF4E8D57),
+            unselectedItemColor: Colors.grey,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home_rounded),
+                label: '首頁',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.recommend_rounded),
+                label: '推薦',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.casino_rounded),
+                label: '轉盤',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.favorite_rounded),
+                label: '收藏',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_rounded),
+                label: '我的',
+              ),
+            ],
           ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: _onNavTap,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFF4E8D57),
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: '首頁'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.recommend_rounded),
-            label: '推薦',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.casino_rounded),
-            label: '轉盤',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_rounded),
-            label: '收藏',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: '我的',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -424,6 +458,10 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(),
+              if (_profileService.profile != null) ...[
+                const SizedBox(height: 12),
+                _buildMemberSummary(),
+              ],
               const SizedBox(height: 20),
               _buildSearchBar(),
               _buildHomeActiveFilters(),
@@ -473,6 +511,35 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMemberSummary() {
+    final profile = _profileService.profile!;
+    final measurements = profile.needsProfileCompletion
+        ? '身高、體重尚未填寫'
+        : '${profile.heightCm!.toStringAsFixed(0)} cm  ·  ${profile.weightKg!.toStringAsFixed(1)} kg';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF5E8),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.person_outline, size: 18, color: Color(0xFF4E8D57)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${profile.name}  ·  $measurements',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF2E3A2F)),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1156,6 +1223,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _refresh() {
     if (mounted) {
+      final accountId = _profileService.profile?.id;
+      if (accountId != _lastAccountId) {
+        _lastAccountId = accountId;
+        _homeSearchController.clear();
+        _homeSearchFilters = const FoodSearchFilters();
+      }
       setState(() {});
     }
   }

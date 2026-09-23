@@ -181,7 +181,7 @@ class FoodSearchService {
   bool _matchesKeyword(FoodItem food, String keyword) {
     final searchableText = [
       food.name,
-      food.storeName,
+      food.merchantName,
       food.category,
       ...food.tags,
       ...food.ingredients,

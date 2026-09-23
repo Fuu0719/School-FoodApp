@@ -143,7 +143,6 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildRuleChip('偏好 40%'),
               _buildRuleChip('偏好 35%'),
               _buildRuleChip('距離 18%'),
               _buildRuleChip('預算 18%'),

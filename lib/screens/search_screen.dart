@@ -98,7 +98,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 onSubmitted: (_) => _submitSearch(),
                 onChanged: (_) => _refreshResults(),
                 decoration: InputDecoration(
-                  hintText: '餐點、店家、食材或標籤',
+                  hintText: '餐點、商家、食材或標籤',
                   prefixIcon: const Icon(Icons.search_rounded),
                   suffixIcon: _searchController.text.isEmpty
                       ? null

@@ -5,7 +5,7 @@ import 'package:my_app/services/food_search_service.dart';
 void main() {
   const service = FoodSearchService();
 
-  test('search matches food name, store, tag, and ingredient text', () {
+  test('search matches food name, merchant, tag, and ingredient text', () {
     final foods = MockFoodRepository.allFoods;
 
     expect(

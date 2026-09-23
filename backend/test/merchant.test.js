@@ -28,12 +28,12 @@ function app(repository) {
   return server;
 }
 
-const signup = (email = 'owner@example.test') => ({ email, password: 'Merchant-test-password!',
+const signup = (email = 'owner@example.test') => ({ email, password: 'Merchant123!',
   businessName: '自行註冊商家', storeName: '第一間門市', address: '測試地址', businessHours: '09:00-20:00',
   contactPhone: '', businessWeekdays: [1, 2, 3, 4, 5] });
 
 test('account-only registration and authenticated 24-hour store creation', async (t) => {
-  const data = { email: 'owner@example.test', password: 'Merchant-test-password!', businessName: 'owner' };
+  const data = { email: 'owner@example.test', password: 'Merchant123!', businessName: 'owner' };
   assert.equal(registration(data).storeName, undefined);
   const input = { storeName: 'branch', address: 'address', opensAt: '22:00', closesAt: '02:30', businessWeekdays: [2, 1, 2] };
   assert.equal(storeInput(input).businessHours, '22:00-02:30');

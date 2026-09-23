@@ -154,7 +154,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('搜尋餐點'), findsOneWidget);
-    expect(find.text('餐點、店家、食材或標籤'), findsOneWidget);
+    expect(find.text('餐點、商家、食材或標籤'), findsOneWidget);
     expect(find.textContaining('舒肥雞胸餐盒'), findsWidgets);
   });
 
@@ -393,7 +393,7 @@ void main() {
     expect(find.text('惜食點數'), findsOneWidget);
     expect(find.text('即期份數'), findsOneWidget);
     expect(find.text('每日減廢任務'), findsOneWidget);
-    expect(find.text('好友惜食排行榜'), findsOneWidget);
+    expect(find.text('全體惜食排行榜'), findsOneWidget);
 
     await tester.scrollUntilVisible(
       find.text('消費管理'),

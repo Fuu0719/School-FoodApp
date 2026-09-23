@@ -6,6 +6,7 @@ class FoodItem {
     required this.name,
     required this.storeId,
     required this.storeName,
+    this.merchantName = '',
     required this.storeAddress,
     required this.businessHours,
     required this.businessWeekdays,
@@ -40,6 +41,7 @@ class FoodItem {
   final String name;
   final String storeId;
   final String storeName;
+  final String merchantName;
   final String storeAddress;
   final String businessHours;
   final List<int> businessWeekdays;
@@ -143,6 +145,7 @@ class FoodItem {
     String? name,
     String? storeId,
     String? storeName,
+    String? merchantName,
     String? storeAddress,
     String? businessHours,
     List<int>? businessWeekdays,
@@ -177,6 +180,7 @@ class FoodItem {
       name: name ?? this.name,
       storeId: storeId ?? this.storeId,
       storeName: storeName ?? this.storeName,
+      merchantName: merchantName ?? this.merchantName,
       storeAddress: storeAddress ?? this.storeAddress,
       businessHours: businessHours ?? this.businessHours,
       businessWeekdays: businessWeekdays ?? this.businessWeekdays,

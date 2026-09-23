@@ -363,6 +363,11 @@ class MerchantAuthService extends ChangeNotifier {
           ),
         );
         _replace(saved);
+        try {
+          await FoodCatalogRepository.instance.load();
+        } catch (_) {
+          // The merchant write succeeded; member catalogue polling will retry.
+        }
       });
   @visibleForTesting
   void clearForTesting() {

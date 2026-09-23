@@ -188,8 +188,8 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
                               }
                               if (field.$1 == 'password' ||
                                   field.$1 == 'confirm') {
-                                if (value.length < 12 || value.length > 128) {
-                                  return '密碼須為 12 至 128 個字元';
+                                if (value.length < 8 || value.length > 16) {
+                                  return '密碼須為 8 至 16 個字元';
                                 }
                                 if (field.$1 == 'confirm' &&
                                     value != controllers['password']!.text) {

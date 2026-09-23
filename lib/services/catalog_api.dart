@@ -71,6 +71,7 @@ class CatalogApi {
       name: text('name'),
       storeId: _id(json['storeId']),
       storeName: text('storeName'),
+      merchantName: json['merchantName'] as String? ?? text('storeName'),
       storeBrand: json['storeBrand'] as String?,
       storeAddress: text('storeAddress'),
       businessHours: text('businessHours'),

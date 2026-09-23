@@ -12,7 +12,7 @@ test('optional phones share normalized valid and invalid cases with the App', ()
 });
 
 test('merchant registration including legacy store fields and store creation validate phones', () => {
-  const account = { email: 'owner@example.test', password: 'Long-test-password!', businessName: 'shop' };
+  const account = { email: 'owner@example.test', password: 'PhonePass123!', businessName: 'shop' };
   const store = { storeName: 'store', address: 'address', opensAt: '09:00', closesAt: '18:00', businessWeekdays: [1] };
   for (const input of cases.invalid) {
     assert.throws(() => registration({ ...account, contactPhone: input }), { statusCode: 400 });

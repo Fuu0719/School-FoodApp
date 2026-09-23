@@ -396,8 +396,8 @@ void main() {
       final values = [
         'Test merchant',
         'owner@example.test',
-        'Merchant-test-password!',
-        'Merchant-test-password!',
+        'Merchant123!',
+        'Merchant123!',
         '',
       ];
       for (var i = 0; i < values.length; i++) {
