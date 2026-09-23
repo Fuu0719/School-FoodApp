@@ -59,11 +59,12 @@ class UserProfileService extends ChangeNotifier {
     required String password,
   }) {
     return _perform(() async {
-      await _api.request(
+      final response = await _api.request(
         'POST',
         '/auth/register',
         body: {'name': name, 'email': email, 'password': password},
       );
+      await _acceptSession(response);
     });
   }
 
@@ -74,17 +75,23 @@ class UserProfileService extends ChangeNotifier {
         '/auth/login',
         body: {'email': email, 'password': password},
       );
-      final token = response['token'];
-      if (token is! String ||
-          token.isEmpty ||
-          response['user'] is! Map<String, dynamic>) {
-        throw const MemberApiException('會員服務回應格式不正確');
-      }
-      await _storage.write(key: _tokenKey, value: token);
-      _token = token;
-      await _acceptProfile(response['user'] as Map<String, dynamic>);
-      if (_profile == null) throw const MemberApiException('登入已失效，請重新登入', 401);
+      await _acceptSession(response);
     });
+  }
+
+  Future<void> _acceptSession(Map<String, dynamic> response) async {
+    final token = response['token'];
+    if (token is! String ||
+        token.isEmpty ||
+        response['user'] is! Map<String, dynamic>) {
+      throw const MemberApiException('會員服務回應格式不正確');
+    }
+    await _storage.write(key: _tokenKey, value: token);
+    _token = token;
+    await _acceptProfile(response['user'] as Map<String, dynamic>);
+    if (_profile == null) {
+      throw const MemberApiException('登入已失效，請重新登入', 401);
+    }
   }
 
   Future<void> updateProfile(UserProfile profile) async {

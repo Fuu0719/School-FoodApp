@@ -54,15 +54,7 @@ class _MemberLoginFormState extends State<MemberLoginForm> {
           password: _password.text,
         );
         if (!mounted) return;
-        final registeredEmail = _email.text;
-        setState(() {
-          _register = false;
-          _password.clear();
-          _confirmation.clear();
-          _notice = '註冊成功，請使用新帳號登入';
-        });
-        _form.currentState?.reset();
-        _email.text = registeredEmail;
+        widget.onLoginComplete?.call();
       } else {
         await widget.service.login(
           email: _email.text.trim(),

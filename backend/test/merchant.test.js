@@ -5,6 +5,7 @@ const express = require('express');
 const routes = require('../src/merchant/routes');
 const MerchantRepository = require('../src/merchant/repository');
 const { product, registration, storeInput } = require('../src/merchant/validation');
+const { campus, distanceMeters } = require('../src/merchant/geocoding');
 const { hashPassword, tokenHash } = require('../src/auth/passwords');
 
 const fixture = (storeId = '10') => ({ storeId, name: '測試餐點', category: '便當', price: 80, originalPrice: 100,
@@ -51,6 +52,28 @@ test('account-only registration and authenticated 24-hour store creation', async
   }));
   assert.equal((await call('/merchant/stores', 'POST', input)).status, 401);
   assert.equal((await call('/merchant/stores', 'POST', { ...input, merchantId: '999' }, token)).status, 201);
+});
+
+test('campus distance uses the fixed MCU Taoyuan reference point', () => {
+  assert.equal(distanceMeters(campus), 0);
+  assert.ok(distanceMeters({ latitude: 25.033, longitude: 121.5654 }) > 20000);
+});
+
+test('store update is owner scoped and returns the refreshed account', async (t) => {
+  const token = 'a'.repeat(64);
+  let saved;
+  const call = await serve(t, app({
+    session: async (hash) => hash === tokenHash(token) ? { id: '7' } : null,
+    updateStore: async (merchantId, storeId, data) => {
+      saved = { merchantId, storeId, data };
+      return { id: merchantId, stores: [{ id: storeId, ...data }] };
+    },
+  }));
+  const input = { storeName: '總店', address: '桃園市龜山區德明路5號',
+    opensAt: '08:30', closesAt: '21:00', contactPhone: '', businessWeekdays: [1, 3, 5] };
+  assert.equal((await call('/merchant/stores/8', 'PUT', input)).status, 401);
+  assert.equal((await call('/merchant/stores/8', 'PUT', input, token)).status, 200);
+  assert.deepEqual(saved, { merchantId: '7', storeId: '8', data: storeInput(input) });
 });
 
 test('merchant self-registration validates fields and cannot assign existing stores or elevated roles', async (t) => {
@@ -319,7 +342,8 @@ test('MySQL integration: merchant ownership, draft replay, publication, edit con
     } finally { await pool.end(); }
   });
   await require('../src/merchant/check_schema')(pool);
-  const repo = new MerchantRepository(pool);
+  const testGeocoder = async () => ({ latitude: 24.9856141, longitude: 121.3425769, distanceMeters: 0 });
+  const repo = new MerchantRepository(pool, testGeocoder);
   const tokens = [];
   const stores = [];
   for (let index = 0; index < 2; index++) {

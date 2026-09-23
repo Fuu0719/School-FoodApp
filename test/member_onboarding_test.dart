@@ -77,4 +77,61 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
     },
   );
+
+  testWidgets('registration logs in and opens profile completion immediately', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    FlutterSecureStorage.setMockInitialValues({});
+    final service = UserProfileService.instance;
+    service.clearForTesting();
+    service.configureForTesting(
+      MemberApi(
+        baseUrl: 'https://registration.example.test/api',
+        client: MockClient(
+          (request) async => http.Response(
+            jsonEncode({
+              'token': 'registered-session',
+              'user': {
+                ...UserProfile.demo.toJson(),
+                'id': 'registered',
+                'name': '新會員',
+                'email': 'new@example.test',
+                'heightCm': null,
+                'weightKg': null,
+              },
+            }),
+            201,
+            headers: {'content-type': 'application/json; charset=utf-8'},
+          ),
+        ),
+      ),
+      const FlutterSecureStorage(),
+    );
+    await tester.pumpWidget(const MaterialApp(home: ProfileScreen()));
+    await tester.tap(find.text('建立帳號'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('member-name')), '新會員');
+    await tester.enterText(
+      find.byKey(const ValueKey('member-email')),
+      'new@example.test',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('member-password')),
+      'Passw0rd!',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('member-confirmation')),
+      'Passw0rd!',
+    );
+    await tester.ensureVisible(find.byKey(const ValueKey('member-submit')));
+    await tester.tap(find.byKey(const ValueKey('member-submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('編輯會員資料'), findsOneWidget);
+    expect(find.text('身高（公分）'), findsOneWidget);
+    expect(find.text('體重（公斤）'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(milliseconds: 500));
+  });
 }

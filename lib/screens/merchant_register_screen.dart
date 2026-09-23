@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/validation/phone.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:my_app/models/merchant_registration.dart';
+import 'package:my_app/models/merchant_account.dart';
 import 'package:my_app/services/merchant_auth_service.dart';
 import 'package:my_app/services/member_api.dart';
 
@@ -10,9 +11,11 @@ class MerchantRegisterScreen extends StatefulWidget {
     super.key,
     required this.service,
     this.createStore = false,
+    this.editStore,
   });
   final MerchantAuthService service;
   final bool createStore;
+  final MerchantStore? editStore;
   @override
   State<MerchantRegisterScreen> createState() => _MerchantRegisterScreenState();
 }
@@ -34,6 +37,35 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
   final days = <int>{};
   TimeOfDay opensAt = const TimeOfDay(hour: 9, minute: 0);
   TimeOfDay closesAt = const TimeOfDay(hour: 18, minute: 0);
+  bool get managingStore => widget.createStore || widget.editStore != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final store = widget.editStore;
+    if (store == null) return;
+    controllers['storeName']!.text = store.name;
+    controllers['address']!.text = store.address;
+    controllers['contactPhone']!.text = store.contactPhone;
+    days.addAll(store.businessWeekdays);
+    final times = store.businessHours.split('-');
+    if (times.length == 2) {
+      opensAt = _parseTime(times[0], opensAt);
+      closesAt = _parseTime(times[1], closesAt);
+    }
+  }
+
+  TimeOfDay _parseTime(String value, TimeOfDay fallback) {
+    final parts = value.split(':');
+    if (parts.length != 2) return fallback;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null || hour > 23 || minute > 59) {
+      return fallback;
+    }
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
   String timeLabel(TimeOfDay time) =>
       '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
@@ -102,22 +134,27 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
 
   Future<void> _register() async {
     if (!form.currentState!.validate()) return;
-    if (widget.createStore && days.isEmpty) {
+    if (managingStore && days.isEmpty) {
       setState(() => error = '請至少選擇一個營業日');
       return;
     }
     setState(() => error = null);
     String value(String key) => controllers[key]!.text.trim();
     try {
-      if (widget.createStore) {
-        await widget.service.createStore({
+      if (managingStore) {
+        final data = {
           'storeName': value('storeName'),
           'address': value('address'),
           'contactPhone': value('contactPhone'),
           'opensAt': timeLabel(opensAt),
           'closesAt': timeLabel(closesAt),
           'businessWeekdays': days.toList()..sort(),
-        });
+        };
+        if (widget.editStore == null) {
+          await widget.service.createStore(data);
+        } else {
+          await widget.service.updateStore(widget.editStore!.id, data);
+        }
         if (mounted) Navigator.pop(context);
         return;
       }
@@ -145,7 +182,15 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
     builder: (context, _) => PopScope(
       canPop: !widget.service.isBusy,
       child: Scaffold(
-        appBar: AppBar(title: Text(widget.createStore ? '新增門市' : '商家註冊')),
+        appBar: AppBar(
+          title: Text(
+            widget.editStore != null
+                ? '編輯門市'
+                : widget.createStore
+                ? '新增門市'
+                : '商家註冊',
+          ),
+        ),
         body: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
@@ -158,7 +203,7 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
                       .where(
                         (field) =>
                             field.$1 == 'contactPhone' ||
-                            (widget.createStore
+                            (managingStore
                                 ? ['storeName', 'address'].contains(field.$1)
                                 : [
                                     'businessName',
@@ -215,7 +260,7 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
                           ),
                         ),
                       ),
-                  if (widget.createStore) ...[
+                  if (managingStore) ...[
                     ListTile(
                       title: const Text('開始營業'),
                       trailing: Text(timeLabel(opensAt)),
@@ -283,8 +328,10 @@ class _MerchantRegisterScreenState extends State<MerchantRegisterScreen> {
                     label: Text(
                       widget.service.isBusy
                           ? '處理中'
-                          : widget.createStore
-                          ? '建立門市'
+                          : managingStore
+                          ? widget.editStore == null
+                                ? '建立門市'
+                                : '儲存門市'
                           : '建立商家帳號',
                     ),
                   ),

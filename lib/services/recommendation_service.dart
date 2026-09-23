@@ -10,10 +10,12 @@ class RecommendationService {
     required UserPreference preference,
     Map<String, FoodFeedback> feedbackByFoodId = const {},
     DateTime? now,
+    bool requireOpenToday = true,
   }) {
     final today = now ?? DateTime.now();
     final candidates = foods.where((food) {
-      final isOpenToday = food.isOpenOn(today);
+      final isAvailableForRecommendation =
+          !requireOpenToday || food.isOpenOn(today);
       final isInBudget =
           food.price >= preference.budgetMin &&
           food.price <= preference.budgetMax;
@@ -24,7 +26,7 @@ class RecommendationService {
         (ingredient) => !food.ingredients.contains(ingredient),
       );
 
-      return isOpenToday &&
+      return isAvailableForRecommendation &&
           isInBudget &&
           isNearby &&
           avoidsRestrictedIngredients;

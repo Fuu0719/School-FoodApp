@@ -72,12 +72,12 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
     const { email, password } = credentials(req.body, { registration: true });
     const name = text(req.body.name, '姓名', 80);
     try {
-      await repository.create({ name, email, passwordHash: await hashPassword(password) });
+      const user = await repository.create({ name, email, passwordHash: await hashPassword(password) });
+      return res.status(201).json(await issueSession(user));
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: '此 Email 已註冊' });
       throw error;
     }
-    res.status(201).json({ message: '註冊成功，請登入' });
   }));
   router.post('/auth/login', limiter, run(async (req, res) => {
     const { email, password } = credentials(req.body);

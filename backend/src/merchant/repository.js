@@ -1,5 +1,6 @@
 const { createHash } = require('node:crypto');
 const { fail } = require('./validation');
+const { geocodeAddress } = require('./geocoding');
 const select = `SELECT f.*, s.name AS store_name FROM foods f JOIN stores s ON s.id = f.store_id`;
 const columns = ['name', 'category', 'price', 'original_price', 'stock_count', 'image_url', 'calories',
   'weight_grams', 'protein_grams', 'fat_grams', 'carbs_grams', 'expires_at', 'is_expiring_soon', 'eco_priority_score'];
@@ -8,7 +9,9 @@ const values = (p) => [p.name, p.category, p.price, p.originalPrice, p.stockCoun
   p.expiresAt ? new Date(p.expiresAt) : null, p.isExpiringSoon, p.isExpiringSoon ? 0.8 : 0];
 
 class MerchantRepository {
-  constructor(pool) { this.pool = pool; }
+  constructor(pool, geocoder = process.env.MYSQL_INTEGRATION === '1'
+    ? async () => ({ latitude: 24.9856141, longitude: 121.3425769, distanceMeters: 0 })
+    : geocodeAddress) { this.pool = pool; this.geocoder = geocoder; }
   async register(data, passwordHash) {
     const connection = await this.pool.getConnection();
     try {
@@ -36,15 +39,33 @@ class MerchantRepository {
     return rows[0];
   }
   async createStore(merchantId, data) {
+    const location = await this.geocoder(data.address);
     return this.transaction(merchantId, async (connection) => {
       const [existing] = await connection.execute('SELECT id FROM stores WHERE merchant_id = ? AND name = ? AND address = ? AND deleted_at IS NULL',
         [merchantId, data.storeName, data.address]);
       if (existing.length) throw fail(409, '此門市已存在，請返回確認門市清單');
       const [store] = await connection.execute(`INSERT INTO stores
-        (merchant_id, name, address, business_hours, contact_phone) VALUES (?, ?, ?, ?, ?)`,
-        [merchantId, data.storeName, data.address, data.businessHours, data.contactPhone]);
+        (merchant_id, name, address, business_hours, contact_phone, latitude, longitude, distance_meters)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [merchantId, data.storeName, data.address, data.businessHours, data.contactPhone,
+          location.latitude, location.longitude, location.distanceMeters]);
       for (const day of data.businessWeekdays) {
         await connection.execute('INSERT INTO store_business_weekdays VALUES (?, ?)', [store.insertId, day]);
+      }
+      return this.account(merchantId, connection);
+    });
+  }
+  async updateStore(merchantId, storeId, data) {
+    const location = await this.geocoder(data.address);
+    return this.transaction(merchantId, async (connection) => {
+      await this.ownedStore(merchantId, storeId, connection);
+      await connection.execute(`UPDATE stores SET name = ?, address = ?, business_hours = ?, contact_phone = ?,
+        latitude = ?, longitude = ?, distance_meters = ? WHERE id = ?`,
+      [data.storeName, data.address, data.businessHours, data.contactPhone,
+        location.latitude, location.longitude, location.distanceMeters, storeId]);
+      await connection.execute('DELETE FROM store_business_weekdays WHERE store_id = ?', [storeId]);
+      for (const day of data.businessWeekdays) {
+        await connection.execute('INSERT INTO store_business_weekdays VALUES (?, ?)', [storeId, day]);
       }
       return this.account(merchantId, connection);
     });
@@ -53,10 +74,15 @@ class MerchantRepository {
     const [rows] = await connection.execute(`SELECT id, business_name AS businessName, email,
       contact_phone AS contactPhone FROM merchants WHERE id = ? AND status = 'active'`, [id]);
     if (!rows.length) return null;
-    const [stores] = await connection.execute(`SELECT id, name, address, business_hours AS businessHours
+    const [stores] = await connection.execute(`SELECT id, name, address, business_hours AS businessHours,
+      contact_phone AS contactPhone, distance_meters AS distanceMeters
       FROM stores WHERE merchant_id = ? AND deleted_at IS NULL ORDER BY id`, [id]);
+    const storeIds = stores.map((store) => String(store.id));
+    const [weekdays] = storeIds.length ? await connection.execute(
+      `SELECT store_id, weekday FROM store_business_weekdays WHERE store_id IN (${storeIds.map(() => '?').join(',')}) ORDER BY weekday`, storeIds) : [[]];
     return { ...rows[0], id: String(rows[0].id), contactPhone: rows[0].contactPhone || '',
-      stores: stores.map((store) => ({ ...store, id: String(store.id) })) };
+      stores: stores.map((store) => ({ ...store, id: String(store.id), contactPhone: store.contactPhone || '',
+        businessWeekdays: weekdays.filter((day) => String(day.store_id) === String(store.id)).map((day) => day.weekday) })) };
   }
   async createSession(id, hash, expiresAt) {
     await this.pool.execute('DELETE FROM merchant_sessions WHERE merchant_id = ? AND expires_at <= UTC_TIMESTAMP()', [id]);

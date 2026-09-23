@@ -109,15 +109,20 @@ void main() {
   });
 
   test(
-    'registration does not authenticate, and rejects duplicate accounts',
+    'registration authenticates immediately, and rejects duplicate accounts',
     () async {
-      handler = (_) async => response({'message': 'registered'}, 201);
+      handler = (_) async =>
+          response({'user': saved, 'token': 'new-token'}, 201);
       await service.register(
         name: '王小明',
         email: 'test@example.com',
         password: 'test-password',
       );
-      expect(service.isLoggedIn, isFalse);
+      expect(service.isLoggedIn, isTrue);
+      expect(
+        await const FlutterSecureStorage().read(key: tokenKey),
+        'new-token',
+      );
       handler = (_) async => response({'message': '此 Email 已註冊'}, 409);
       await expectLater(
         service.register(

@@ -65,12 +65,22 @@ class MerchantStore {
     required this.name,
     required this.address,
     required this.businessHours,
+    this.contactPhone = '',
+    this.businessWeekdays = const [],
+    this.distanceMeters,
   });
-  final String id, name, address, businessHours;
+  final String id, name, address, businessHours, contactPhone;
+  final List<int> businessWeekdays;
+  final int? distanceMeters;
   factory MerchantStore.fromJson(Map<String, dynamic> json) => MerchantStore(
     id: json['id'] as String,
     name: json['name'] as String,
     address: json['address'] as String,
     businessHours: json['businessHours'] as String,
+    contactPhone: json['contactPhone'] as String? ?? '',
+    businessWeekdays: List<int>.unmodifiable(
+      (json['businessWeekdays'] as List? ?? const []).cast<int>(),
+    ),
+    distanceMeters: json['distanceMeters'] as int?,
   );
 }

@@ -693,6 +693,17 @@ void main() {
       await tester.ensureVisible(name);
       await tester.pumpAndSettle();
       await tester.enterText(name, '新商品');
+      for (final label in [
+        '售價',
+        '庫存',
+        '熱量 kcal',
+        '重量 g',
+        '蛋白質 g',
+        '脂肪 g',
+        '碳水 g',
+      ]) {
+        await tester.enterText(find.widgetWithText(TextFormField, label), '1');
+      }
       await tester.scrollUntilVisible(
         save,
         300,

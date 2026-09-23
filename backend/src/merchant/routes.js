@@ -47,6 +47,9 @@ module.exports = function merchantRoutes(repository) {
   router.post('/stores', run(async (req, res) => {
     res.status(201).json(await repository.createStore(req.merchant.id, storeInput(req.body)));
   }));
+  router.put('/stores/:id', run(async (req, res) => {
+    res.json(await repository.updateStore(req.merchant.id, id(req.params.id), storeInput(req.body)));
+  }));
   router.delete('/stores/:id', run(async (req, res) => {
     res.json(await repository.deleteStore(req.merchant.id, id(req.params.id)));
   }));

@@ -32,7 +32,7 @@ test:mysql 會建立並清除隨機測試會員。API 啟動前檢查資料庫�
 | PUT | /api/me | 儲存自己的資料與偏好 |
 
 除註冊登入外，會員端點需 Authorization: Bearer <token>。
-Email 會轉為小寫；註冊密碼至少 12、最多 128 字元。
+Email 會轉為小寫；新註冊密碼為 8–16 字元，既有較長密碼仍可登入。會員註冊成功時同步簽發 session，用於立即完成首次個人資料。
 PUT /api/me 接受完整的 name、phone、heightCm、weightKg、healthGoal、dietaryTags、budgetMax、distanceLimitMeters。phone 可留空；有值時接受台灣手機、含區碼市話或 `+886`，儲存前移除空白、括號與連字號。
 healthGoal 為 maintain、muscleGain 或 fatLoss；預算和距離可為 null（不限）。
 不接受透過 body 的 id 指定其他會員，Email 修改尚未開放。

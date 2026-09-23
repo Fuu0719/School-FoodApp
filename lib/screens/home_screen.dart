@@ -164,6 +164,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         .getRecommendations(
           foods: FoodCatalogRepository.instance.allFoods,
           preference: _currentPreference,
+          requireOpenToday: false,
         )
         .take(3)
         .toList();

@@ -12,6 +12,7 @@ async function start() {
   await require('./activity/check_schema')(pool);
   await require('./merchant/check_schema')(pool);
   const app = createApp({ userRepository: new UserRepository(pool) });
+  app.set('trust proxy', 'loopback');
   const server = app.listen(port, process.env.HOST || '127.0.0.1', () => {
     console.log(`膳解人意 API running on port ${port}`);
   });

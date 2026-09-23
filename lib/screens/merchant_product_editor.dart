@@ -177,202 +177,207 @@ class _MerchantProductEditorState extends State<MerchantProductEditor> {
         canPop: !service.isBusy,
         child: Scaffold(
           appBar: AppBar(title: Text(widget.product == null ? '新增商品' : '編輯商品')),
-          body: !service.isLoggedIn
-              ? const Center(child: Text('商家登入已失效，請返回重新登入'))
-              : Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 640),
-                    child: Form(
-                      key: form,
-                      child: ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: [
-                          AbsorbPointer(
-                            absorbing: service.isBusy || pending,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                DropdownButtonFormField<String>(
-                                  initialValue:
-                                      stores.any((s) => s.id == storeId)
-                                      ? storeId
-                                      : null,
-                                  isExpanded: true,
-                                  decoration: const InputDecoration(
-                                    labelText: '所屬門市',
-                                  ),
-                                  items: stores
-                                      .map(
-                                        (s) => DropdownMenuItem(
-                                          value: s.id,
-                                          child: Text(
-                                            s.name,
-                                            overflow: TextOverflow.ellipsis,
+          body: SafeArea(
+            bottom: true,
+            child: !service.isLoggedIn
+                ? const Center(child: Text('商家登入已失效，請返回重新登入'))
+                : Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 640),
+                      child: Form(
+                        key: form,
+                        child: ListView(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            16,
+                            16,
+                            24 + MediaQuery.viewPaddingOf(context).bottom,
+                          ),
+                          children: [
+                            AbsorbPointer(
+                              absorbing: service.isBusy || pending,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  DropdownButtonFormField<String>(
+                                    initialValue:
+                                        stores.any((s) => s.id == storeId)
+                                        ? storeId
+                                        : null,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: '所屬門市',
+                                    ),
+                                    items: stores
+                                        .map(
+                                          (s) => DropdownMenuItem(
+                                            value: s.id,
+                                            child: Text(
+                                              s.name,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
                                           ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: widget.product != null
-                                      ? null
-                                      : (v) {
-                                          if (v != null) {
-                                            setState(() => storeId = v);
-                                          }
-                                        },
-                                  validator: (v) =>
-                                      v == null ? '請選擇可管理門市' : null,
-                                ),
-                                const SizedBox(height: 12),
-                                _text('name', '餐點名稱', required: true),
-                                DropdownButtonFormField<String>(
-                                  key: ValueKey('category:$category'),
-                                  initialValue: category,
-                                  isExpanded: true,
-                                  decoration: const InputDecoration(
-                                    labelText: '分類',
-                                  ),
-                                  items: categories
-                                      .map(
-                                        (v) => DropdownMenuItem(
-                                          value: v,
-                                          child: Text(
-                                            v,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                                  onChanged: (v) {
-                                    if (v != null) setState(() => category = v);
-                                  },
-                                ),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: IconButton(
-                                    tooltip: '新增分類',
-                                    onPressed: service.isBusy || pending
+                                        )
+                                        .toList(),
+                                    onChanged: widget.product != null
                                         ? null
-                                        : _addCategory,
-                                    icon: const Icon(Icons.add),
+                                        : (v) {
+                                            if (v != null) {
+                                              setState(() => storeId = v);
+                                            }
+                                          },
+                                    validator: (v) =>
+                                        v == null ? '請選擇可管理門市' : null,
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                ...numberFields.map(
-                                  (field) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 12),
-                                    child: TextFormField(
-                                      controller: fields[field.$1],
-                                      onTap: () {
-                                        final controller = fields[field.$1]!;
-                                        if (controller.text == '0') {
-                                          controller.clear();
-                                        }
-                                      },
-                                      keyboardType: TextInputType.number,
-                                      decoration: InputDecoration(
-                                        labelText: field.$2,
-                                        hintText: field.$1 == 'originalPrice'
-                                            ? null
-                                            : '0',
-                                      ),
-                                      validator: (value) {
-                                        if (field.$1 == 'originalPrice' &&
-                                            (value ?? '').trim().isEmpty) {
-                                          return null;
-                                        }
-                                        final text = (value ?? '').trim();
-                                        final number = text.isEmpty
-                                            ? 0
-                                            : int.tryParse(text);
-                                        if (number == null ||
-                                            number < 0 ||
-                                            number > field.$3) {
-                                          return '請輸入 0 至 ${field.$3} 的整數';
-                                        }
-                                        if (field.$1 == 'originalPrice' &&
-                                            number <
-                                                (int.tryParse(
-                                                      fields['price']!.text,
-                                                    ) ??
-                                                    0)) {
-                                          return '原價不可低於售價';
-                                        }
-                                        return null;
-                                      },
+                                  const SizedBox(height: 12),
+                                  _text('name', '餐點名稱', required: true),
+                                  DropdownButtonFormField<String>(
+                                    key: ValueKey('category:$category'),
+                                    initialValue: category,
+                                    isExpanded: true,
+                                    decoration: const InputDecoration(
+                                      labelText: '分類',
+                                    ),
+                                    items: categories
+                                        .map(
+                                          (v) => DropdownMenuItem(
+                                            value: v,
+                                            child: Text(
+                                              v,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (v) {
+                                      if (v != null) {
+                                        setState(() => category = v);
+                                      }
+                                    },
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: IconButton(
+                                      tooltip: '新增分類',
+                                      onPressed: service.isBusy || pending
+                                          ? null
+                                          : _addCategory,
+                                      icon: const Icon(Icons.add),
                                     ),
                                   ),
-                                ),
-                                _text('tags', '標籤（逗號分隔）'),
-                                _text('ingredients', '食材（逗號分隔）'),
-                                _text('imageUrl', '圖片 HTTPS 網址'),
-                                SwitchListTile.adaptive(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: const Text('即期餐點'),
-                                  value: expiring,
-                                  onChanged: (value) =>
-                                      setState(() => expiring = value),
-                                ),
-                                ListTile(
-                                  contentPadding: EdgeInsets.zero,
-                                  title: const Text('保存期限（本機時間）'),
-                                  subtitle: Text(
-                                    expires == null
-                                        ? '未設定'
-                                        : '${expires!.year}/${expires!.month}/${expires!.day} ${TimeOfDay.fromDateTime(expires!).format(context)}',
-                                  ),
-                                  onTap: _expiry,
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      IconButton(
-                                        tooltip: '選擇保存期限',
-                                        onPressed: _expiry,
-                                        icon: const Icon(Icons.event),
+                                  const SizedBox(height: 12),
+                                  ...numberFields.map(
+                                    (field) => Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
                                       ),
-                                      if (expires != null)
-                                        IconButton(
-                                          tooltip: '清除保存期限',
-                                          onPressed: () =>
-                                              setState(() => expires = null),
-                                          icon: const Icon(Icons.clear),
+                                      child: TextFormField(
+                                        controller: fields[field.$1],
+                                        keyboardType: TextInputType.number,
+                                        decoration: InputDecoration(
+                                          labelText: field.$2,
                                         ),
-                                    ],
+                                        validator: (value) {
+                                          if (field.$1 == 'originalPrice' &&
+                                              (value ?? '').trim().isEmpty) {
+                                            return null;
+                                          }
+                                          final text = (value ?? '').trim();
+                                          if (text.isEmpty) return '此欄位必須輸入';
+                                          final number = int.tryParse(text);
+                                          if (number == null ||
+                                              number < 0 ||
+                                              number > field.$3) {
+                                            return '請輸入 0 至 ${field.$3} 的整數';
+                                          }
+                                          if (field.$1 == 'originalPrice' &&
+                                              number <
+                                                  (int.tryParse(
+                                                        fields['price']!.text,
+                                                      ) ??
+                                                      0)) {
+                                            return '原價不可低於售價';
+                                          }
+                                          return null;
+                                        },
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (error != null)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                error!,
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                ),
+                                  _text('tags', '標籤（逗號分隔）'),
+                                  _text('ingredients', '食材（逗號分隔）'),
+                                  _text('imageUrl', '圖片 HTTPS 網址'),
+                                  SwitchListTile.adaptive(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: const Text('即期餐點'),
+                                    value: expiring,
+                                    onChanged: (value) =>
+                                        setState(() => expiring = value),
+                                  ),
+                                  ListTile(
+                                    contentPadding: EdgeInsets.zero,
+                                    title: const Text('保存期限（本機時間）'),
+                                    subtitle: Text(
+                                      expires == null
+                                          ? '未設定'
+                                          : '${expires!.year}/${expires!.month}/${expires!.day} ${TimeOfDay.fromDateTime(expires!).format(context)}',
+                                    ),
+                                    onTap: _expiry,
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          tooltip: '選擇保存期限',
+                                          onPressed: _expiry,
+                                          icon: const Icon(Icons.event),
+                                        ),
+                                        if (expires != null)
+                                          IconButton(
+                                            tooltip: '清除保存期限',
+                                            onPressed: () =>
+                                                setState(() => expires = null),
+                                            icon: const Icon(Icons.clear),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          const SizedBox(height: 16),
-                          FilledButton.icon(
-                            onPressed: service.isBusy || service.pendingCorrupt
-                                ? null
-                                : _save,
-                            icon: Icon(
-                              pending ? Icons.sync : Icons.save_outlined,
+                            if (error != null)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                child: Text(
+                                  error!,
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            FilledButton.icon(
+                              onPressed:
+                                  service.isBusy || service.pendingCorrupt
+                                  ? null
+                                  : _save,
+                              icon: Icon(
+                                pending ? Icons.sync : Icons.save_outlined,
+                              ),
+                              label: Text(
+                                service.isBusy
+                                    ? '儲存中'
+                                    : pending
+                                    ? '確認原草稿'
+                                    : '儲存草稿',
+                              ),
                             ),
-                            label: Text(
-                              service.isBusy
-                                  ? '儲存中'
-                                  : pending
-                                  ? '確認原草稿'
-                                  : '儲存草稿',
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
+          ),
         ),
       );
     },

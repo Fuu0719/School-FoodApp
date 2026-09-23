@@ -140,6 +140,24 @@ class MerchantAuthService extends ChangeNotifier {
     );
   });
 
+  Future<void> updateStore(String id, Map<String, Object?> data) =>
+      _run(() async {
+        _requireAccount();
+        _account = MerchantAccount.fromJson(
+          await _api.request(
+            'PUT',
+            '/merchant/stores/$id',
+            token: _token,
+            body: data,
+          ),
+        );
+        try {
+          await FoodCatalogRepository.instance.load();
+        } catch (_) {
+          // Store update succeeded; member catalogue polling will retry.
+        }
+      });
+
   Future<void> deleteStore(String id) => _run(() async {
     _requireAccount();
     _account = MerchantAccount.fromJson(

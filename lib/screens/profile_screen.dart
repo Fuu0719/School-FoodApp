@@ -72,6 +72,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return MemberLoginForm(
       service: _profileService,
       onLoginComplete: () async {
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
         await _completeProfile();
         if (mounted &&
             _profileService.profile?.needsProfileCompletion == false) {

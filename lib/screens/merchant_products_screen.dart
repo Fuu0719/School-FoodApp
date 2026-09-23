@@ -268,6 +268,16 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
     });
   }
 
+  Future<void> _editStore(MerchantStore store) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            MerchantRegisterScreen(service: service, editStore: store),
+      ),
+    );
+  }
+
   Future<void> _manageStores() => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -302,15 +312,31 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                           return ListTile(
                             title: Text(store.name),
                             subtitle: Text(
-                              '${store.address}\n${store.businessHours}',
+                              '${store.address}\n${store.businessHours}'
+                              '${store.distanceMeters == null ? '' : ' / 距離校園 ${store.distanceMeters} 公尺'}',
                             ),
-                            trailing: IconButton(
-                              tooltip: '刪除 ${store.name}',
-                              icon: const Icon(Icons.delete_outline),
-                              color: Theme.of(context).colorScheme.error,
-                              onPressed: service.isBusy
-                                  ? null
-                                  : () => _deleteStore(store),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: '編輯 ${store.name}',
+                                  icon: const Icon(Icons.edit_outlined),
+                                  onPressed: service.isBusy
+                                      ? null
+                                      : () {
+                                          Navigator.pop(context);
+                                          _editStore(store);
+                                        },
+                                ),
+                                IconButton(
+                                  tooltip: '刪除 ${store.name}',
+                                  icon: const Icon(Icons.delete_outline),
+                                  color: Theme.of(context).colorScheme.error,
+                                  onPressed: service.isBusy
+                                      ? null
+                                      : () => _deleteStore(store),
+                                ),
+                              ],
                             ),
                           );
                         },
