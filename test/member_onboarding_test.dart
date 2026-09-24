@@ -84,31 +84,43 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
     final service = UserProfileService.instance;
+    var returnedHome = false;
     service.clearForTesting();
     service.configureForTesting(
       MemberApi(
         baseUrl: 'https://registration.example.test/api',
-        client: MockClient(
-          (request) async => http.Response(
-            jsonEncode({
-              'token': 'registered-session',
-              'user': {
-                ...UserProfile.demo.toJson(),
-                'id': 'registered',
-                'name': '新會員',
-                'email': 'new@example.test',
-                'heightCm': null,
-                'weightKg': null,
-              },
-            }),
-            201,
+        client: MockClient((request) async {
+          final responseBody = request.method == 'PUT'
+              ? {
+                  ...jsonDecode(request.body) as Map<String, dynamic>,
+                  'id': 'registered',
+                  'email': 'new@example.test',
+                }
+              : {
+                  'token': 'registered-session',
+                  'user': {
+                    ...UserProfile.demo.toJson(),
+                    'id': 'registered',
+                    'name': '新會員',
+                    'email': 'new@example.test',
+                    'heightCm': null,
+                    'weightKg': null,
+                  },
+                };
+          return http.Response(
+            jsonEncode(responseBody),
+            request.method == 'PUT' ? 200 : 201,
             headers: {'content-type': 'application/json; charset=utf-8'},
-          ),
-        ),
+          );
+        }),
       ),
       const FlutterSecureStorage(),
     );
-    await tester.pumpWidget(const MaterialApp(home: ProfileScreen()));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ProfileScreen(onLoginComplete: () => returnedHome = true),
+      ),
+    );
     await tester.tap(find.text('建立帳號'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('member-name')), '新會員');
@@ -130,6 +142,20 @@ void main() {
     expect(find.text('編輯會員資料'), findsOneWidget);
     expect(find.text('身高（公分）'), findsOneWidget);
     expect(find.text('體重（公斤）'), findsOneWidget);
+    final height = find.widgetWithText(TextField, '身高（公分）');
+    final weight = find.widgetWithText(TextField, '體重（公斤）');
+    await tester.enterText(height, '170');
+    await tester.enterText(weight, '60');
+    final save = find.text('儲存');
+    for (var index = 0; index < 3 && save.evaluate().isEmpty; index++) {
+      await tester.drag(find.byType(ListView).last, const Offset(0, -800));
+      await tester.pumpAndSettle();
+    }
+    expect(save, findsOneWidget);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(returnedHome, isTrue);
+    expect(find.text('編輯會員資料'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(milliseconds: 500));

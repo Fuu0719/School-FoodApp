@@ -5,7 +5,7 @@ const express = require('express');
 const routes = require('../src/merchant/routes');
 const MerchantRepository = require('../src/merchant/repository');
 const { product, registration, storeInput } = require('../src/merchant/validation');
-const { campus, distanceMeters } = require('../src/merchant/geocoding');
+const { campus, addressQueries, distanceMeters } = require('../src/merchant/geocoding');
 const { hashPassword, tokenHash } = require('../src/auth/passwords');
 
 const fixture = (storeId = '10') => ({ storeId, name: '測試餐點', category: '便當', price: 80, originalPrice: 100,
@@ -57,6 +57,10 @@ test('account-only registration and authenticated 24-hour store creation', async
 test('campus distance uses the fixed MCU Taoyuan reference point', () => {
   assert.equal(distanceMeters(campus), 0);
   assert.ok(distanceMeters({ latitude: 25.033, longitude: 121.5654 }) > 20000);
+  assert.deepEqual(addressQueries('桃園市龜山區德明路117號'), [
+    '117 德明路 龜山區 桃園市',
+    '桃園市龜山區德明路117號',
+  ]);
 });
 
 test('store update is owner scoped and returns the refreshed account', async (t) => {

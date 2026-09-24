@@ -26,13 +26,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final UserProfileService _profileService = UserProfileService.instance;
   final UserActivityService _activityService = UserActivityService.instance;
   bool _editing = false;
+  bool _completionScheduled = false;
+  String? _observedProfileId;
 
   @override
   void initState() {
     super.initState();
     _profileService.addListener(_refresh);
     _activityService.addListener(_refresh);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _completeProfile());
+    _observedProfileId = _profileService.profile?.id;
+    if (_profileService.profile?.needsProfileCompletion == true) {
+      _scheduleProfileCompletion();
+    }
   }
 
   @override
@@ -71,15 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildLoginView() {
     return MemberLoginForm(
       service: _profileService,
-      onLoginComplete: () async {
-        await WidgetsBinding.instance.endOfFrame;
-        if (!mounted) return;
-        await _completeProfile();
-        if (mounted &&
-            _profileService.profile?.needsProfileCompletion == false) {
-          widget.onLoginComplete?.call();
-        }
-      },
+      onLoginComplete: _scheduleProfileCompletion,
       onMerchantLogin: _goToMerchantLogin,
     );
   }
@@ -1098,11 +1095,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _completeProfile() async {
+    _completionScheduled = false;
     if (!mounted || _editing) return;
     final profile = _profileService.profile;
     if (profile != null && profile.needsProfileCompletion) {
       await _openEditSheet(profile);
     }
+    if (mounted &&
+        _profileService.profile != null &&
+        _profileService.profile!.needsProfileCompletion == false) {
+      widget.onLoginComplete?.call();
+    }
+  }
+
+  void _scheduleProfileCompletion() {
+    if (!mounted || _completionScheduled) return;
+    _completionScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _completeProfile());
   }
 
   Future<void> _openEditSheet(UserProfile profile) async {
@@ -1375,7 +1384,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _refresh() {
     if (mounted) {
+      final profile = _profileService.profile;
+      final becameLoggedIn = _observedProfileId == null && profile?.id != null;
+      _observedProfileId = profile?.id;
       setState(() {});
+      if (becameLoggedIn || profile?.needsProfileCompletion == true) {
+        _scheduleProfileCompletion();
+      }
     }
   }
 
