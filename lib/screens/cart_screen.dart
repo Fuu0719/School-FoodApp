@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/cart_item.dart';
 import 'package:my_app/services/user_activity_service.dart';
+import 'package:my_app/widgets/checkout_success_overlay.dart';
 import 'package:my_app/widgets/food_photo.dart';
 
 class CartScreen extends StatefulWidget {
@@ -302,14 +303,8 @@ class _CartScreenState extends State<CartScreen> {
       if (!mounted) return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${record.isCloud ? '模擬訂單已建立，尚未付款' : '購買成功'}，共 ${record.totalQuantity} 項，NT\$ ${record.totalPrice}',
-        ),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    await showCheckoutSuccess(context, record);
+    if (!mounted) return;
 
     widget.onCheckoutComplete?.call();
     Navigator.of(context).popUntil((route) => route.isFirst);

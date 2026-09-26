@@ -8,6 +8,7 @@
     "dev": "node src/server.js",
     "test": "node --test",
     "db:check": "node scripts/check_database.js",
+    "db:seed:final": "node scripts/seed_final_test_data.js --reset-confirmed",
     "test:mysql": "node scripts/test_mysql.js"
   },
   "overrides": {

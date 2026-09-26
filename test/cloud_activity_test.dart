@@ -524,10 +524,13 @@ void main() {
       expect(find.text('確認上次訂單'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await tester.tap(find.text('確認上次訂單'));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 500));
       expect(sentKey, pending.id);
+      expect(find.text('點餐成功'), findsOneWidget);
+      expect(completed, false);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
       expect(completed, true);
-      expect(find.textContaining('模擬訂單已建立，尚未付款'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

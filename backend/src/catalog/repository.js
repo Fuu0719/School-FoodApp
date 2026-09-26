@@ -4,6 +4,15 @@ const select = `SELECT f.*, s.name AS store_name, m.business_name AS merchant_na
 const published = "s.deleted_at IS NULL AND m.status = 'active' AND f.status = 'active' AND f.stock_count > 0 AND (f.expires_at IS NULL OR f.expires_at > UTC_TIMESTAMP())";
 const escapeLike = (text) => text.replace(/[!%_]/g, (character) => `!${character}`);
 
+function recommendationReason(row) {
+  if (row.recommendation_reason?.trim()) return row.recommendation_reason.trim();
+  if (row.is_expiring_soon) return '即期優惠餐點，優先選購可減少食物浪費';
+  if (Number(row.protein_grams) >= 20) return '蛋白質含量充足，適合補充一餐所需營養';
+  if (Number(row.calories) <= 400) return '熱量較清爽，適合想控制飲食負擔時選擇';
+  if (Number(row.distance_meters) <= 1000) return '門市距離近，方便快速取餐';
+  return `${row.category}類餐點，依價格、距離與供應狀態推薦`;
+}
+
 class CatalogRepository {
   constructor(pool) { this.pool = pool; }
 
@@ -59,7 +68,7 @@ class CatalogRepository {
       nutritionTags: [], calories: row.calories, weightGrams: row.weight_grams, proteinGrams: row.protein_grams,
       fatGrams: row.fat_grams, carbsGrams: row.carbs_grams, distanceMeters: row.distance_meters,
       stockCount: row.stock_count, expiresAt: row.expires_at, isExpiringSoon: Boolean(row.is_expiring_soon),
-      ecoPriorityScore: Number(row.eco_priority_score), recommendationReason: row.recommendation_reason || '',
+      ecoPriorityScore: Number(row.eco_priority_score), recommendationReason: recommendationReason(row),
       imageUrl: row.image_url || '', specialLabel: null,
     }));
   }
@@ -74,3 +83,4 @@ class CatalogRepository {
   }
 }
 module.exports = CatalogRepository;
+module.exports.recommendationReason = recommendationReason;

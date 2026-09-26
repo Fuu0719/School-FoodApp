@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const express = require('express');
 const CatalogRepository = require('../src/catalog/repository');
+const { recommendationReason } = require('../src/catalog/repository');
 const catalogRoutes = require('../src/catalog/routes');
 
 test('catalogue query validates filters, uses cursors, and never falls back to mock IDs', async (t) => {
@@ -76,4 +77,13 @@ test('empty database returns an empty catalogue without additional queries', asy
   assert.equal(calls, 1);
   assert.equal(await repository.food('1'), null);
   assert.equal(await repository.store('1'), null);
+});
+
+test('catalogue always provides a useful recommendation reason', () => {
+  assert.equal(recommendationReason({ recommendation_reason: '  自訂理由  ' }), '自訂理由');
+  assert.match(recommendationReason({ recommendation_reason: '', is_expiring_soon: 1 }), /即期優惠/);
+  assert.match(recommendationReason({ protein_grams: 25 }), /蛋白質/);
+  assert.match(recommendationReason({ protein_grams: 5, calories: 350 }), /熱量/);
+  assert.match(recommendationReason({ protein_grams: 5, calories: 600, distance_meters: 800 }), /距離/);
+  assert.match(recommendationReason({ protein_grams: 5, calories: 600, distance_meters: 2000, category: '便當' }), /便當/);
 });

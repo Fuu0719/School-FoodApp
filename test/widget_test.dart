@@ -136,7 +136,13 @@ void main() {
     expect(find.text('結帳'), findsOneWidget);
 
     await tester.tap(find.text('結帳'));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.text('點餐成功'), findsOneWidget);
+    expect(find.textContaining('共 1 項'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle(const Duration(milliseconds: 100));
 
     expect(find.text('膳解人意'), findsOneWidget);
     expect(service.cartItems, isEmpty);
