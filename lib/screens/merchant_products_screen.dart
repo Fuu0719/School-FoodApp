@@ -526,8 +526,9 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                                             Text(
                                               product.statusLabel,
                                               style: TextStyle(
-                                                color:
-                                                    product.status == 'active'
+                                                color: product.isExpired
+                                                    ? const Color(0xFFB26A00)
+                                                    : product.status == 'active'
                                                     ? const Color(0xFF367242)
                                                     : Colors.black54,
                                               ),

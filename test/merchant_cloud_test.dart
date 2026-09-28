@@ -100,6 +100,22 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
   });
 
+  test('active expired products use an explicit expired status label', () {
+    final expired = MerchantProduct.fromJson({
+      ...productJson(status: 'active'),
+      'expiresAt': '2020-01-01T00:00:00.000Z',
+    });
+    final available = MerchantProduct.fromJson({
+      ...productJson(status: 'active'),
+      'expiresAt': '2099-01-01T00:00:00.000Z',
+    });
+
+    expect(expired.isExpired, isTrue);
+    expect(expired.statusLabel, '已過期');
+    expect(available.isExpired, isFalse);
+    expect(available.statusLabel, '已上架');
+  });
+
   const signup = MerchantRegistration(
     email: 'owner@example.test',
     password: 'Merchant-test-password!',

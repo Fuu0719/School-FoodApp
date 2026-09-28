@@ -228,6 +228,15 @@ void main() {
     expect(find.text('回饋 10%'), findsOneWidget);
     expect(find.textContaining('推薦分數'), findsWidgets);
 
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('recommendation-compact-preferences')),
+      findsOneWidget,
+    );
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 500));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('查看推薦原則'));
     await tester.pumpAndSettle();
 

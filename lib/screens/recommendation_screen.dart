@@ -129,10 +129,13 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
               children: [
                 const Icon(Icons.auto_awesome_rounded, color: Colors.white),
                 const SizedBox(width: 10),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    '今日推薦結果',
-                    style: TextStyle(
+                    _compactPreferenceText,
+                    key: const Key('recommendation-compact-preferences'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 17,
                       fontWeight: FontWeight.bold,
@@ -340,6 +343,11 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         : '距離 ${profile!.distanceLimitMeters} 公尺內';
 
     return '推薦依據：$tags / $budget / $distance';
+  }
+
+  String get _compactPreferenceText {
+    final tags = _currentPreference.preferredTags;
+    return tags.isEmpty ? '未設定偏好' : tags.take(3).join(' / ');
   }
 
   String _matchedTagsText(FoodItem food) {

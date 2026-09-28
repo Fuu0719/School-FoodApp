@@ -81,7 +81,12 @@ class MerchantProduct {
   final String id, storeName, status;
   final int revision;
   final MerchantProductInput input;
+  bool get isExpired =>
+      status == 'active' &&
+      input.expiresAt != null &&
+      !input.expiresAt!.isAfter(DateTime.now());
   String get statusLabel => switch (status) {
+    'active' when isExpired => '已過期',
     'active' => '已上架',
     'paused' => '已下架',
     'sold_out' => '已售完',
