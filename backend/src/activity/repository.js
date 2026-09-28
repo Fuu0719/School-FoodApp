@@ -1,7 +1,8 @@
 const { createHash } = require('node:crypto');
+const { isStoreOpenAt } = require('../stores/business_hours');
 
 const fail = (statusCode, message) => Object.assign(new Error(message), { statusCode });
-const foodColumns = `SELECT f.*, s.name AS store_name, s.deleted_at AS store_deleted_at, m.status AS merchant_status
+const foodColumns = `SELECT f.*, s.name AS store_name, s.business_hours, s.deleted_at AS store_deleted_at, m.status AS merchant_status
   FROM foods f JOIN stores s ON s.id = f.store_id JOIN merchants m ON m.id = s.merchant_id`;
 const asJson = (value) => typeof value === 'string' ? JSON.parse(value) : value;
 
@@ -132,16 +133,16 @@ class ActivityRepository {
       const [foods] = await connection.execute(`${foodColumns} WHERE f.id IN
         (${sorted.map(() => '?').join(',')}) ORDER BY f.id FOR UPDATE`, sorted.map((item) => item.foodId));
       const now = new Date();
-      const weekday = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', weekday: 'short' }).format(now);
-      const day = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(weekday) + 1;
       const lines = [];
       for (const item of sorted) {
         const food = foods.find((row) => String(row.id) === item.foodId);
         if (!food || food.store_deleted_at || food.status !== 'active' || food.merchant_status !== 'active' ||
             (food.expires_at && new Date(food.expires_at) <= now)) throw fail(409, '部分餐點已下架或過期');
         const [days] = await connection.execute(
-          'SELECT weekday FROM store_business_weekdays WHERE store_id = ? AND weekday = ?', [food.store_id, day]);
-        if (!days.length) throw fail(409, '部分店家今日未營業');
+          'SELECT weekday FROM store_business_weekdays WHERE store_id = ?', [food.store_id]);
+        if (!isStoreOpenAt(food.business_hours, days.map((row) => row.weekday), now)) {
+          throw fail(409, '部分店家目前未營業');
+        }
         if (food.stock_count < item.quantity) throw fail(409, '部分餐點庫存不足，請調整數量');
         const eco = (Math.round(Number(food.eco_priority_score) * 10) + (food.is_expiring_soon ? 8 : 2)) * item.quantity;
         lines.push({ food, ...item, eco });

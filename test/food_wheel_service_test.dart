@@ -17,7 +17,7 @@ void main() {
   });
 
   test('gets wheel candidates from search filters before spinning', () {
-    final wednesday = DateTime(2026, 8, 26);
+    final wednesday = DateTime(2026, 8, 26, 12);
     final candidates = service.getCandidates(
       foods: MockFoodRepository.allFoods,
       filters: const FoodSearchFilters(
@@ -36,7 +36,7 @@ void main() {
   });
 
   test('excludes wheel candidates from stores closed today', () {
-    final wednesday = DateTime(2026, 8, 26);
+    final wednesday = DateTime(2026, 8, 26, 12);
     final closedFood = MockFoodRepository.allFoods.first.copyWith(
       tags: const ['測試標籤', '高蛋白'],
       businessWeekdays: const [DateTime.thursday],

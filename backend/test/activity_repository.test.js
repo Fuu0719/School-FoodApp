@@ -19,7 +19,7 @@ function fixture({ failure, previous, closed = false, expired = false, deleted =
   const writes = [];
   const food = { id: '1', store_id: '2', name: 'Original meal', store_name: 'Original store',
     merchant_status: 'active', store_deleted_at: deleted ? new Date() : null, status: 'active', price: 100, original_price: 120,
-    stock_count: stock, is_expiring_soon: 1, eco_priority_score: '0.5',
+    stock_count: stock, is_expiring_soon: 1, eco_priority_score: '0.5', business_hours: '00:00-23:59',
     expires_at: expired ? new Date(0) : null, calories: 400 };
   const connection = {
     beginTransaction: async () => events.push('begin'),
@@ -30,7 +30,7 @@ function fixture({ failure, previous, closed = false, expired = false, deleted =
       if (sql.startsWith('SELECT id FROM users')) { assert.equal(args[0], '7'); return [[{ id: '7' }]]; }
       if (sql.startsWith('SELECT id, request_hash')) return [previous ? [previous] : []];
       if (sql.includes('FROM foods f')) { assert.match(sql, /ORDER BY f.id FOR UPDATE/); return [[food]]; }
-      if (sql.startsWith('SELECT weekday')) return [closed ? [] : [{ weekday: args[1] }]];
+      if (sql.startsWith('SELECT weekday')) return [closed ? [] : [1, 2, 3, 4, 5, 6, 7].map((weekday) => ({ weekday }))];
       if (sql.startsWith('INSERT INTO purchase_orders')) { writes.push({ sql, args }); return [{ insertId: '42' }]; }
       if (sql.startsWith('INSERT INTO purchase_order_items')) {
         writes.push({ sql, args });

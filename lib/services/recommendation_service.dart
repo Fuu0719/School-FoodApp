@@ -15,7 +15,7 @@ class RecommendationService {
     final today = now ?? DateTime.now();
     final candidates = foods.where((food) {
       final isAvailableForRecommendation =
-          !requireOpenToday || food.isOpenOn(today);
+          !requireOpenToday || food.isOpenAt(today);
       final isInBudget =
           food.price >= preference.budgetMin &&
           food.price <= preference.budgetMax;

@@ -1,3 +1,5 @@
+import 'package:my_app/utils/business_hours.dart';
+
 enum ConvenienceBrand { sevenEleven, familyMart }
 
 class ConvenienceStore {
@@ -42,5 +44,9 @@ class ConvenienceStore {
 
   bool isOpenOn(DateTime date) {
     return businessWeekdays.contains(date.weekday);
+  }
+
+  bool isOpenAt(DateTime date) {
+    return isBusinessOpenAt(businessWeekdays, businessHours, date);
   }
 }

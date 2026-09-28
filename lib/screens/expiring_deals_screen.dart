@@ -20,9 +20,11 @@ class _ExpiringDealsScreenState extends State<ExpiringDealsScreen> {
   final UserProfileService _profileService = UserProfileService.instance;
   ConvenienceBrand? _selectedBrand;
 
-  int get _effectiveDistanceLimitMeters {
-    return _profileService.profile?.distanceLimitMeters ??
-        _fallbackDistanceLimitMeters;
+  int? get _effectiveDistanceLimitMeters {
+    final profile = _profileService.profile;
+    return profile == null
+        ? _fallbackDistanceLimitMeters
+        : profile.distanceLimitMeters;
   }
 
   List<ConvenienceStore> get _stores {
@@ -460,7 +462,7 @@ class _ExpiringStoreScreenState extends State<ExpiringStoreScreen> {
           const SizedBox(height: 8),
           _buildInfoRow(
             Icons.schedule_rounded,
-            '${widget.store.businessHours} / 今日營業',
+            '${widget.store.businessHours} / ${widget.store.isOpenAt(DateTime.now()) ? '目前營業' : '目前未營業'}',
           ),
           const SizedBox(height: 12),
           Wrap(

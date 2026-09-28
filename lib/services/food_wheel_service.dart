@@ -20,7 +20,7 @@ class FoodWheelService {
     final today = now ?? DateTime.now();
     return searchService
         .search(foods: foods, filters: filters)
-        .where((food) => food.isOpenOn(today))
+        .where((food) => food.isOpenAt(today))
         .toList();
   }
 

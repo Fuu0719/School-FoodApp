@@ -106,9 +106,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  int get _effectiveExpiringDistanceLimitMeters {
-    return _profileService.profile?.distanceLimitMeters ??
-        _fallbackExpiringDistanceLimitMeters;
+  int? get _effectiveExpiringDistanceLimitMeters {
+    final profile = _profileService.profile;
+    return profile == null
+        ? _fallbackExpiringDistanceLimitMeters
+        : profile.distanceLimitMeters;
   }
 
   @override

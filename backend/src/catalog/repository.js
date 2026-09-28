@@ -3,6 +3,7 @@ const select = `SELECT f.*, s.name AS store_name, m.business_name AS merchant_na
   FROM foods f JOIN stores s ON s.id = f.store_id JOIN merchants m ON m.id = s.merchant_id`;
 const published = "s.deleted_at IS NULL AND m.status = 'active' AND f.status = 'active' AND f.stock_count > 0 AND (f.expires_at IS NULL OR f.expires_at > UTC_TIMESTAMP())";
 const escapeLike = (text) => text.replace(/[!%_]/g, (character) => `!${character}`);
+const { taipeiClock } = require('../stores/business_hours');
 
 function recommendationReason(row) {
   if (row.recommendation_reason?.trim()) return row.recommendation_reason.trim();
@@ -31,9 +32,17 @@ class CatalogRepository {
     }
     if (filters.expiringOnly) conditions.push('f.is_expiring_soon = 1');
     if (filters.openToday) {
-      const day = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Taipei', weekday: 'short' }).format(new Date());
-      conditions.push('EXISTS (SELECT 1 FROM store_business_weekdays w WHERE w.store_id = s.id AND w.weekday = ?)');
-      values.push(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(day) + 1);
+      const clock = taipeiClock();
+      const currentTime = `${String(Math.floor(clock.minutes / 60)).padStart(2, '0')}:${String(clock.minutes % 60).padStart(2, '0')}`;
+      const opens = "SUBSTRING_INDEX(s.business_hours, '-', 1)";
+      const closes = "SUBSTRING_INDEX(s.business_hours, '-', -1)";
+      conditions.push(`((EXISTS (SELECT 1 FROM store_business_weekdays w WHERE w.store_id = s.id AND w.weekday = ?)
+        AND (s.business_hours = '00:00-23:59' OR (${opens} < ${closes} AND ? >= ${opens} AND ? < ${closes})
+          OR (${opens} > ${closes} AND ? >= ${opens})))
+        OR (EXISTS (SELECT 1 FROM store_business_weekdays w WHERE w.store_id = s.id AND w.weekday = ?)
+          AND ${opens} > ${closes} AND ? < ${closes}))`);
+      values.push(clock.weekday, currentTime, currentTime, currentTime,
+        clock.weekday === 1 ? 7 : clock.weekday - 1, currentTime);
     }
     if (filters.tags.length) {
       conditions.push(`EXISTS (SELECT 1 FROM food_tags t WHERE t.food_id = f.id AND t.tag IN (${filters.tags.map(() => '?').join(',')}))`);

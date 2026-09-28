@@ -33,9 +33,9 @@ class FoodCatalogRepository {
       if (cursor != null && !cursors.add(cursor)) {
         throw const MemberApiException('商品分頁回應異常');
       }
-      if (loaded.length > 1000 ||
-          (loaded.length >= 1000 && cursor != null) ||
-          cursors.length > 20) {
+      if (loaded.length > 5000 ||
+          (loaded.length >= 5000 && cursor != null) ||
+          cursors.length > 100) {
         throw const MemberApiException('商品數量超過目前載入上限，請聯絡管理者');
       }
     } while (cursor != null);
@@ -48,9 +48,9 @@ class FoodCatalogRepository {
     if (!useCloud) return MockFoodRepository.convenienceStores;
     final stores = <String, ConvenienceStore>{};
     for (final food in allFoods) {
-      final brand = switch (food.storeBrand) {
-        '7-11' => ConvenienceBrand.sevenEleven,
-        '全家' => ConvenienceBrand.familyMart,
+      final brand = switch (food.storeBrand?.toLowerCase()) {
+        '7-11' || '7-eleven' => ConvenienceBrand.sevenEleven,
+        '全家' || '全家便利商店' || 'familymart' => ConvenienceBrand.familyMart,
         _ => null,
       };
       if (brand == null || !food.hasDistance) continue;

@@ -85,7 +85,9 @@ flutter run -d <device-id> --dart-define=CLOUD_CATALOG=true --dart-define=API_BA
 
 ### 最終測試資料（筆電 MySQL）
 
-2026-09-26 已備份並重建筆電測試資料：5 個會員、5 個商家、15 間門市及 60 項上架商品。每個商家有 3 間門市及 12 項商品；門市距離以銘傳大學桃園校區為起點，分布於 250–4,950 公尺。便當、飯糰、麵食、沙拉、麵包甜點及飲品各 10 項。7-ELEVEN 與全家便利商店各有 3 間門市、12 項商品，商品全數為 24 小時內即期優惠。
+2026-09-28 已重建筆電測試資料：5 個會員、15 個一般商家及 2 個連鎖品牌帳號，共 42 間門市、630 項上架商品。一般商家各有 1–3 間門市，每間門市 15 項商品；便當、飯糰、麵食、沙拉、麵包甜點及飲品平均輪替。一般門市含 3 間跨夜營業測試門市，營業狀態會同時檢查星期、目前時間及跨夜延續規則。
+
+7-ELEVEN 與全家門市座標取自 OpenStreetMap。種子程式會優先擷取桃園銘傳大學 5 公里圓形範圍；2026-09-28 重建時公開地圖 API 回覆流量限制，因此本次資料庫使用 11 間已核對的鄰近門市快照（7-ELEVEN 6 間、全家 5 間，距離 210–1,371 公尺），不能視為 5 公里內完整門市名錄。每間門市有 15 項模擬即期商品；真實的是門市名稱與座標，商品不是連鎖品牌官方資料。
 
 會員密碼統一為 `Member123!`：
 
@@ -97,9 +99,7 @@ flutter run -d <device-id> --dart-define=CLOUD_CATALOG=true --dart-define=API_BA
 
 商家密碼統一為 `Store123!`：
 
-- `campus-kitchen@foodapp.test`（校園好食光）
-- `green-table@foodapp.test`（綠意餐桌）
-- `daily-bento@foodapp.test`（日日餐盒）
+- `merchant01@foodapp.test` 至 `merchant15@foodapp.test`（15 個一般商家）
 - `seven-eleven@foodapp.test`（7-ELEVEN）
 - `familymart@foodapp.test`（全家便利商店）
 
@@ -168,7 +168,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；服務 Auto
 
 ## 驗證與文件
 
-2026-09-28 筆電驗證：Flutter 完整測試 114 通過／2 跳過，`flutter analyze` 無問題；後端測試 49 通過／3 真實 MySQL 跳過。真實 API 已驗證 60 項目錄、5 個商家、24 項每日即期測試商品及自動過期續期；新版 APK `1.0.0+11` 已安裝 Samsung 實機並成功載入雲端目錄。
+2026-09-28 筆電驗證：`flutter analyze` 無問題；後端單元測試 50 通過／3 整合測試跳過，真實 MySQL 測試 24 項全數通過。資料庫已驗證 5 個會員、17 個商家、42 間門市、630 項商品及 3 間跨夜門市。App 目錄安全上限提高為 5,000 項；首頁與即期頁正確辨識 `7-ELEVEN`、`7-11`、`全家便利商店`、`全家`，會員距離設為「不限」時不再誤套 1.5 公里預設值。
 
 - [部署進度與未解決事項](docs/deployment_status.md)
 - [Windows 部署說明](backend/DEPLOY_WINDOWS.md)

@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:my_app/utils/business_hours.dart';
 
 class FoodItem {
   const FoodItem({
@@ -109,6 +110,10 @@ class FoodItem {
 
   bool isOpenOn(DateTime date) {
     return businessWeekdays.contains(date.weekday);
+  }
+
+  bool isOpenAt(DateTime date) {
+    return isBusinessOpenAt(businessWeekdays, businessHours, date);
   }
 
   String get distanceLabel {

@@ -5,7 +5,7 @@ import 'package:my_app/models/user_preference.dart';
 import 'package:my_app/services/recommendation_service.dart';
 
 void main() {
-  final wednesday = DateTime(2026, 8, 26);
+  final wednesday = DateTime(2026, 8, 26, 12);
 
   test('mock repository contains 100 foods', () {
     expect(MockFoodRepository.allFoods, hasLength(100));
