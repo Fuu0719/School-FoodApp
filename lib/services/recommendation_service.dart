@@ -49,6 +49,26 @@ class RecommendationService {
     return candidates;
   }
 
+  List<FoodItem> merchantDiversePreview(
+    List<FoodItem> rankedFoods, {
+    int maxItems = 5,
+  }) {
+    final selected = <FoodItem>[];
+    final merchants = <String>{};
+    for (final food in rankedFoods) {
+      final merchant = food.merchantName.trim().isEmpty
+          ? food.storeName
+          : food.merchantName;
+      if (merchants.add(merchant)) selected.add(food);
+      if (selected.length == maxItems) return selected;
+    }
+    for (final food in rankedFoods) {
+      if (!selected.contains(food)) selected.add(food);
+      if (selected.length == maxItems) break;
+    }
+    return selected;
+  }
+
   RecommendationScoreBreakdown scoreFood(
     FoodItem food,
     UserPreference preference, {

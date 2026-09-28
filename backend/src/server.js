@@ -11,12 +11,16 @@ async function start() {
   await pool.query('SELECT token_hash FROM user_sessions LIMIT 0');
   await require('./activity/check_schema')(pool);
   await require('./merchant/check_schema')(pool);
+  const stopTestFoodRefresh = await require('./catalog/refresh_test_foods').startTestFoodRefresh(pool);
   const app = createApp({ userRepository: new UserRepository(pool) });
   app.set('trust proxy', 'loopback');
   const server = app.listen(port, process.env.HOST || '127.0.0.1', () => {
     console.log(`膳解人意 API running on port ${port}`);
   });
-  const shutdown = () => server.close(() => { pool.end().then(() => process.exit(0)); });
+  const shutdown = () => {
+    stopTestFoodRefresh();
+    server.close(() => { pool.end().then(() => process.exit(0)); });
+  };
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
   server.on('error', async (error) => {

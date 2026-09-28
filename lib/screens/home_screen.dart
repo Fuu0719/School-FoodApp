@@ -160,14 +160,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   List<FoodItem> get _recommendedFoods {
-    return _recommendationService
-        .getRecommendations(
-          foods: FoodCatalogRepository.instance.allFoods,
-          preference: _currentPreference,
-          requireOpenToday: false,
-        )
-        .take(3)
-        .toList();
+    final ranked = _recommendationService.getRecommendations(
+      foods: FoodCatalogRepository.instance.allFoods,
+      preference: _currentPreference,
+      requireOpenToday: false,
+    );
+    return _recommendationService.merchantDiversePreview(ranked);
   }
 
   UserPreference get _currentPreference {

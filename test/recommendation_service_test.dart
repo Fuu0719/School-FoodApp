@@ -211,4 +211,20 @@ void main() {
       0.5,
     );
   });
+
+  test('home preview favors one item from each merchant before repeats', () {
+    const service = RecommendationService();
+    final source = MockFoodRepository.allFoods.first;
+    final ranked = [
+      source.copyWith(id: 'a1', merchantName: '商家 A'),
+      source.copyWith(id: 'a2', merchantName: '商家 A'),
+      source.copyWith(id: 'b1', merchantName: '商家 B'),
+      source.copyWith(id: 'c1', merchantName: '商家 C'),
+      source.copyWith(id: 'b2', merchantName: '商家 B'),
+    ];
+
+    final preview = service.merchantDiversePreview(ranked, maxItems: 3);
+
+    expect(preview.map((food) => food.id), ['a1', 'b1', 'c1']);
+  });
 }

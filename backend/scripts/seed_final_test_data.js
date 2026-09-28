@@ -145,7 +145,9 @@ async function seed() {
               8 + (foodIndex % 6) * 5, 4 + (foodIndex % 5) * 3, 25 + (foodIndex % 7) * 9,
               expiresAt, isExpiring ? 1 : 0, isExpiring ? 0.9 : 0.45, reason],
           );
-          for (const tag of [category, isExpiring ? '即期優惠' : '日常餐點']) {
+          const tags = [category, isExpiring ? '即期優惠' : '日常餐點'];
+          if (convenience) tags.push('每日即期測試');
+          for (const tag of tags) {
             await connection.execute('INSERT INTO food_tags (food_id, tag) VALUES (?, ?)', [food.insertId, tag]);
           }
           await connection.execute('INSERT INTO food_ingredients (food_id, ingredient) VALUES (?, ?)',
