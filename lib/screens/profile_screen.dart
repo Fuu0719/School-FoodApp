@@ -1133,12 +1133,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     var saving = false;
     String? saveError;
     String? phoneError;
-    final availableTags =
-        FoodCatalogRepository.instance.allFoods
-            .expand((food) => food.tags)
-            .toSet()
-            .toList()
-          ..sort();
+    final availableTags = <String>{
+      ...profile.dietaryTags,
+      ...FoodCatalogRepository.instance.allFoods.expand((food) => food.tags),
+    }.toList()..sort();
 
     await showModalBottomSheet<void>(
       context: context,

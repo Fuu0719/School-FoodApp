@@ -42,6 +42,7 @@ void main() {
                 'user': {
                   ...UserProfile.demo.toJson(),
                   'id': 'new',
+                  'dietaryTags': ['資料庫既有標籤'],
                   'heightCm': null,
                   'weightKg': null,
                 },
@@ -57,6 +58,11 @@ void main() {
       await tester.pumpWidget(const MaterialApp(home: ProfileScreen()));
       await tester.pumpAndSettle();
       expect(find.text('編輯會員資料'), findsOneWidget);
+      expect(find.text('資料庫既有標籤'), findsOneWidget);
+      final savedTag = tester.widget<FilterChip>(
+        find.widgetWithText(FilterChip, '資料庫既有標籤'),
+      );
+      expect(savedTag.selected, isTrue);
       final fields = tester.widgetList<TextField>(find.byType(TextField));
       expect(
         fields
