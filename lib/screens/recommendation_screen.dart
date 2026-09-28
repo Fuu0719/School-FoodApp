@@ -378,7 +378,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
                 ),
                 const SizedBox(height: 12),
                 _buildRuleRow('先排除今日未營業、超出預算或距離的餐點'),
-                _buildRuleRow('偏好標籤符合度佔 35%，例如高蛋白、低脂、清爽'),
+                _buildRuleRow('有設定偏好時，餐點須至少符合一項；符合度佔排序分數 35%'),
                 _buildRuleRow('距離與預算各佔 18%，越接近設定條件分數越高'),
                 _buildRuleRow('減廢分數佔 19%，鼓勵選擇即期或高利用率餐點'),
                 _buildRuleRow('餐點評分與回饋標籤佔 10%，會影響後續排序'),

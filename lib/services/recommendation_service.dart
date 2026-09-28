@@ -22,6 +22,9 @@ class RecommendationService {
       final isNearby =
           !food.hasDistance ||
           food.distanceMeters <= preference.distanceLimitMeters;
+      final matchesPreference =
+          preference.preferredTags.isEmpty ||
+          food.tags.any(preference.preferredTags.contains);
       final avoidsRestrictedIngredients = preference.avoidIngredients.every(
         (ingredient) => !food.ingredients.contains(ingredient),
       );
@@ -29,6 +32,7 @@ class RecommendationService {
       return isAvailableForRecommendation &&
           isInBudget &&
           isNearby &&
+          matchesPreference &&
           avoidsRestrictedIngredients;
     }).toList();
 

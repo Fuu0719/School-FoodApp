@@ -36,6 +36,7 @@ const names = {
   '麵包甜點': ['奶油餐包', '紅豆銅鑼燒', '地瓜乳酪麵包'], '飲品': ['無糖豆漿', '鮮奶茶', '高纖蔬果汁'],
 };
 const prices = [49, 59, 69, 79, 89, 99, 109, 119, 129, 139];
+const preferenceTags = ['低脂', '蔬食', '高蛋白', '清爽', '均衡', '低熱量'];
 const generalAddresses = [
   '桃園市龜山區德明路5號', '桃園市龜山區德明路105號', '桃園市龜山區大同路212號',
   '桃園市龜山區大同路357號', '桃園市龜山區萬壽路二段1057號', '桃園市龜山區萬壽路二段1170號',
@@ -74,7 +75,8 @@ async function insertStore(connection, merchantId, data, storeIndex, foodCounter
   for (let product = 0; product < 15; product++, foodCounter.value++) {
     const index = foodCounter.value;
     const category = categories[(storeIndex + product) % categories.length];
-    const productName = `${names[category][(storeIndex + product) % 3]} ${String(product + 1).padStart(2, '0')}`;
+    const baseName = names[category][(storeIndex + product) % 3];
+    const productName = `${baseName} ${String(product + 1).padStart(2, '0')}（${data.name}）`;
     const isExpiring = convenience || index % 3 === 0;
     const price = prices[index % prices.length];
     const originalPrice = isExpiring ? price + 20 + (index % 3) * 10 : null;
@@ -90,7 +92,13 @@ async function insertStore(connection, merchantId, data, storeIndex, foodCounter
         4 + index % 5 * 3, 25 + index % 7 * 9, expiresAt, isExpiring ? 1 : 0,
         isExpiring ? 0.9 : 0.45, reason],
     );
-    const tags = [category, isExpiring ? '即期優惠' : '日常餐點'];
+    const preferenceSet = new Set([preferenceTags[index % preferenceTags.length]]);
+    if (index % 2 === 0) preferenceSet.add('低脂');
+    if (index % 3 === 0) preferenceSet.add('高蛋白');
+    if (index % 5 === 0) preferenceSet.add('蔬食');
+    if (category === '沙拉') preferenceSet.add('清爽');
+    if (290 + index % 8 * 55 <= 400) preferenceSet.add('低熱量');
+    const tags = [category, isExpiring ? '即期優惠' : '日常餐點', ...preferenceSet];
     if (convenience) tags.push('每日即期測試');
     for (const tag of tags) await connection.execute('INSERT INTO food_tags (food_id, tag) VALUES (?, ?)', [food.insertId, tag]);
     await connection.execute('INSERT INTO food_ingredients (food_id, ingredient) VALUES (?, ?)',

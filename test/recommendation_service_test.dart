@@ -107,8 +107,63 @@ void main() {
 
       expect(recommendations, isNotEmpty);
       expect(recommendations.first.tags, contains('素食'));
+      expect(recommendations.every((food) => food.tags.contains('素食')), isTrue);
     },
   );
+
+  test('changing preference tags changes the recommendation candidates', () {
+    const service = RecommendationService();
+    final source = MockFoodRepository.allFoods.first;
+    final lowFat = source.copyWith(
+      id: 'low-fat-only',
+      tags: const ['低脂'],
+      businessWeekdays: const [DateTime.wednesday],
+    );
+    final anotherLowFat = source.copyWith(
+      id: 'another-low-fat',
+      tags: const ['低脂'],
+      businessWeekdays: const [DateTime.wednesday],
+    );
+    final vegetarian = source.copyWith(
+      id: 'vegetarian-only',
+      tags: const ['蔬食'],
+      businessWeekdays: const [DateTime.wednesday],
+    );
+    const base = UserPreference(
+      dietaryPreferences: [],
+      budgetMin: 0,
+      budgetMax: 999,
+      distanceLimitMeters: 999999,
+      preferredTags: ['低脂'],
+      avoidIngredients: [],
+      wasteReductionEnabled: true,
+    );
+
+    expect(
+      service.getRecommendations(
+        foods: [lowFat, anotherLowFat, vegetarian],
+        preference: base,
+        now: wednesday,
+      ),
+      hasLength(2),
+    );
+    expect(
+      service.getRecommendations(
+        foods: [lowFat, anotherLowFat, vegetarian],
+        preference: const UserPreference(
+          dietaryPreferences: [],
+          budgetMin: 0,
+          budgetMax: 999,
+          distanceLimitMeters: 999999,
+          preferredTags: ['蔬食'],
+          avoidIngredients: [],
+          wasteReductionEnabled: true,
+        ),
+        now: wednesday,
+      ),
+      [vegetarian],
+    );
+  });
 
   test('score breakdown explains recommendation factors', () {
     const service = RecommendationService();
