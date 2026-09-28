@@ -491,10 +491,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 24),
               _buildSectionTitle(
                 '即期優惠',
-                '7-11 / 全家，依距離上限 $_effectiveExpiringDistanceLimitMeters 公尺',
+                _effectiveExpiringDistanceLimitMeters == null
+                    ? '7-11 / 全家，不限距離'
+                    : '7-11 / 全家，依距離上限 $_effectiveExpiringDistanceLimitMeters 公尺',
                 onMorePressed: _goToExpiringDeals,
               ),
               const SizedBox(height: 12),
+              if (expiringFoods.isEmpty) const Text('目前沒有符合距離條件的超商即期商品'),
               ...expiringFoods
                   .take(4)
                   .map(

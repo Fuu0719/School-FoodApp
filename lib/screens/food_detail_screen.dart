@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/food_item.dart';
 import 'package:my_app/screens/cart_screen.dart';
 import 'package:my_app/services/user_activity_service.dart';
@@ -554,6 +555,9 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
   Widget _buildActionButton(BuildContext context) {
     final isFavorite = _activityService.isFavorite(food.id);
     final isInCart = _activityService.isInCart(food.id);
+    final isOpen =
+        !FoodCatalogRepository.instance.useCloud ||
+        food.isOpenAt(DateTime.now());
 
     return Column(
       children: [
@@ -604,6 +608,8 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
           child: OutlinedButton.icon(
             onPressed: food.stockCount <= 0
                 ? null
+                : !isOpen
+                ? _showStoreClosed
                 : isInCart
                 ? _goToCart
                 : _addToCart,
@@ -615,6 +621,8 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
             label: Text(
               food.stockCount <= 0
                   ? '已售完'
+                  : !isOpen
+                  ? '店家尚未營業'
                   : isInCart
                   ? '查看購物車'
                   : '加入購物車',
@@ -634,13 +642,22 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
   }
 
   void _addToCart() {
-    _activityService.addToCart(food);
+    if (!_activityService.addToCart(food)) {
+      _showStoreClosed();
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('已將 ${food.name} 加入購物車'),
         duration: const Duration(seconds: 1),
       ),
     );
+  }
+
+  void _showStoreClosed() {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('該店家尚未營業')));
   }
 
   void _goToCart() {

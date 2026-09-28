@@ -91,6 +91,16 @@ void main() {
         source.expiringFoodsByBrand(null, maxDistanceMeters: 100),
         isEmpty,
       );
+      final sevenSource = repository(
+        (_) async => page([
+          {...foodJson('2'), 'storeBrand': '7-ELEVEN'},
+        ]),
+      );
+      await sevenSource.load();
+      expect(
+        sevenSource.expiringFoodsByBrand(ConvenienceBrand.sevenEleven),
+        hasLength(1),
+      );
     },
   );
   test(

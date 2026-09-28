@@ -216,7 +216,9 @@ class _CartScreenState extends State<CartScreen> {
           visualDensity: VisualDensity.compact,
           onPressed:
               _activityService.cartLocked ||
-                  item.quantity >= item.food.stockCount
+                  item.quantity >= item.food.stockCount ||
+                  (FoodCatalogRepository.instance.useCloud &&
+                      !item.food.isOpenAt(DateTime.now()))
               ? null
               : () => _activityService.increaseCartItem(item.food),
           icon: const Icon(Icons.add_rounded),

@@ -301,12 +301,14 @@ class UserActivityService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addToCart(FoodItem food) {
+  bool addToCart(FoodItem food) {
+    if (isCloud && !food.isOpenAt(DateTime.now())) return false;
     setCartQuantity(food, cartQuantity(food.id) + 1);
+    return true;
   }
 
-  void increaseCartItem(FoodItem food) {
-    addToCart(food);
+  bool increaseCartItem(FoodItem food) {
+    return addToCart(food);
   }
 
   void decreaseCartItem(FoodItem food) {

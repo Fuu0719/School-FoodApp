@@ -36,6 +36,19 @@ const names = {
   '麵包甜點': ['奶油餐包', '紅豆銅鑼燒', '地瓜乳酪麵包'], '飲品': ['無糖豆漿', '鮮奶茶', '高纖蔬果汁'],
 };
 const prices = [49, 59, 69, 79, 89, 99, 109, 119, 129, 139];
+const generalAddresses = [
+  '桃園市龜山區德明路5號', '桃園市龜山區德明路105號', '桃園市龜山區大同路212號',
+  '桃園市龜山區大同路357號', '桃園市龜山區萬壽路二段1057號', '桃園市龜山區萬壽路二段1170號',
+  '桃園市龜山區自強南路71號', '桃園市龜山區幸福一街24號', '桃園市龜山區明興街223號',
+  '桃園市龜山區山鶯路372號', '桃園市龜山區頂興路31號', '桃園市龜山區陸光路85號',
+  '桃園市龜山區陸光路98號', '桃園市龜山區振興路50號', '桃園市龜山區光峰路296號',
+  '桃園市桃園區成功路三段50號', '桃園市桃園區萬壽路三段111號', '桃園市桃園區大有路141號',
+  '桃園市桃園區大有路457號', '桃園市桃園區寶山街209號', '桃園市桃園區大業路一段54號',
+  '桃園市桃園區中山東路17號', '桃園市桃園區民生路74號', '桃園市桃園區民族路79號',
+  '桃園市桃園區復興路151號', '桃園市桃園區復興路239號', '桃園市桃園區延平路4號',
+  '桃園市桃園區延平路135號', '桃園市桃園區建國路40號', '桃園市桃園區長沙街72號',
+  '桃園市桃園區三民路三段490號',
+];
 
 function coordinate(distance, bearingDegrees) {
   const earth = 6371000;
@@ -129,7 +142,7 @@ async function seed() {
         const schedule = useOvernight ? overnightSchedules[overnightIndex++] : schedules[storeIndex % schedules.length];
         await insertStore(connection, merchant.insertId, {
           name: `${businessName}${['一店', '二店', '三店'][branch]}`,
-          address: `桃園銘傳大學周邊測試地址 ${storeIndex + 1} 號`, latitude, longitude, distanceMeters: distance, schedule,
+          address: generalAddresses[storeIndex], latitude, longitude, distanceMeters: distance, schedule,
         }, storeIndex, foodCounter);
       }
     }
