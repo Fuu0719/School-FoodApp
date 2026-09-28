@@ -61,49 +61,61 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
               iconTheme: const IconThemeData(color: Color(0xFF2E3A2F)),
             )
           : null,
-      body: Column(
-        children: [
-          _buildTopSummary(),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-              itemCount: recommendedFoods.length,
-              itemBuilder: (context, index) {
-                final food = recommendedFoods[index];
-                final score = _recommendationService.scoreFood(
-                  food,
-                  preference,
-                  feedback: _feedbackByFoodId[food.id],
-                );
-
-                return Column(
-                  children: [
-                    FoodCard(
-                      food: food,
-                      showDistance: true,
-                      isFavorite: _activityService.isFavorite(food.id),
-                      favoriteBusy: _activityService.isFavoriteBusy(food.id),
-                      onTap: () => _goToFoodDetail(food),
-                      onFavoritePressed: () =>
-                          _activityService.toggleFavorite(food),
-                    ),
-                    _buildScoreBreakdown(food, score),
-                    const SizedBox(height: 14),
-                  ],
-                );
-              },
-            ),
+      body: CustomScrollView(
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _CollapsingSummaryDelegate(builder: _buildTopSummary),
           ),
+          if (recommendedFoods.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: Text('目前沒有符合條件且正在營業的餐點')),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+              sliver: SliverList.builder(
+                itemCount: recommendedFoods.length,
+                itemBuilder: (context, index) {
+                  final food = recommendedFoods[index];
+                  final score = _recommendationService.scoreFood(
+                    food,
+                    preference,
+                    feedback: _feedbackByFoodId[food.id],
+                  );
+                  return Column(
+                    children: [
+                      FoodCard(
+                        food: food,
+                        showDistance: true,
+                        isFavorite: _activityService.isFavorite(food.id),
+                        favoriteBusy: _activityService.isFavoriteBusy(food.id),
+                        onTap: () => _goToFoodDetail(food),
+                        onFavoritePressed: () =>
+                            _activityService.toggleFavorite(food),
+                      ),
+                      _buildScoreBreakdown(food, score),
+                      const SizedBox(height: 14),
+                    ],
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildTopSummary() {
+  Widget _buildTopSummary(double collapseProgress) {
+    final compact = collapseProgress > 0.55;
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      padding: const EdgeInsets.all(18),
+      margin: EdgeInsets.fromLTRB(16, compact ? 6 : 12, 16, 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: compact ? 10 : 18,
+      ),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF7DBA84), Color(0xFF4E8D57)],
@@ -112,56 +124,79 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
         ),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '今日推薦結果',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            '依照你的偏好、預算與距離，\n幫你挑出最適合的餐點',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 21,
-              fontWeight: FontWeight.bold,
-              height: 1.4,
+      child: compact
+          ? Row(
+              children: [
+                const Icon(Icons.auto_awesome_rounded, color: Colors.white),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    '今日推薦結果',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${recommendedFoods.length} 項',
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '今日推薦結果',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '依照你的偏好、預算與距離，\n幫你挑出最適合的餐點',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _summaryText,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildRuleChip('偏好 35%'),
+                    _buildRuleChip('距離 18%'),
+                    _buildRuleChip('預算 18%'),
+                    _buildRuleChip('減廢 19%'),
+                    _buildRuleChip('回饋 10%'),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _openRecommendationRulesSheet,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  icon: const Icon(Icons.rule_rounded, size: 18),
+                  label: const Text('查看推薦原則'),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            _summaryText,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _buildRuleChip('偏好 35%'),
-              _buildRuleChip('距離 18%'),
-              _buildRuleChip('預算 18%'),
-              _buildRuleChip('減廢 19%'),
-              _buildRuleChip('回饋 10%'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: _openRecommendationRulesSheet,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: BorderSide(color: Colors.white.withValues(alpha: 0.5)),
-            ),
-            icon: const Icon(Icons.rule_rounded, size: 18),
-            label: const Text('查看推薦原則'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -394,4 +429,29 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
       });
     }
   }
+}
+
+class _CollapsingSummaryDelegate extends SliverPersistentHeaderDelegate {
+  const _CollapsingSummaryDelegate({required this.builder});
+
+  final Widget Function(double collapseProgress) builder;
+
+  @override
+  double get minExtent => 76;
+
+  @override
+  double get maxExtent => 320;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    final progress = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
+    return ColoredBox(color: const Color(0xFFF7F9F4), child: builder(progress));
+  }
+
+  @override
+  bool shouldRebuild(covariant _CollapsingSummaryDelegate oldDelegate) => true;
 }
