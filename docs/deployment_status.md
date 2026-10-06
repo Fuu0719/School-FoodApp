@@ -1,6 +1,17 @@
 # 部署進度與未解決事項
 
-更新日期：2026-09-23。
+更新日期：2026-10-07。
+
+## 學校伺服器正式測試部署（2026-10-07）
+
+- 目前手機入口已由筆電移至學校伺服器：`手機 App -> ngrok HTTPS -> 127.0.0.1:3000 Node API -> 127.0.0.1:3307 MySQL`。筆電不需常駐 `npm start` 或 ngrok。
+- 學校專案位於 `C:\School\my_app`；`.env` 使用 `food_app@localhost`、資料庫 `shan_jie_ren_yi` 與連接埠 3307。001–004 結構已就緒，`db:check` 通過。
+- 筆電資料庫已用完整 SQL dump 搬入學校 MySQL，包含會員、商家、門市、商品、訂單及關聯資料；匯入前另建立學校資料庫備份。
+- 學校端一般後端測試為 47 通過、0 失敗、3 個真實 MySQL 測試跳過；`test:mysql` 為 24 通過、0 失敗、0 跳過。
+- `MySQLFoodApp`、`SchoolFoodAppApi`、`ngrok` 都設為 Automatic。使用者已完成整台 Windows Server 重開機，三項服務均自行恢復 Running。
+- ngrok 固定入口為 `https://estimator-flagman-fidgeting.ngrok-free.dev`；加入略過免費瀏覽器警告的標頭後，公開 `/api/health` 已在學校主機回傳 `ok`。
+- Node 仍只監聽 127.0.0.1:3000，MySQL 3307 不對外開放。公開 HTTPS 由同機 ngrok agent 主動建立通道。
+- 尚需用手機行動網路完成會員登入、商家管理、商品同步與結帳的最終操作驗收，以及建立排程異機備份與還原演練。
 
 ## 筆電 HTTPS 手機測試現況
 

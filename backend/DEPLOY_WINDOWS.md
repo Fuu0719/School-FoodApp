@@ -11,7 +11,12 @@ App 雲端模式已串接會員活動及獨立商家商品管理；尚未實作�
 
 ## 學校伺服器更新
 
-全部指令在遠端桌面執行。先在執行 API 的 PowerShell 按 Ctrl+C 停止服務。
+全部指令在遠端桌面以系統管理員 PowerShell 執行。既有主機先停止 API Windows 服務：
+
+```powershell
+cd C:\School\my_app\backend
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -Action Stop
+```
 
 ```powershell
 cd C:\School\my_app
@@ -61,7 +66,8 @@ DB_NAME=shan_jie_ren_yi
 npm.cmd run db:check
 npm.cmd test
 npm.cmd run test:mysql
-npm.cmd start
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -Action Start
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -Action Status
 ```
 
 db:check 檢查實際資料庫和登入紀錄表。test:mysql 會建立隨機測試會員，實際驗證註冊、登入、改偏好、另一個 API 實例讀取、登出撤銷與再次登入，再刪除該測試會員。
@@ -76,10 +82,15 @@ VS Code 選 Flutter Member API (Debug)，選已啟動的 Android 裝置，按 F5
 同一台開發電腦的 Android 模擬器連本機 API 使用 http://10.0.2.2:3000/api。
 這個位址不會指向學校雲端伺服器。
 
-學校伺服器目前綁定 127.0.0.1，只能在該伺服器內測試。
-從專研筆電或手機連線前，需另外完成 HTTPS 反向代理、學校網路路由及允許 API 連線的規則。
-後端的 3307 不需要對外開放。真實密碼和憑證不應經由公開 HTTP 傳輸。
-若使用受控 VPN 做 HTTP 開發測試，須先依學校允許的範圍設定 API 監聽與防火牆；Debug 支援 HTTP，正式發佈使用 HTTPS。
+學校 API 維持綁定 127.0.0.1:3000，MySQL 維持 127.0.0.1:3307；兩者都不直接對外開放。2026-10-07 已在同一台主機安裝 ngrok Windows 服務，固定 HTTPS 入口為 `https://estimator-flagman-fidgeting.ngrok-free.dev`，再轉送至本機 API。App 的 API_BASE_URL 須包含 `/api`。
+
+`MySQLFoodApp`、`SchoolFoodAppApi` 與 `ngrok` 已驗證為 Automatic，且在整台主機重開後自行恢復 Running。PowerShell 5 測試 ngrok HTTPS 前需指定 TLS 1.2，並帶免費入口略過標頭：
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Invoke-RestMethod "https://estimator-flagman-fidgeting.ngrok-free.dev/api/health" `
+  -Headers @{"ngrok-skip-browser-warning"="true"}
+```
 
 命令列也可指定網址：
 
@@ -92,7 +103,7 @@ Windows 桌面外掛的符號連結錯誤需在開發電腦處理；與伺服器
 
 ## 手動驗收
 
-1. 用新 Email 註冊，密碼 12 至 128 字元；兩次密碼不一致應阻止送出。
+1. 用新 Email 註冊，密碼 8 至 16 字元；兩次密碼不一致應阻止送出。
 2. 用相同 Email 再註冊，應顯示已註冊；錯誤密碼不應登入。
 3. 正確登入應返回首頁。編輯姓名、電話、身高、體重、健康目標、偏好及不限預算/距離，儲存成功後推薦使用新偏好。
 4. 關閉重開 App，應向伺服器重新驗證憑證並取得最新會員資料；離線時不以舊資料自動登入。
@@ -100,12 +111,8 @@ Windows 桌面外掛的符號連結錯誤需在開發電腦處理；與伺服器
 6. 儲存時斷網，應顯示錯誤且不宣告成功；恢復連線後可重試。
 7. 停止並重啟 API 後再次登入，會員資料與偏好仍存在。
 
-## 待部署項目
+## 待完成項目
 
-學校防火牆申請與 HTTPS 尚未完成，不能宣稱外部 App 已連線。請持續追蹤 [部署狀態](../docs/deployment_status.md)。
-會員活動已在學校驗收 002；App 雲端模式已串接。新商家後端另需 003，步驟見 [商家部署](MERCHANT_MANAGEMENT.md)。
-
-已提供 [Windows 常駐服務工具](windows-service/README.md)，需在學校伺服器安裝並驗證開機啟動。
-HTTPS、定期異機備份與還原驗證仍待完成；Email 驗證、忘記密碼仍未實作。商家正式帳號由管理者本機建立，需先完成商家部署。
+外部 HTTPS、001–004、資料搬移及三項 Windows 服務的重開機驗收已完成。仍需完成手機行動網路下的會員／商家端到端操作驗收、定期異機備份與還原演練。Email 驗證、忘記密碼與正式金流仍未實作。
 目前登入憑證有效七天，資料庫只存 SHA-256 摘要；每次請求查驗效期，登出即撤銷該憑證。
 App 安全儲存憑證，不保存會員密碼。密碼使用 Node.js scrypt 加上隨機 salt。
