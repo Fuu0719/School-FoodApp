@@ -1,7 +1,7 @@
 # 膳解人意 Backend
 
 會員、商品目錄、會員活動與商家管理 API 使用 MySQL；推薦 API 尚未完成。商家可自行註冊並直接啟用，登入後再新增一間或多間門市。舊版客戶端在註冊時附帶首間門市的格式仍相容。
-初始化或升級請依部署文件核對結構，勿重匯 schema。既有環境依序套用 migration；Email 驗證功能需套用 `005_member_email.sql`，通過 db:check 才啟動新版 API。
+初始化或升級請依部署文件核對結構，勿重匯 schema。既有環境依序套用 migration；Email 驗證、會員頭像與綠界付款分別需套用 `005_member_email.sql`、`006_member_avatar.sql`、`007_ecpay_payment.sql`，通過 db:check 才啟動新版 API。
 
 部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)。
 
@@ -37,11 +37,13 @@ test:mysql 會建立並清除隨機測試會員。API 啟動前檢查資料庫�
 
 除註冊登入外，會員端點需 Authorization: Bearer <token>。
 Email 會轉為小寫；新註冊密碼為 8–16 字元，既有較長密碼仍可登入。新會員完成 6 位數 Email 驗證後才簽發 session，接著立即完成首次個人資料。驗證碼 10 分鐘失效，最多嘗試 5 次。
-PUT /api/me 接受完整的 name、phone、heightCm、weightKg、healthGoal、dietaryTags、budgetMax、distanceLimitMeters。phone 可留空；有值時接受台灣手機、含區碼市話或 `+886`，儲存前移除空白、括號與連字號。
+PUT /api/me 接受完整的 name、phone、avatarKey、heightCm、weightKg、healthGoal、dietaryTags、budgetMax、distanceLimitMeters。phone 可留空；有值時接受台灣手機、含區碼市話或 `+886`，儲存前移除空白、括號與連字號。
 healthGoal 為 maintain、muscleGain 或 fatLoss；預算和距離可為 null（不限）。
 不接受透過 body 的 id 指定其他會員，Email 修改尚未開放。
 
-SMTP 由 `.env` 的 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM` 設定；Gmail 必須使用應用程式密碼，禁止提交實際密碼。下單成功後寄會員訂單通知，並依商家分組寄出新訂單通知；寄信失敗不會回滾已成立訂單。
+SMTP 由 `.env` 的 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM` 設定；Gmail 必須使用應用程式密碼，禁止提交實際密碼。Email 驗證完成後會寄歡迎信；綠界確認付款成功後才寄會員與商家訂單通知。
+
+綠界由 `PUBLIC_BASE_URL`、`ECPAY_MERCHANT_ID`、`ECPAY_HASH_KEY`、`ECPAY_HASH_IV`、`ECPAY_GATEWAY_URL` 設定。測試環境使用綠界 Stage URL；正式上線必須換成正式商店資料及正式 Gateway。HashKey、HashIV 只存後端 `.env`。`PUBLIC_BASE_URL` 必須是綠界可連入的 HTTPS 網址，付款成立只採信 `/api/payments/ecpay/return` 的 CheckMacValue 驗證結果。
 
 401 表示未登入或憑證失效；403 表示 Email 尚未驗證；409 表示 Email 重複；400 為表單驗證失敗；429 為登入/註冊嘗試過多。
 憑證七天到期，登出後即失效。會員資料和偏好一起提交或一起回復。
@@ -51,7 +53,7 @@ SMTP 由 `.env` 的 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`、`SMTP_USER`、`S
 
 GET /api/health 回應 API 運作狀態，不代表其他資料功能已完成。
 GET /api/foods、/api/foods/:foodId、/api/stores/:storeId 已讀 MySQL，GET /api/recommendations 暫回應 501；詳見 [商品目錄](CATALOG.md)。
-MySQL 收藏、瀏覽與模擬訂單端點已提供，詳見 [會員活動 API 與遷移](MEMBER_ACTIVITY.md)。
+MySQL 收藏、瀏覽與訂單端點已提供，詳見 [會員活動 API 與遷移](MEMBER_ACTIVITY.md)。
 商家帳號與商品管理使用獨立驗證及 MySQL 寫入，需套用 003；刪除門市功能另需 004，見 [商家管理與部署](MERCHANT_MANAGEMENT.md) 與 [門市刪除](STORE_DELETION.md)。商品分類是不跨商家的自訂文字，會從該商家現有商品彙整選項。
 其他尚未實作正式驗證的原型寫入與回饋端點仍回應 501；僅舊原型測試顯式開啟。
 App 預設保留展示商品；Cloud Catalog 版改讀 MySQL 目錄、雲端收藏、瀏覽及模擬訂單。購物車、搜尋紀錄與評分回饋仍有本機狀態；模擬訂單不代表已付款或商家已接單。

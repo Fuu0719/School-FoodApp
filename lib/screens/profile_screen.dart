@@ -5,6 +5,7 @@ import 'package:my_app/models/user_profile.dart';
 import 'package:my_app/screens/merchant_login_screen.dart';
 import 'package:my_app/services/user_activity_service.dart';
 import 'package:my_app/services/user_profile_service.dart';
+import 'package:my_app/widgets/meal_avatar.dart';
 import 'package:my_app/services/member_api.dart';
 import 'package:my_app/widgets/member_login_form.dart';
 
@@ -111,19 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: const BoxDecoration(
-              color: Color(0xFFEAF5E8),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.person_rounded,
-              color: Color(0xFF4E8D57),
-              size: 38,
-            ),
-          ),
+          MealAvatar(avatarKey: profile.avatarKey, radius: 35),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -729,20 +718,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 13,
-                    backgroundColor: isMe
-                        ? const Color(0xFFD68A00)
-                        : const Color(0xFFEAF5E8),
-                    child: Text(
-                      _rankLabel(item.rank),
-                      style: TextStyle(
-                        color: isMe ? Colors.white : const Color(0xFF4E8D57),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  Text(
+                    _rankLabel(item.rank),
+                    style: TextStyle(
+                      color: isMe
+                          ? const Color(0xFFD68A00)
+                          : const Color(0xFF4E8D57),
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  MealAvatar(avatarKey: item.avatarKey, radius: 16),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -1130,6 +1116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     int? budgetMax = profile.budgetMax;
     int? distanceLimit = profile.distanceLimitMeters;
     var healthGoal = profile.healthGoal;
+    var avatarKey = profile.avatarKey;
     var saving = false;
     String? saveError;
     String? phoneError;
@@ -1171,6 +1158,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF2E3A2F),
                       ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text(
+                      '選擇頭像',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: mealAvatarStyles
+                          .map(
+                            (style) => Tooltip(
+                              message: style.label,
+                              child: InkWell(
+                                onTap: saving
+                                    ? null
+                                    : () => setSheetState(
+                                        () => avatarKey = style.key,
+                                      ),
+                                customBorder: const CircleBorder(),
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: avatarKey == style.key
+                                          ? const Color(0xFFD68A00)
+                                          : Colors.transparent,
+                                      width: 3,
+                                    ),
+                                  ),
+                                  child: MealAvatar(
+                                    avatarKey: style.key,
+                                    radius: 24,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          )
+                          .toList(),
                     ),
                     const SizedBox(height: 16),
                     TextField(
@@ -1331,6 +1359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     phone: normalizeOptionalPhone(
                                       phoneController.text,
                                     )!,
+                                    avatarKey: avatarKey,
                                     dietaryTags: selectedTags.toList(),
                                     budgetMax: budgetMax,
                                     distanceLimitMeters: distanceLimit,

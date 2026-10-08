@@ -82,17 +82,18 @@ class ActivityRepository {
 
   async leaderboard(userId) {
     const [rows] = await this.pool.execute(`WITH scores AS (
-      SELECT u.id, u.name, COALESCE(SUM(o.eco_points), 0) AS points
-      FROM users u LEFT JOIN purchase_orders o ON o.user_id = u.id
-      GROUP BY u.id, u.name
+      SELECT u.id, u.name, u.avatar_key, COALESCE(SUM(o.eco_points), 0) AS points
+      FROM users u LEFT JOIN purchase_orders o ON o.user_id = u.id AND o.payment_status = 'paid'
+      GROUP BY u.id, u.name, u.avatar_key
     ), ranked AS (
-      SELECT id, name, points, ROW_NUMBER() OVER (ORDER BY points DESC, id ASC) AS rankNumber
+      SELECT id, name, avatar_key, points, ROW_NUMBER() OVER (ORDER BY points DESC, id ASC) AS rankNumber
       FROM scores
     )
-    SELECT id, name, points, rankNumber FROM ranked
+    SELECT id, name, avatar_key, points, rankNumber FROM ranked
     WHERE rankNumber <= 3 OR id = ? ORDER BY rankNumber`, [userId]);
     return rows.map((row) => ({
       name: row.name,
+      avatarKey: row.avatar_key || 'sprout',
       points: Number(row.points),
       rank: Number(row.rankNumber),
       isMe: String(row.id) === String(userId),
@@ -101,22 +102,73 @@ class ActivityRepository {
 
   async orders(userId, before) {
     const [rows] = await this.pool.execute(`SELECT id, total_quantity AS totalQuantity,
-      total_price AS totalPrice, purchased_at AS purchasedAt FROM purchase_orders
+      total_price AS totalPrice, payment_status AS paymentStatus, purchased_at AS purchasedAt FROM purchase_orders
       WHERE user_id = ? AND id < ? ORDER BY id DESC LIMIT 20`, [userId, before]);
-    return rows.map((row) => ({ ...row, id: String(row.id), paymentStatus: 'not_processed' }));
+    return rows.map((row) => ({ ...row, id: String(row.id) }));
   }
 
   async order(userId, orderId, connection = this.pool) {
     const [rows] = await connection.execute(`SELECT id, total_quantity AS totalQuantity,
       total_price AS totalPrice, eco_points AS ecoPoints, saved_amount AS savedAmount,
-      purchased_at AS purchasedAt FROM purchase_orders WHERE user_id = ? AND id = ?`, [userId, orderId]);
+      payment_status AS paymentStatus, purchased_at AS purchasedAt FROM purchase_orders WHERE user_id = ? AND id = ?`, [userId, orderId]);
     if (!rows.length) throw fail(404, '找不到此訂單');
     const [items] = await connection.execute(`SELECT food_id AS foodId, quantity,
       unit_price AS unitPrice, original_unit_price AS originalUnitPrice,
       eco_points AS ecoPoints, food_snapshot AS foodSnapshot FROM purchase_order_items
       WHERE purchase_order_id = ? ORDER BY id`, [orderId]);
-    return { ...rows[0], id: String(rows[0].id), paymentStatus: 'not_processed',
+    return { ...rows[0], id: String(rows[0].id),
       items: items.map((item) => ({ ...item, foodId: String(item.foodId), foodSnapshot: asJson(item.foodSnapshot) })) };
+  }
+
+  async preparePayment(userId, orderId, merchantTradeNo, tokenHash) {
+    await this.pool.execute(`UPDATE purchase_orders SET merchant_trade_no = ?, payment_token_hash = ?
+      WHERE id = ? AND user_id = ? AND payment_status = 'pending'`,
+    [merchantTradeNo, tokenHash, orderId, userId]);
+  }
+
+  async completeWithoutPayment(userId, orderId) {
+    await this.pool.execute(`UPDATE purchase_orders SET payment_status = 'paid', paid_at = NOW()
+      WHERE id = ? AND user_id = ? AND payment_status = 'pending'`, [orderId, userId]);
+  }
+
+  async paymentByToken(tokenHash) {
+    const [rows] = await this.pool.execute(`SELECT id, total_quantity AS totalQuantity,
+      total_price AS totalPrice, merchant_trade_no AS merchantTradeNo
+      FROM purchase_orders WHERE payment_token_hash = ? AND payment_status = 'pending'`, [tokenHash]);
+    return rows[0] ? { ...rows[0], id: String(rows[0].id) } : null;
+  }
+
+  async recordPayment(merchantTradeNo, paid) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [rows] = await connection.execute(`SELECT id, user_id AS userId, payment_status
+        FROM purchase_orders WHERE merchant_trade_no = ? FOR UPDATE`, [merchantTradeNo]);
+      if (!rows.length || rows[0].payment_status !== 'pending') {
+        await connection.commit();
+        return null;
+      }
+      const order = rows[0];
+      await connection.execute(`UPDATE purchase_orders SET payment_status = ?,
+        paid_at = CASE WHEN ? THEN NOW() ELSE paid_at END, payment_token_hash = NULL WHERE id = ?`,
+      [paid ? 'paid' : 'failed', paid, order.id]);
+      if (!paid) {
+        const [items] = await connection.execute(
+          'SELECT food_id AS foodId, quantity FROM purchase_order_items WHERE purchase_order_id = ?', [order.id]);
+        for (const item of items) {
+          await connection.execute(`UPDATE foods SET stock_count = stock_count + ?,
+            status = CASE WHEN status = 'sold_out' THEN 'active' ELSE status END WHERE id = ?`,
+          [item.quantity, item.foodId]);
+        }
+      }
+      await connection.commit();
+      return { orderId: String(order.id), userId: String(order.userId), paid };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 
   async checkout(userId, requestId, items) {

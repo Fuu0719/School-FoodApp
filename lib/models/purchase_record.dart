@@ -7,6 +7,8 @@ class PurchaseRecord {
     required this.items,
     this.cloudEcoPoints,
     this.cloudSavedAmount,
+    this.paymentStatus = 'not_processed',
+    this.checkoutUrl,
   });
 
   final String id;
@@ -14,6 +16,8 @@ class PurchaseRecord {
   final List<CartItem> items;
   final int? cloudEcoPoints;
   final int? cloudSavedAmount;
+  final String paymentStatus;
+  final String? checkoutUrl;
   bool get isCloud => cloudEcoPoints != null;
 
   int get totalQuantity {

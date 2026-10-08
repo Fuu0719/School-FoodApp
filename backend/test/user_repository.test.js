@@ -33,14 +33,14 @@ test('profile update binds user input and rolls back both tables on failure', as
       if (sql.startsWith('UPDATE users')) {
         assert.equal(params[0], name);
         assert.equal(params.at(-1), '42');
-        assert.equal(params[4], 'fat_loss');
+        assert.equal(params[5], 'fat_loss');
         return [{ affectedRows: 1 }];
       }
       throw new Error('save failed');
     },
   };
   const repository = new UserRepository({ getConnection: async () => connection });
-  await assert.rejects(repository.update('42', { name, phone: '', heightCm: 170, weightKg: 65,
+  await assert.rejects(repository.update('42', { name, phone: '', avatarKey: 'sprout', heightCm: 170, weightKg: 65,
     healthGoal: 'fatLoss', dietaryTags: [], budgetMax: null, distanceLimitMeters: null }), /save failed/);
   assert.deepEqual(events, ['begin', 'rollback', 'release']);
 });

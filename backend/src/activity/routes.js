@@ -1,4 +1,5 @@
 const express = require('express');
+const { createEcpay } = require('../payments/ecpay');
 const run = (handler) => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
 const invalid = () => Object.assign(new Error('請求資料格式不正確'), { statusCode: 400 });
 const maxId = '18446744073709551615';
@@ -16,8 +17,44 @@ function checkoutItems(body) {
   return items;
 }
 
-function activityRoutes(repository, requireMember, mailer = null) {
+function activityRoutes(repository, requireMember, mailer = null, ecpay = createEcpay()) {
   const router = express.Router();
+  const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[character]);
+  const sendOrderEmails = async (userId, orderId) => {
+    if (!mailer || !repository.orderNotification) return;
+    const notice = await repository.orderNotification(userId, orderId);
+    await Promise.allSettled([
+      mailer.sendOrderConfirmation(notice),
+      ...notice.merchants.map((merchant) => mailer.sendMerchantOrder({ orderId: notice.orderId, ...merchant })),
+    ]);
+  };
+
+  router.get('/payments/ecpay/:token', run(async (req, res) => {
+    if (!ecpay.enabled || !/^[0-9a-f]{64}$/.test(req.params.token)) return res.status(404).send('Payment not found');
+    const order = await repository.paymentByToken(ecpay.tokenHash(req.params.token));
+    if (!order) return res.status(404).send('Payment not found or expired');
+    const fields = ecpay.fields(order);
+    const inputs = Object.entries(fields).map(([key, value]) =>
+      `<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}">`).join('');
+    res.type('html').send(`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>前往綠界付款</title>
+      <body><p>正在連接綠界安全付款頁面...</p><form id="pay" method="post" action="${escapeHtml(ecpay.gatewayUrl)}">${inputs}</form>
+      <script>document.getElementById('pay').submit()</script></body></html>`);
+  }));
+  router.post('/payments/ecpay/return', run(async (req, res) => {
+    if (!ecpay.verify(req.body)) return res.status(400).send('0|CheckMacValue Error');
+    const outcome = await repository.recordPayment(req.body.MerchantTradeNo, req.body.RtnCode === '1');
+    if (outcome?.paid) sendOrderEmails(outcome.userId, outcome.orderId)
+      .catch((error) => console.error('Order email delivery failed:', error.message));
+    res.type('text').send('1|OK');
+  }));
+  router.post('/payments/ecpay/result', run(async (req, res) => {
+    const ok = ecpay.verify(req.body) && req.body.RtnCode === '1';
+    res.type('html').send(`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>MealMind 付款結果</title>
+      <body style="font-family:sans-serif;text-align:center;padding:48px"><h1>${ok ? '付款完成' : '付款尚未完成'}</h1>
+      <p>${ok ? '可以回到膳解人意查看訂單。' : '請回到膳解人意重新確認訂單狀態。'}</p></body></html>`);
+  }));
   router.use(['/me/favorites', '/me/history', '/me/orders', '/me/leaderboard'], requireMember);
   router.get('/me/leaderboard', run(async (req, res) => {
     res.json({ items: await repository.leaderboard(req.member.id) });
@@ -52,17 +89,19 @@ function activityRoutes(repository, requireMember, mailer = null) {
     const requestId = req.get('Idempotency-Key');
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId || '')) throw invalid();
     const result = await repository.checkout(req.member.id, requestId, checkoutItems(req.body));
-    if (!result.replayed && mailer && repository.orderNotification) {
-      const notice = await repository.orderNotification(req.member.id, result.order.id);
-      const deliveries = [mailer.sendOrderConfirmation(notice)];
-      deliveries.push(...notice.merchants.map((merchant) => mailer.sendMerchantOrder({
-        orderId: notice.orderId, ...merchant,
-      })));
-      Promise.allSettled(deliveries).then((outcomes) => {
-        for (const outcome of outcomes) {
-          if (outcome.status === 'rejected') console.error('Order email delivery failed:', outcome.reason?.message);
-        }
-      });
+    if (ecpay.enabled && repository.preparePayment && result.order.paymentStatus === 'pending') {
+      const token = ecpay.newToken();
+      const tradeNo = `MM${Date.now().toString(36)}${BigInt(result.order.id).toString(36)}`.slice(0, 20).toUpperCase();
+      await repository.preparePayment(req.member.id, result.order.id, tradeNo, ecpay.tokenHash(token));
+      result.order.paymentStatus = 'pending';
+      result.payment = { checkoutUrl: `${process.env.PUBLIC_BASE_URL.replace(/\/$/, '')}/api/payments/ecpay/${token}` };
+    } else if (!result.replayed) {
+      if (repository.completeWithoutPayment) {
+        await repository.completeWithoutPayment(req.member.id, result.order.id);
+        result.order.paymentStatus = 'paid';
+      }
+      sendOrderEmails(req.member.id, result.order.id)
+        .catch((error) => console.error('Order email delivery failed:', error.message));
     }
     res.status(result.replayed ? 200 : 201).json(result);
   }));

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/food_item.dart';
 import 'package:my_app/screens/food_detail_screen.dart';
@@ -21,7 +22,10 @@ class _WheelScreenState extends State<WheelScreen>
   final FoodWheelService _wheelService = const FoodWheelService();
   final UserActivityService _activityService = UserActivityService.instance;
   late final AnimationController _animationController;
-  late final Animation<double> _turns;
+  late Animation<double> _turns;
+  double _rotationTurns = 0;
+  bool _isSpinning = false;
+  bool _showCelebration = false;
 
   FoodSearchFilters _filters = const FoodSearchFilters();
   FoodItem? _selectedFood;
@@ -55,11 +59,9 @@ class _WheelScreenState extends State<WheelScreen>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 2600),
     );
-    _turns = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutCubic),
-    );
+    _turns = const AlwaysStoppedAnimation(0);
     _activityService.addListener(_refresh);
   }
 
@@ -320,6 +322,29 @@ class _WheelScreenState extends State<WheelScreen>
             child: Stack(
               alignment: Alignment.topCenter,
               children: [
+                if (_showCelebration)
+                  ...List.generate(10, (index) {
+                    final angle = math.pi * 2 * index / 10;
+                    return Positioned(
+                      left: 94 + math.cos(angle) * 92,
+                      top: 100 + math.sin(angle) * 92,
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: 1),
+                        duration: Duration(milliseconds: 420 + index * 22),
+                        builder: (context, value, child) => Transform.scale(
+                          scale: 1 - value * 0.35,
+                          child: Opacity(opacity: 1 - value, child: child),
+                        ),
+                        child: Icon(
+                          index.isEven ? Icons.eco_rounded : Icons.star_rounded,
+                          size: 14,
+                          color: index.isEven
+                              ? const Color(0xFF4E8D57)
+                              : const Color(0xFFFFA000),
+                        ),
+                      ),
+                    );
+                  }),
                 Padding(
                   padding: const EdgeInsets.only(top: 20),
                   child: RotationTransition(
@@ -333,10 +358,20 @@ class _WheelScreenState extends State<WheelScreen>
                     ),
                   ),
                 ),
-                const Icon(
-                  Icons.arrow_drop_down_rounded,
-                  size: 42,
-                  color: Color(0xFFD68A00),
+                AnimatedBuilder(
+                  animation: _animationController,
+                  builder: (context, child) => Transform.rotate(
+                    angle: _isSpinning
+                        ? math.sin(_animationController.value * math.pi * 32) *
+                              0.08
+                        : 0,
+                    child: child,
+                  ),
+                  child: const Icon(
+                    Icons.arrow_drop_down_rounded,
+                    size: 42,
+                    color: Color(0xFFD68A00),
+                  ),
                 ),
                 Positioned(
                   top: 84,
@@ -420,11 +455,15 @@ class _WheelScreenState extends State<WheelScreen>
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: candidates.isEmpty
+                  onPressed: candidates.isEmpty || _isSpinning
                       ? null
                       : () => _spin(candidates),
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('轉出類型'),
+                  icon: Icon(
+                    _isSpinning
+                        ? Icons.autorenew_rounded
+                        : Icons.play_arrow_rounded,
+                  ),
+                  label: Text(_isSpinning ? '轉動中...' : '轉出類型'),
                 ),
               ),
               if (_selectedFood != null) ...[
@@ -547,15 +586,45 @@ class _WheelScreenState extends State<WheelScreen>
     );
   }
 
-  void _spin(List<FoodItem> candidates) {
+  Future<void> _spin(List<FoodItem> candidates) async {
+    if (_isSpinning) return;
     final result = _wheelService.spinByCategory(candidates: candidates);
+    if (result == null) return;
+    final categories = _wheelService.getCandidateCategories(candidates);
+    final selectedIndex = categories.indexOf(result.category);
+    if (selectedIndex < 0) return;
+
+    final random = math.Random();
+    final segmentPosition = 0.18 + random.nextDouble() * 0.64;
+    final targetFraction =
+        (1 - ((selectedIndex + segmentPosition) / categories.length)) % 1;
+    final targetTurns =
+        _rotationTurns.floorToDouble() + 4 + random.nextInt(3) + targetFraction;
 
     setState(() {
-      _selectedCategory = result?.category;
-      _selectedFood = result?.food;
+      _selectedCategory = null;
+      _selectedFood = null;
+      _showCelebration = false;
+      _isSpinning = true;
+      _turns = Tween<double>(begin: _rotationTurns, end: targetTurns).animate(
+        CurvedAnimation(
+          parent: _animationController,
+          curve: Curves.easeOutQuart,
+        ),
+      );
     });
 
-    _animationController.forward(from: 0);
+    await _animationController.forward(from: 0);
+    if (!mounted) return;
+    setState(() {
+      _rotationTurns = targetTurns;
+      _turns = AlwaysStoppedAnimation(_rotationTurns);
+      _selectedCategory = result.category;
+      _selectedFood = result.food;
+      _isSpinning = false;
+      _showCelebration = true;
+    });
+    HapticFeedback.mediumImpact();
   }
 
   void _updateFilters(FoodSearchFilters filters) {

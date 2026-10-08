@@ -16,11 +16,13 @@ class EcoRanking {
     required this.points,
     required this.rank,
     required this.isMe,
+    this.avatarKey = 'sprout',
   });
   final String name;
   final int points;
   final int rank;
   final bool isMe;
+  final String avatarKey;
 }
 
 class MemberActivityApi {
@@ -83,10 +85,21 @@ class MemberActivityApi {
       final points = item['points'];
       final rank = item['rank'];
       final isMe = item['isMe'];
-      if (name is! String || points is! int || rank is! int || isMe is! bool) {
+      final avatarKey = item['avatarKey'];
+      if (name is! String ||
+          points is! int ||
+          rank is! int ||
+          isMe is! bool ||
+          (avatarKey != null && avatarKey is! String)) {
         throw const MemberApiException('排行榜資料格式不正確');
       }
-      return EcoRanking(name: name, points: points, rank: rank, isMe: isMe);
+      return EcoRanking(
+        name: name,
+        points: points,
+        rank: rank,
+        isMe: isMe,
+        avatarKey: avatarKey as String? ?? 'sprout',
+      );
     }).toList();
   }
 
@@ -130,7 +143,21 @@ class MemberActivityApi {
     if (order is! Map<String, dynamic>) {
       throw const MemberApiException('訂單回應格式不正確，請用原訂單重試確認');
     }
-    return decodeOrder(order);
+    final payment = data['payment'];
+    final decoded = decodeOrder(order);
+    if (payment == null) return decoded;
+    if (payment is! Map<String, dynamic> || payment['checkoutUrl'] is! String) {
+      throw const MemberApiException('付款回應格式不正確');
+    }
+    return PurchaseRecord(
+      id: decoded.id,
+      purchasedAt: decoded.purchasedAt,
+      items: decoded.items,
+      cloudEcoPoints: decoded.cloudEcoPoints,
+      cloudSavedAmount: decoded.cloudSavedAmount,
+      paymentStatus: decoded.paymentStatus,
+      checkoutUrl: payment['checkoutUrl'] as String,
+    );
   }
 
   static List<Map<String, dynamic>> _items(Map<String, dynamic> data) {
@@ -200,12 +227,24 @@ class MemberActivityApi {
         );
         return CartItem(food: food, quantity: quantity);
       }).toList();
+      final paymentStatus = json['paymentStatus'] ?? 'not_processed';
+      if (paymentStatus is! String ||
+          !const {
+            'not_processed',
+            'pending',
+            'paid',
+            'failed',
+            'cancelled',
+          }.contains(paymentStatus)) {
+        throw const FormatException();
+      }
       final record = PurchaseRecord(
         id: _id(json['id']),
         purchasedAt: DateTime.parse(json['purchasedAt'] as String).toLocal(),
         items: List.unmodifiable(items),
         cloudEcoPoints: number(json['ecoPoints']),
         cloudSavedAmount: number(json['savedAmount']),
+        paymentStatus: paymentStatus,
       );
       if (record.totalPrice != number(json['totalPrice']) ||
           record.totalQuantity != number(json['totalQuantity'])) {

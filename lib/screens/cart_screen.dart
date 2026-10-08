@@ -3,6 +3,7 @@ import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/cart_item.dart';
 import 'package:my_app/services/user_activity_service.dart';
 import 'package:my_app/widgets/checkout_success_overlay.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:my_app/widgets/food_photo.dart';
 
 class CartScreen extends StatefulWidget {
@@ -281,7 +282,7 @@ class _CartScreenState extends State<CartScreen> {
                     : _activityService.hasPendingCheckout
                     ? '確認上次訂單'
                     : _activityService.isCloud
-                    ? '送出模擬訂單'
+                    ? '前往付款'
                     : '結帳',
               ),
             ),
@@ -294,6 +295,20 @@ class _CartScreenState extends State<CartScreen> {
   Future<void> _checkout() async {
     final record = await _activityService.submitCart();
     if (record == null || !mounted) {
+      return;
+    }
+
+    if (record.checkoutUrl != null) {
+      final opened = await launchUrl(
+        Uri.parse(record.checkoutUrl!),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('無法開啟付款頁面，請到訂單紀錄重新確認')));
+      }
+      if (mounted) widget.onCheckoutComplete?.call();
       return;
     }
 

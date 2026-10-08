@@ -1,6 +1,6 @@
 const goalsToDb = { maintain: 'maintain', muscleGain: 'muscle_gain', fatLoss: 'fat_loss' };
 const goalsFromDb = { maintain: 'maintain', muscle_gain: 'muscleGain', fat_loss: 'fatLoss' };
-const columns = `SELECT u.id, u.name, u.email, u.email_verified_at, u.phone, u.height_cm, u.weight_kg,
+const columns = `SELECT u.id, u.name, u.email, u.email_verified_at, u.phone, u.avatar_key, u.height_cm, u.weight_kg,
   u.health_goal, p.dietary_tags, p.budget_max, p.distance_limit_meters
   FROM users u LEFT JOIN user_preferences p ON p.user_id = u.id`;
 
@@ -9,6 +9,7 @@ function profile(row) {
   return {
     id: String(row.id), name: row.name, email: row.email, phone: row.phone || '',
     emailVerified: Boolean(row.email_verified_at),
+    avatarKey: row.avatar_key || 'sprout',
     heightCm: row.height_cm == null ? null : Number(row.height_cm),
     weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
     healthGoal: goalsFromDb[row.health_goal],
@@ -97,8 +98,8 @@ class UserRepository {
   async update(id, data) {
     return this.transaction(async (connection) => {
       await connection.execute(
-        `UPDATE users SET name = ?, phone = ?, height_cm = ?, weight_kg = ?, health_goal = ? WHERE id = ?`,
-        [data.name, data.phone, data.heightCm, data.weightKg, goalsToDb[data.healthGoal], id]);
+        `UPDATE users SET name = ?, phone = ?, avatar_key = ?, height_cm = ?, weight_kg = ?, health_goal = ? WHERE id = ?`,
+        [data.name, data.phone, data.avatarKey, data.heightCm, data.weightKg, goalsToDb[data.healthGoal], id]);
       await connection.execute(
         `INSERT INTO user_preferences (user_id, dietary_tags, budget_max, distance_limit_meters)
          VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE dietary_tags = ?, budget_max = ?, distance_limit_meters = ?`,

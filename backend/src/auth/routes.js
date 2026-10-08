@@ -41,7 +41,10 @@ function validateProfile(body) {
   }
   if (!Array.isArray(body.dietaryTags) || body.dietaryTags.length > 40) throw invalid('偏好標籤格式不正確');
   const dietaryTags = [...new Set(body.dietaryTags.map((tag) => text(tag, '標籤', 40)))];
-  return { name, phone, dietaryTags, heightCm: body.heightCm, weightKg: body.weightKg,
+  const avatars = new Set(['sprout', 'rice', 'apple', 'carrot', 'leaf', 'soup', 'sunny', 'planet']);
+  const avatarKey = body.avatarKey ?? 'sprout';
+  if (!avatars.has(avatarKey)) throw invalid('請選擇有效的頭像');
+  return { name, phone, avatarKey, dietaryTags, heightCm: body.heightCm, weightKg: body.weightKg,
     healthGoal: body.healthGoal, budgetMax: body.budgetMax, distanceLimitMeters: body.distanceLimitMeters };
 }
 
@@ -99,7 +102,11 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
     const email = emailOnly(req.body);
     const id = await repository.consumeEmailCode(email, 'verify_email', codeHash(submittedCode(req.body)));
     if (!id) return res.status(400).json({ message: '驗證碼錯誤或已失效' });
-    res.json(await issueSession(await repository.verifyEmail(id)));
+    const user = await repository.verifyEmail(id);
+    const session = await issueSession(user);
+    res.json(session);
+    Promise.resolve(mailer.sendWelcome?.(user)).catch((error) =>
+      console.error('Welcome email delivery failed:', error.message));
   }));
   router.post('/auth/resend-verification', limiter, run(async (req, res) => {
     const email = emailOnly(req.body);

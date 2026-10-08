@@ -11,6 +11,7 @@ CREATE TABLE users (
   password_hash VARCHAR(255) NOT NULL,
   email_verified_at DATETIME NULL,
   phone VARCHAR(40) NULL,
+  avatar_key VARCHAR(24) NOT NULL DEFAULT 'sprout',
   height_cm DECIMAL(5,2) NULL,
   weight_kg DECIMAL(5,2) NULL,
   health_goal ENUM('maintain', 'muscle_gain', 'fat_loss') NOT NULL DEFAULT 'maintain',
@@ -210,12 +211,18 @@ CREATE TABLE purchase_orders (
   total_price INT UNSIGNED NOT NULL,
   eco_points INT UNSIGNED NOT NULL DEFAULT 0,
   saved_amount INT UNSIGNED NOT NULL DEFAULT 0,
+  payment_status ENUM('pending', 'paid', 'failed', 'cancelled') NOT NULL DEFAULT 'pending',
+  merchant_trade_no VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  payment_token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  paid_at DATETIME NULL,
   client_request_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NULL,
   request_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
   purchased_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY purchase_orders_user_time_index (user_id, purchased_at),
   UNIQUE KEY purchase_orders_request_unique (user_id, client_request_id),
+  UNIQUE KEY purchase_orders_trade_no_unique (merchant_trade_no),
+  UNIQUE KEY purchase_orders_payment_token_unique (payment_token_hash),
   CONSTRAINT purchase_orders_user_fk
     FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE
