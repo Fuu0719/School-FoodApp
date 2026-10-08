@@ -16,7 +16,7 @@ class EcoRanking {
     required this.points,
     required this.rank,
     required this.isMe,
-    this.avatarKey = 'sprout',
+    this.avatarKey = '',
   });
   final String name;
   final int points;
@@ -98,7 +98,7 @@ class MemberActivityApi {
         points: points,
         rank: rank,
         isMe: isMe,
-        avatarKey: avatarKey as String? ?? 'sprout',
+        avatarKey: avatarKey as String? ?? '',
       );
     }).toList();
   }

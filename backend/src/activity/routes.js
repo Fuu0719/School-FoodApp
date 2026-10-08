@@ -51,9 +51,12 @@ function activityRoutes(repository, requireMember, mailer = null, ecpay = create
   }));
   router.post('/payments/ecpay/result', run(async (req, res) => {
     const ok = ecpay.verify(req.body) && req.body.RtnCode === '1';
-    res.type('html').send(`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>MealMind 付款結果</title>
-      <body style="font-family:sans-serif;text-align:center;padding:48px"><h1>${ok ? '付款完成' : '付款尚未完成'}</h1>
-      <p>${ok ? '可以回到膳解人意查看訂單。' : '請回到膳解人意重新確認訂單狀態。'}</p></body></html>`);
+    if (ecpay.verify(req.body)) {
+      const outcome = await repository.recordPayment(req.body.MerchantTradeNo, ok);
+      if (outcome?.paid) sendOrderEmails(outcome.userId, outcome.orderId)
+        .catch((error) => console.error('Order email delivery failed:', error.message));
+    }
+    res.redirect(`mealmind://payment?status=${ok ? 'paid' : 'failed'}`);
   }));
   router.use(['/me/favorites', '/me/history', '/me/orders', '/me/leaderboard'], requireMember);
   router.get('/me/leaderboard', run(async (req, res) => {

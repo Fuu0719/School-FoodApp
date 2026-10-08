@@ -41,9 +41,12 @@ function validateProfile(body) {
   }
   if (!Array.isArray(body.dietaryTags) || body.dietaryTags.length > 40) throw invalid('偏好標籤格式不正確');
   const dietaryTags = [...new Set(body.dietaryTags.map((tag) => text(tag, '標籤', 40)))];
-  const avatars = new Set(['sprout', 'rice', 'apple', 'carrot', 'leaf', 'soup', 'sunny', 'planet']);
-  const avatarKey = body.avatarKey ?? 'sprout';
-  if (!avatars.has(avatarKey)) throw invalid('請選擇有效的頭像');
+  const legacyAvatars = new Set(['sprout', 'rice', 'apple', 'carrot', 'leaf', 'soup', 'sunny', 'planet']);
+  const avatarKey = legacyAvatars.has(body.avatarKey) ? null : body.avatarKey ?? null;
+  if (avatarKey !== null && (typeof avatarKey !== 'string' || avatarKey.length > 500000 ||
+      !/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/]+={0,2}$/.test(avatarKey))) {
+    throw invalid('頭像圖片格式不正確或檔案過大');
+  }
   return { name, phone, avatarKey, dietaryTags, heightCm: body.heightCm, weightKg: body.weightKg,
     healthGoal: body.healthGoal, budgetMax: body.budgetMax, distanceLimitMeters: body.distanceLimitMeters };
 }

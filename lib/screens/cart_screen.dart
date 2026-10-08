@@ -300,15 +300,21 @@ class _CartScreenState extends State<CartScreen> {
     }
 
     if (record.checkoutUrl != null) {
-      final opened =
+      final paid =
           await _browser.invokeMethod<bool>('open', record.checkoutUrl!) ??
           false;
-      if (!opened && mounted) {
+      await _activityService.refreshCloud();
+      if (!paid && mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('無法開啟付款頁面，請到訂單紀錄重新確認')));
+        ).showSnackBar(const SnackBar(content: Text('付款尚未完成，未列入點餐紀錄')));
+        return;
       }
-      if (mounted) widget.onCheckoutComplete?.call();
+      if (!mounted) return;
+      await showCheckoutSuccess(context, record);
+      if (!mounted) return;
+      widget.onCheckoutComplete?.call();
+      Navigator.of(context).popUntil((route) => route.isFirst);
       return;
     }
 

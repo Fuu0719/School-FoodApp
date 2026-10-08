@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:my_app/validation/phone.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/user_profile.dart';
@@ -24,6 +25,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const _avatarPicker = MethodChannel('mealmind/avatar');
   final UserProfileService _profileService = UserProfileService.instance;
   final UserActivityService _activityService = UserActivityService.instance;
   bool _editing = false;
@@ -1128,6 +1130,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      isDismissible: !profile.needsProfileCompletion,
+      enableDrag: !profile.needsProfileCompletion,
       showDragHandle: true,
       builder: (context) {
         return StatefulBuilder(
@@ -1160,45 +1164,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
-                      '選擇頭像',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: mealAvatarStyles
-                          .map(
-                            (style) => Tooltip(
-                              message: style.label,
-                              child: InkWell(
-                                onTap: saving
-                                    ? null
-                                    : () => setSheetState(
-                                        () => avatarKey = style.key,
-                                      ),
-                                customBorder: const CircleBorder(),
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: avatarKey == style.key
-                                          ? const Color(0xFFD68A00)
-                                          : Colors.transparent,
-                                      width: 3,
-                                    ),
-                                  ),
-                                  child: MealAvatar(
-                                    avatarKey: style.key,
-                                    radius: 24,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
+                    Row(
+                      children: [
+                        MealAvatar(avatarKey: avatarKey, radius: 34),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: saving
+                                ? null
+                                : () async {
+                                    final selected = await _avatarPicker
+                                        .invokeMethod<String>('pick');
+                                    if (selected != null && context.mounted) {
+                                      setSheetState(() => avatarKey = selected);
+                                    }
+                                  },
+                            icon: const Icon(Icons.photo_library_rounded),
+                            label: const Text('從相簿選擇頭像'),
+                          ),
+                        ),
+                        if (avatarKey.isNotEmpty)
+                          IconButton(
+                            tooltip: '移除頭像',
+                            onPressed: saving
+                                ? null
+                                : () => setSheetState(() => avatarKey = ''),
+                            icon: const Icon(Icons.delete_outline_rounded),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                     TextField(

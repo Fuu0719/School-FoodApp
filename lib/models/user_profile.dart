@@ -4,7 +4,7 @@ class UserProfile {
     required this.name,
     required this.email,
     required this.phone,
-    this.avatarKey = 'sprout',
+    this.avatarKey = '',
     required this.dietaryTags,
     required this.budgetMax,
     required this.distanceLimitMeters,
@@ -153,7 +153,7 @@ class UserProfile {
       name: json['name'] as String? ?? demo.name,
       email: json['email'] as String? ?? demo.email,
       phone: json['phone'] as String? ?? demo.phone,
-      avatarKey: json['avatarKey'] as String? ?? 'sprout',
+      avatarKey: json['avatarKey'] as String? ?? '',
       dietaryTags:
           (json['dietaryTags'] as List?)?.whereType<String>().toList() ??
           demo.dietaryTags,
@@ -169,7 +169,7 @@ class UserProfile {
     name: '測試使用者',
     email: 'demo@foodapp.local',
     phone: '0912-345-678',
-    avatarKey: 'sprout',
+    avatarKey: '',
     dietaryTags: ['高蛋白', '低脂', '均衡'],
     budgetMax: 150,
     distanceLimitMeters: 1000,

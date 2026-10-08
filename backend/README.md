@@ -1,7 +1,7 @@
 # 膳解人意 Backend
 
 會員、商品目錄、會員活動與商家管理 API 使用 MySQL；推薦 API 尚未完成。商家可自行註冊並直接啟用，登入後再新增一間或多間門市。舊版客戶端在註冊時附帶首間門市的格式仍相容。
-初始化或升級請依部署文件核對結構，勿重匯 schema。既有環境依序套用 migration；Email 驗證、會員頭像與綠界付款分別需套用 `005_member_email.sql`、`006_member_avatar.sql`、`007_ecpay_payment.sql`，通過 db:check 才啟動新版 API。
+初始化或升級請依部署文件核對結構，勿重匯 schema。既有環境依序套用 migration；本版另需套用 `008_member_custom_avatar.sql`，將預設圖示改為會員自訂圖片。通過 db:check 才啟動新版 API。
 
 部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)。
 

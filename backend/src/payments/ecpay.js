@@ -12,6 +12,15 @@ const encode = (value) => encodeURIComponent(String(value))
   .replace(/%7E/g, '~')
   .toLowerCase();
 
+function tradeDate() {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date()).filter((part) => part.type !== 'literal')
+    .map((part) => [part.type, part.value]));
+  return `${parts.year}/${parts.month}/${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
 function checkMacValue(fields, hashKey, hashIv) {
   const pairs = Object.entries(fields)
     .filter(([key]) => key !== 'CheckMacValue')
@@ -43,7 +52,7 @@ function createEcpay() {
       const fields = {
         MerchantID: merchantId,
         MerchantTradeNo: order.merchantTradeNo,
-        MerchantTradeDate: new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' }).replace(' ', '/'),
+        MerchantTradeDate: tradeDate(),
         PaymentType: 'aio',
         TotalAmount: String(order.totalPrice),
         TradeDesc: 'MealMind food rescue order',

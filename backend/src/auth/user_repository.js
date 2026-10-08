@@ -9,7 +9,7 @@ function profile(row) {
   return {
     id: String(row.id), name: row.name, email: row.email, phone: row.phone || '',
     emailVerified: Boolean(row.email_verified_at),
-    avatarKey: row.avatar_key || 'sprout',
+    avatarKey: row.avatar_key || '',
     heightCm: row.height_cm == null ? null : Number(row.height_cm),
     weightKg: row.weight_kg == null ? null : Number(row.weight_kg),
     healthGoal: goalsFromDb[row.health_goal],

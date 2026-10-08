@@ -27,7 +27,7 @@ function createApp({ userRepository, mailer, enablePrototypeRoutes = false,
   }
 
   app.use(cors());
-  app.use(express.json({ limit: '16kb' }));
+  app.use(express.json({ limit: '700kb' }));
   app.use(express.urlencoded({ extended: false, limit: '16kb' }));
   app.use('/api', authRoutes(
     userRepository || new UserRepository(createDatabasePool()),

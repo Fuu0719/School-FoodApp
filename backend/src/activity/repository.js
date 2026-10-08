@@ -93,7 +93,7 @@ class ActivityRepository {
     WHERE rankNumber <= 3 OR id = ? ORDER BY rankNumber`, [userId]);
     return rows.map((row) => ({
       name: row.name,
-      avatarKey: row.avatar_key || 'sprout',
+      avatarKey: row.avatar_key || '',
       points: Number(row.points),
       rank: Number(row.rankNumber),
       isMe: String(row.id) === String(userId),
@@ -103,7 +103,7 @@ class ActivityRepository {
   async orders(userId, before) {
     const [rows] = await this.pool.execute(`SELECT id, total_quantity AS totalQuantity,
       total_price AS totalPrice, payment_status AS paymentStatus, purchased_at AS purchasedAt FROM purchase_orders
-      WHERE user_id = ? AND id < ? ORDER BY id DESC LIMIT 20`, [userId, before]);
+      WHERE user_id = ? AND payment_status = 'paid' AND id < ? ORDER BY id DESC LIMIT 20`, [userId, before]);
     return rows.map((row) => ({ ...row, id: String(row.id) }));
   }
 

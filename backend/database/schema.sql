@@ -11,7 +11,7 @@ CREATE TABLE users (
   password_hash VARCHAR(255) NOT NULL,
   email_verified_at DATETIME NULL,
   phone VARCHAR(40) NULL,
-  avatar_key VARCHAR(24) NOT NULL DEFAULT 'sprout',
+  avatar_key MEDIUMTEXT NULL,
   height_cm DECIMAL(5,2) NULL,
   weight_kg DECIMAL(5,2) NULL,
   health_goal ENUM('maintain', 'muscle_gain', 'fat_loss') NOT NULL DEFAULT 'maintain',
