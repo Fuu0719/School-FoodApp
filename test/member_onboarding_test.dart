@@ -96,13 +96,15 @@ void main() {
       MemberApi(
         baseUrl: 'https://registration.example.test/api',
         client: MockClient((request) async {
+          final isVerification = request.url.path.endsWith('/verify-email');
           final responseBody = request.method == 'PUT'
               ? {
                   ...jsonDecode(request.body) as Map<String, dynamic>,
                   'id': 'registered',
                   'email': 'new@example.test',
                 }
-              : {
+              : isVerification
+              ? {
                   'token': 'registered-session',
                   'user': {
                     ...UserProfile.demo.toJson(),
@@ -112,10 +114,11 @@ void main() {
                     'heightCm': null,
                     'weightKg': null,
                   },
-                };
+                }
+              : {'verificationRequired': true, 'email': 'new@example.test'};
           return http.Response(
             jsonEncode(responseBody),
-            request.method == 'PUT' ? 200 : 201,
+            request.method == 'PUT' || isVerification ? 200 : 201,
             headers: {'content-type': 'application/json; charset=utf-8'},
           );
         }),
@@ -144,6 +147,10 @@ void main() {
     );
     await tester.ensureVisible(find.byKey(const ValueKey('member-submit')));
     await tester.tap(find.byKey(const ValueKey('member-submit')));
+    await tester.pumpAndSettle();
+    expect(find.text('驗證 Email'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, '驗證碼'), '123456');
+    await tester.tap(find.text('完成驗證'));
     await tester.pumpAndSettle();
     expect(find.text('編輯會員資料'), findsOneWidget);
     expect(find.text('身高（公分）'), findsOneWidget);

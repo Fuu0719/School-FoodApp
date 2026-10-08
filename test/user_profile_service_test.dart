@@ -109,15 +109,21 @@ void main() {
   });
 
   test(
-    'registration authenticates immediately, and rejects duplicate accounts',
+    'registration requires email verification, then authenticates',
     () async {
-      handler = (_) async =>
-          response({'user': saved, 'token': 'new-token'}, 201);
+      handler = (request) async => request.url.path.endsWith('/verify-email')
+          ? response({'user': saved, 'token': 'new-token'})
+          : response({
+              'verificationRequired': true,
+              'email': 'test@example.com',
+            }, 201);
       await service.register(
         name: '王小明',
         email: 'test@example.com',
         password: 'test-password',
       );
+      expect(service.isLoggedIn, isFalse);
+      await service.verifyEmail(email: 'test@example.com', code: '123456');
       expect(service.isLoggedIn, isTrue);
       expect(
         await const FlutterSecureStorage().read(key: tokenKey),

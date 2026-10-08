@@ -19,6 +19,7 @@
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^8.7.0",
-    "mysql2": "^3.11.5"
+    "mysql2": "^3.11.5",
+    "nodemailer": "^10.0.16"
   }
 }

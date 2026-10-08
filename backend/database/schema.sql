@@ -9,6 +9,7 @@ CREATE TABLE users (
   name VARCHAR(80) NOT NULL,
   email VARCHAR(160) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
+  email_verified_at DATETIME NULL,
   phone VARCHAR(40) NULL,
   height_cm DECIMAL(5,2) NULL,
   weight_kg DECIMAL(5,2) NULL,
@@ -17,6 +18,19 @@ CREATE TABLE users (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY users_email_unique (email)
+);
+
+CREATE TABLE member_email_codes (
+  user_id BIGINT UNSIGNED NOT NULL,
+  purpose ENUM('verify_email', 'reset_password') NOT NULL,
+  code_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  expires_at DATETIME NOT NULL,
+  attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, purpose),
+  CONSTRAINT member_email_codes_user_fk
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE
 );
 
 CREATE TABLE user_preferences (

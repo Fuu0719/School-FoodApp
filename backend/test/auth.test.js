@@ -8,12 +8,14 @@ class MemoryUsers {
   users = new Map();
   passwords = new Map();
   sessions = new Map();
+  emailCodes = new Map();
+  deliveredCodes = new Map();
   async create({ name, email, passwordHash }) {
     if ([...this.users.values()].some((u) => u.email === email)) {
       throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
     }
     const id = String(this.users.size + 1);
-    const user = { id, name, email, phone: '', heightCm: 170, weightKg: 65,
+    const user = { id, name, email, emailVerified: false, phone: '', heightCm: 170, weightKg: 65,
       healthGoal: 'maintain', dietaryTags: [], budgetMax: 150, distanceLimitMeters: 1000 };
     this.users.set(id, user);
     this.passwords.set(id, passwordHash);
@@ -21,8 +23,20 @@ class MemoryUsers {
   }
   async credentials(email) {
     const user = [...this.users.values()].find((u) => u.email === email);
-    return user && { id: user.id, password_hash: this.passwords.get(user.id) };
+    return user && { id: user.id, email: user.email, password_hash: this.passwords.get(user.id),
+      email_verified_at: user.emailVerified ? new Date() : null };
   }
+  async saveEmailCode(id, purpose, hash, expiresAt) { this.emailCodes.set(`${id}:${purpose}`, { hash, expiresAt, attempts: 0 }); }
+  async consumeEmailCode(email, purpose, hash) {
+    const user = [...this.users.values()].find((u) => u.email === email);
+    const key = `${user?.id}:${purpose}`;
+    const saved = this.emailCodes.get(key);
+    if (!saved || saved.hash !== hash || saved.expiresAt <= new Date()) return null;
+    this.emailCodes.delete(key);
+    return user.id;
+  }
+  async verifyEmail(id) { const user = await this.get(id); user.emailVerified = true; return user; }
+  async resetPassword(id, hash) { this.passwords.set(String(id), hash); this.sessions.clear(); }
   async get(id) { return this.users.get(String(id)); }
   async update(id, values) {
     const updated = { ...await this.get(id), ...values };
@@ -38,7 +52,12 @@ class MemoryUsers {
 }
 
 async function serve(t, repository) {
-  const server = createApp({ userRepository: repository }).listen(0, '127.0.0.1');
+  const mailer = {
+    configured: true,
+    async sendVerification(email, code) { repository.deliveredCodes.set(`verify_email:${email}`, code); },
+    async sendPasswordReset(email, code) { repository.deliveredCodes.set(`reset_password:${email}`, code); },
+  };
+  const server = createApp({ userRepository: repository, mailer }).listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));
   return async (path, method = 'GET', body, token) => {
@@ -56,6 +75,10 @@ async function memberFlow(t, repository, email) {
   const registration = { name: '會員測試', email, password };
   assert.equal((await call('/auth/register', 'POST', registration)).status, 201);
   assert.equal((await call('/auth/register', 'POST', { ...registration, email: email.toUpperCase() })).status, 409);
+  const verification = await call('/auth/verify-email', 'POST', {
+    email, code: repository.deliveredCodes.get(`verify_email:${email}`),
+  });
+  assert.equal(verification.status, 200);
   const record = await repository.credentials(email);
   assert.notEqual(record.password_hash, password);
   assert.equal(await verifyPassword(password, record.password_hash), true);
@@ -104,6 +127,9 @@ test('accounts are isolated, expired sessions rejected, prototype endpoints disa
   const password = 'TestPass456!';
   for (const email of ['a@example.com', 'b@example.com']) {
     await call('/auth/register', 'POST', { name: email, email, password });
+    assert.equal((await call('/auth/verify-email', 'POST', {
+      email, code: repository.deliveredCodes.get(`verify_email:${email}`),
+    })).status, 200);
   }
   const a = (await call('/auth/login', 'POST', { email: 'a@example.com', password })).body;
   const b = (await call('/auth/login', 'POST', { email: 'b@example.com', password })).body;
@@ -133,6 +159,24 @@ test('password hashes use separate salts and reject incorrect passwords', async 
   assert.notEqual(hash, await hashPassword('correct-password'));
   assert.equal(await verifyPassword('wrong-password', hash), false);
   assert.equal(await verifyPassword('correct-password', 'invalid'), false);
+});
+
+test('password reset code changes the password and revokes prior sessions', async (t) => {
+  const repository = new MemoryUsers();
+  const call = await serve(t, repository);
+  const email = 'reset@example.com';
+  await call('/auth/register', 'POST', { name: '重設測試', email, password: 'OldPass123!' });
+  await call('/auth/verify-email', 'POST', {
+    email, code: repository.deliveredCodes.get(`verify_email:${email}`),
+  });
+  const oldSession = await call('/auth/login', 'POST', { email, password: 'OldPass123!' });
+  assert.equal((await call('/auth/forgot-password', 'POST', { email })).status, 200);
+  assert.equal((await call('/auth/reset-password', 'POST', {
+    email, code: repository.deliveredCodes.get(`reset_password:${email}`), password: 'NewPass456!',
+  })).status, 200);
+  assert.equal((await call('/me', 'GET', undefined, oldSession.body.token)).status, 401);
+  assert.equal((await call('/auth/login', 'POST', { email, password: 'OldPass123!' })).status, 401);
+  assert.equal((await call('/auth/login', 'POST', { email, password: 'NewPass456!' })).status, 200);
 });
 
 test('MySQL integration: actual member persistence and session revocation', {

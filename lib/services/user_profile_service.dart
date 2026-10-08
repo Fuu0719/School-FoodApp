@@ -64,9 +64,46 @@ class UserProfileService extends ChangeNotifier {
         '/auth/register',
         body: {'name': name, 'email': email, 'password': password},
       );
+      if (response['verificationRequired'] != true) {
+        throw const MemberApiException('會員服務回應格式不正確');
+      }
+    });
+  }
+
+  Future<void> verifyEmail({required String email, required String code}) {
+    return _perform(() async {
+      final response = await _api.request(
+        'POST',
+        '/auth/verify-email',
+        body: {'email': email, 'code': code},
+      );
       await _acceptSession(response);
     });
   }
+
+  Future<void> resendVerification(String email) => _perform(() async {
+    await _api.request(
+      'POST',
+      '/auth/resend-verification',
+      body: {'email': email},
+    );
+  });
+
+  Future<void> requestPasswordReset(String email) => _perform(() async {
+    await _api.request('POST', '/auth/forgot-password', body: {'email': email});
+  });
+
+  Future<void> resetPassword({
+    required String email,
+    required String code,
+    required String password,
+  }) => _perform(() async {
+    await _api.request(
+      'POST',
+      '/auth/reset-password',
+      body: {'email': email, 'code': code, 'password': password},
+    );
+  });
 
   Future<void> login({required String email, required String password}) {
     return _perform(() async {

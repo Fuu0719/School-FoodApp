@@ -1,6 +1,6 @@
 const express = require('express');
 const { rateLimit } = require('express-rate-limit');
-const { randomBytes } = require('node:crypto');
+const { randomBytes, randomInt } = require('node:crypto');
 const { hashPassword, verifyPassword, tokenHash } = require('./passwords');
 const ActivityRepository = require('../activity/repository');
 const activityRoutes = require('../activity/routes');
@@ -45,7 +45,8 @@ function validateProfile(body) {
     healthGoal: body.healthGoal, budgetMax: body.budgetMax, distanceLimitMeters: body.distanceLimitMeters };
 }
 
-function authRoutes(repository, activityRepository = repository.pool ? new ActivityRepository(repository.pool) : null) {
+function authRoutes(repository, activityRepository = repository.pool ? new ActivityRepository(repository.pool) : null,
+  mailer = require('../email/mailer').createMailer()) {
   const router = express.Router();
   const limiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30,
     standardHeaders: 'draft-7', legacyHeaders: false,
@@ -58,6 +59,19 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await repository.createSession(user.id, tokenHash(token), expiresAt);
     return { user, token, expiresAt: expiresAt.toISOString() };
+  };
+  const emailCode = () => String(randomInt(100000, 1000000));
+  const codeHash = (code) => tokenHash(`email-code:${code}`);
+  const issueEmailCode = async (user, purpose) => {
+    const code = emailCode();
+    await repository.saveEmailCode(user.id, purpose, codeHash(code), new Date(Date.now() + 10 * 60 * 1000));
+    if (purpose === 'verify_email') await mailer.sendVerification(user.email, code);
+    else await mailer.sendPasswordReset(user.email, code);
+  };
+  const emailOnly = (body) => credentials({ email: body?.email, password: 'temporary-password' }).email;
+  const submittedCode = (body) => {
+    if (typeof body?.code !== 'string' || !/^\d{6}$/.test(body.code)) throw invalid('請輸入 6 位數驗證碼');
+    return body.code;
   };
   const requireMember = run(async (req, res, next) => {
     const token = /^Bearer ([a-f0-9]{64})$/.exec(req.get('Authorization') || '')?.[1];
@@ -73,17 +87,54 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
     const name = text(req.body.name, '姓名', 80);
     try {
       const user = await repository.create({ name, email, passwordHash: await hashPassword(password) });
-      return res.status(201).json(await issueSession(user));
+      let deliveryFailed = false;
+      try { await issueEmailCode(user, 'verify_email'); } catch (_) { deliveryFailed = true; }
+      return res.status(201).json({ verificationRequired: true, email: user.email, deliveryFailed });
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: '此 Email 已註冊' });
       throw error;
     }
+  }));
+  router.post('/auth/verify-email', limiter, run(async (req, res) => {
+    const email = emailOnly(req.body);
+    const id = await repository.consumeEmailCode(email, 'verify_email', codeHash(submittedCode(req.body)));
+    if (!id) return res.status(400).json({ message: '驗證碼錯誤或已失效' });
+    res.json(await issueSession(await repository.verifyEmail(id)));
+  }));
+  router.post('/auth/resend-verification', limiter, run(async (req, res) => {
+    const email = emailOnly(req.body);
+    if (!mailer.configured) throw Object.assign(new Error('Email 寄送服務尚未設定'), { statusCode: 503 });
+    const record = await repository.credentials(email);
+    if (record && !record.email_verified_at) {
+      try { await issueEmailCode({ id: String(record.id), email }, 'verify_email'); }
+      catch (error) { console.error('Verification email delivery failed:', error.message); }
+    }
+    res.json({ message: '若帳號尚未驗證，系統已寄出新的驗證碼' });
+  }));
+  router.post('/auth/forgot-password', limiter, run(async (req, res) => {
+    const email = emailOnly(req.body);
+    if (!mailer.configured) throw Object.assign(new Error('Email 寄送服務尚未設定'), { statusCode: 503 });
+    const record = await repository.credentials(email);
+    if (record) {
+      try { await issueEmailCode({ id: String(record.id), email }, 'reset_password'); }
+      catch (error) { console.error('Password reset email delivery failed:', error.message); }
+    }
+    res.json({ message: '若此 Email 已註冊，系統會寄出重設密碼驗證碼' });
+  }));
+  router.post('/auth/reset-password', limiter, run(async (req, res) => {
+    const email = emailOnly(req.body);
+    const password = credentials({ email, password: req.body?.password }, { registration: true }).password;
+    const id = await repository.consumeEmailCode(email, 'reset_password', codeHash(submittedCode(req.body)));
+    if (!id) return res.status(400).json({ message: '驗證碼錯誤或已失效' });
+    await repository.resetPassword(id, await hashPassword(password));
+    res.json({ message: '密碼已更新，請重新登入' });
   }));
   router.post('/auth/login', limiter, run(async (req, res) => {
     const { email, password } = credentials(req.body);
     const record = await repository.credentials(email);
     const valid = await verifyPassword(password, record?.password_hash || await getDummyHash());
     if (!record || !valid) return res.status(401).json({ message: 'Email 或密碼不正確' });
+    if (!record.email_verified_at) return res.status(403).json({ message: '請先完成 Email 驗證', verificationRequired: true });
     res.json(await issueSession(await repository.get(record.id)));
   }));
   router.post('/auth/logout', requireMember, run(async (req, res) => {
@@ -94,7 +145,7 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
   router.put('/me', requireMember, run(async (req, res) => {
     res.json(await repository.update(req.member.id, validateProfile(req.body)));
   }));
-  if (activityRepository) router.use(activityRoutes(activityRepository, requireMember));
+  if (activityRepository) router.use(activityRoutes(activityRepository, requireMember, mailer));
   if (repository.pool) {
     const MerchantRepository = require('../merchant/repository');
     router.use('/merchant', require('../merchant/routes')(new MerchantRepository(repository.pool)));

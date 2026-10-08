@@ -16,7 +16,7 @@ function checkoutItems(body) {
   return items;
 }
 
-function activityRoutes(repository, requireMember) {
+function activityRoutes(repository, requireMember, mailer = null) {
   const router = express.Router();
   router.use(['/me/favorites', '/me/history', '/me/orders', '/me/leaderboard'], requireMember);
   router.get('/me/leaderboard', run(async (req, res) => {
@@ -52,6 +52,18 @@ function activityRoutes(repository, requireMember) {
     const requestId = req.get('Idempotency-Key');
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId || '')) throw invalid();
     const result = await repository.checkout(req.member.id, requestId, checkoutItems(req.body));
+    if (!result.replayed && mailer && repository.orderNotification) {
+      const notice = await repository.orderNotification(req.member.id, result.order.id);
+      const deliveries = [mailer.sendOrderConfirmation(notice)];
+      deliveries.push(...notice.merchants.map((merchant) => mailer.sendMerchantOrder({
+        orderId: notice.orderId, ...merchant,
+      })));
+      Promise.allSettled(deliveries).then((outcomes) => {
+        for (const outcome of outcomes) {
+          if (outcome.status === 'rejected') console.error('Order email delivery failed:', outcome.reason?.message);
+        }
+      });
+    }
     res.status(result.replayed ? 200 : 201).json(result);
   }));
   return router;

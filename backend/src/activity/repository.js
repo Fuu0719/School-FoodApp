@@ -174,6 +174,30 @@ class ActivityRepository {
       return { replayed: false, order: await this.order(userId, result.insertId, connection) };
     });
   }
+
+  async orderNotification(userId, orderId) {
+    const [orders] = await this.pool.execute(`SELECT o.id, o.total_quantity, o.total_price,
+      u.email AS member_email FROM purchase_orders o JOIN users u ON u.id = o.user_id
+      WHERE o.id = ? AND o.user_id = ?`, [orderId, userId]);
+    if (!orders.length) throw fail(404, '找不到此訂單');
+    const [rows] = await this.pool.execute(`SELECT m.id AS merchant_id, m.email AS merchant_email,
+      poi.quantity, JSON_UNQUOTE(JSON_EXTRACT(poi.food_snapshot, '$.name')) AS food_name
+      FROM purchase_order_items poi JOIN foods f ON f.id = poi.food_id
+      JOIN stores s ON s.id = f.store_id JOIN merchants m ON m.id = s.merchant_id
+      WHERE poi.purchase_order_id = ? ORDER BY m.id, poi.id`, [orderId]);
+    const merchants = [];
+    for (const row of rows) {
+      let merchant = merchants.find((item) => item.id === String(row.merchant_id));
+      if (!merchant) {
+        merchant = { id: String(row.merchant_id), merchantEmail: row.merchant_email, items: [] };
+        merchants.push(merchant);
+      }
+      merchant.items.push({ name: row.food_name, quantity: Number(row.quantity) });
+    }
+    const order = orders[0];
+    return { orderId: String(order.id), memberEmail: order.member_email,
+      totalQuantity: Number(order.total_quantity), totalPrice: Number(order.total_price), merchants };
+  }
 }
 
 module.exports = ActivityRepository;

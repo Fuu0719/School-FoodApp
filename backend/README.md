@@ -1,7 +1,7 @@
 # 膳解人意 Backend
 
 會員、商品目錄、會員活動與商家管理 API 使用 MySQL；推薦 API 尚未完成。商家可自行註冊並直接啟用，登入後再新增一間或多間門市。舊版客戶端在註冊時附帶首間門市的格式仍相容。
-初始化或升級請依部署文件核對結構；學校已套用 001、002、003，勿重匯 schema。刪除門市功能新增 004_store_deletion.sql，既有環境先備份再由管理者套用 004，通過 db:check 才啟動新版 API；全新 schema 已包含此欄位。
+初始化或升級請依部署文件核對結構，勿重匯 schema。既有環境依序套用 migration；Email 驗證功能需套用 `005_member_email.sql`，通過 db:check 才啟動新版 API。
 
 部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)。
 
@@ -25,19 +25,25 @@ test:mysql 會建立並清除隨機測試會員。API 啟動前檢查資料庫�
 
 | Method | 路徑 | 用途 |
 | --- | --- | --- |
-| POST | /api/auth/register | name、email、password；成功後請登入 |
+| POST | /api/auth/register | name、email、password；寄出 Email 驗證碼 |
+| POST | /api/auth/verify-email | 驗證 Email 並簽發登入憑證 |
+| POST | /api/auth/resend-verification | 重新寄送 Email 驗證碼 |
+| POST | /api/auth/forgot-password | 寄送重設密碼驗證碼 |
+| POST | /api/auth/reset-password | 驗證後更新密碼並撤銷舊憑證 |
 | POST | /api/auth/login | email、password；回傳 token、expiresAt、user |
 | POST | /api/auth/logout | 撤銷目前登入憑證 |
 | GET | /api/me | 取得自己的會員資料 |
 | PUT | /api/me | 儲存自己的資料與偏好 |
 
 除註冊登入外，會員端點需 Authorization: Bearer <token>。
-Email 會轉為小寫；新註冊密碼為 8–16 字元，既有較長密碼仍可登入。會員註冊成功時同步簽發 session，用於立即完成首次個人資料。
+Email 會轉為小寫；新註冊密碼為 8–16 字元，既有較長密碼仍可登入。新會員完成 6 位數 Email 驗證後才簽發 session，接著立即完成首次個人資料。驗證碼 10 分鐘失效，最多嘗試 5 次。
 PUT /api/me 接受完整的 name、phone、heightCm、weightKg、healthGoal、dietaryTags、budgetMax、distanceLimitMeters。phone 可留空；有值時接受台灣手機、含區碼市話或 `+886`，儲存前移除空白、括號與連字號。
 healthGoal 為 maintain、muscleGain 或 fatLoss；預算和距離可為 null（不限）。
 不接受透過 body 的 id 指定其他會員，Email 修改尚未開放。
 
-401 表示未登入或憑證失效；409 表示 Email 重複；400 為表單驗證失敗；429 為登入/註冊嘗試過多。
+SMTP 由 `.env` 的 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM` 設定；Gmail 必須使用應用程式密碼，禁止提交實際密碼。下單成功後寄會員訂單通知，並依商家分組寄出新訂單通知；寄信失敗不會回滾已成立訂單。
+
+401 表示未登入或憑證失效；403 表示 Email 尚未驗證；409 表示 Email 重複；400 為表單驗證失敗；429 為登入/註冊嘗試過多。
 憑證七天到期，登出後即失效。會員資料和偏好一起提交或一起回復。
 新會員的身高與體重儲存為 NULL；首次登入 App 會導向會員資料編輯，不使用預設健康數值。
 
