@@ -6,6 +6,7 @@ const UserRepository = require('./auth/user_repository');
 const { createDatabasePool } = require('./config/database');
 const { isIP } = require('node:net');
 const { createMailer } = require('./email/mailer');
+const path = require('node:path');
 
 function createApp({ userRepository, mailer, enablePrototypeRoutes = false,
   allowedClientIps = (process.env.API_ALLOWED_IPS || '').split(',').map((ip) => ip.trim()).filter(Boolean),
@@ -27,6 +28,10 @@ function createApp({ userRepository, mailer, enablePrototypeRoutes = false,
   }
 
   app.use(cors());
+  app.use('/food-images', express.static(path.join(__dirname, '..', 'public', 'foods'), {
+    immutable: true,
+    maxAge: '30d',
+  }));
   app.use(express.json({ limit: '700kb' }));
   app.use(express.urlencoded({ extended: false, limit: '16kb' }));
   app.use('/api', authRoutes(

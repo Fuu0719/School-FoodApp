@@ -45,7 +45,7 @@ class CatalogApi {
     return value;
   }
 
-  static FoodItem decodeFood(Map<String, dynamic> json) {
+  FoodItem decodeFood(Map<String, dynamic> json) {
     String text(String key) {
       final value = json[key];
       if (value is! String) throw const FormatException();
@@ -103,9 +103,24 @@ class CatalogApi {
       isExpiringSoon: json['isExpiringSoon'] as bool,
       ecoPriorityScore: eco,
       recommendationReason: text('recommendationReason'),
-      imageUrl: text('imageUrl'),
+      imageUrl: _resolveImageUrl(text('imageUrl')),
       specialLabel: json['specialLabel'] as String?,
       icon: Icons.restaurant,
     );
+  }
+
+  String _resolveImageUrl(String value) {
+    if (value.isEmpty) return value;
+    final image = Uri.tryParse(value);
+    if (image == null) throw const FormatException();
+    if (image.hasScheme) {
+      if (image.scheme != 'https' || !image.hasAuthority) {
+        throw const FormatException();
+      }
+      return image.toString();
+    }
+    if (!value.startsWith('/food-images/')) throw const FormatException();
+    final base = Uri.parse(_api.baseUrl);
+    return base.replace(path: value, query: null, fragment: null).toString();
   }
 }

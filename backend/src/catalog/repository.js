@@ -5,6 +5,15 @@ const published = "s.deleted_at IS NULL AND m.status = 'active' AND f.status = '
 const escapeLike = (text) => text.replace(/[!%_]/g, (character) => `!${character}`);
 const { taipeiClock } = require('../stores/business_hours');
 
+const categoryImage = (category) => `/food-images/${({
+  '便當': 'bento.jpg',
+  '飯糰': 'rice-ball.jpg',
+  '麵食': 'noodles.jpg',
+  '沙拉': 'salad.jpg',
+  '飲品': 'drink.jpg',
+  '麵包甜點': 'bakery.jpg',
+})[category] || 'bento.jpg'}`;
+
 function recommendationReason(row) {
   if (row.recommendation_reason?.trim()) return row.recommendation_reason.trim();
   if (row.is_expiring_soon) return '即期優惠餐點，優先選購可減少食物浪費';
@@ -78,7 +87,7 @@ class CatalogRepository {
       fatGrams: row.fat_grams, carbsGrams: row.carbs_grams, distanceMeters: row.distance_meters,
       stockCount: row.stock_count, expiresAt: row.expires_at, isExpiringSoon: Boolean(row.is_expiring_soon),
       ecoPriorityScore: Number(row.eco_priority_score), recommendationReason: recommendationReason(row),
-      imageUrl: row.image_url || '', specialLabel: null,
+      imageUrl: row.image_url || categoryImage(row.category), specialLabel: null,
     }));
   }
 
@@ -93,3 +102,4 @@ class CatalogRepository {
 }
 module.exports = CatalogRepository;
 module.exports.recommendationReason = recommendationReason;
+module.exports.categoryImage = categoryImage;

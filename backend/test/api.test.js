@@ -37,6 +37,14 @@ test('health endpoint returns ok', async () => {
   assert.equal(body.status, 'ok');
 });
 
+test('backend-owned food images are publicly cacheable', async () => {
+  const response = await fetch(`${baseUrl}/food-images/bento.jpg`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'image/jpeg');
+  assert.match(response.headers.get('cache-control') || '', /immutable/);
+  assert.ok((await response.arrayBuffer()).byteLength > 50000);
+});
+
 test('foods endpoint supports keyword search', async () => {
   const response = await fetch(
     `${baseUrl}/api/foods?keyword=${encodeURIComponent('雞')}`,

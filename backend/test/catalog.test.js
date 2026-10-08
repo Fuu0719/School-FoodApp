@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const express = require('express');
 const CatalogRepository = require('../src/catalog/repository');
-const { recommendationReason } = require('../src/catalog/repository');
+const { recommendationReason, categoryImage } = require('../src/catalog/repository');
 const catalogRoutes = require('../src/catalog/routes');
 
 test('catalogue query validates filters, uses cursors, and never falls back to mock IDs', async (t) => {
@@ -65,6 +65,7 @@ test('catalogue SQL binds keyword and tags, escapes LIKE wildcards and maps only
   assert.equal(result.items[0].storeId, '42');
   assert.equal(result.items[0].distanceMeters, null);
   assert.equal(result.items[0].ecoPriorityScore, 0.5);
+  assert.equal(result.items[0].imageUrl, '/food-images/bento.jpg');
   assert.deepEqual(result.items[0].tags, ['Protein']);
   assert.deepEqual(result.items[0].businessWeekdays, [1]);
   assert.equal(JSON.stringify(result).includes('must-not-be-exposed'), false);
@@ -86,4 +87,10 @@ test('catalogue always provides a useful recommendation reason', () => {
   assert.match(recommendationReason({ protein_grams: 5, calories: 350 }), /熱量/);
   assert.match(recommendationReason({ protein_grams: 5, calories: 600, distance_meters: 800 }), /距離/);
   assert.match(recommendationReason({ protein_grams: 5, calories: 600, distance_meters: 2000, category: '便當' }), /便當/);
+});
+
+test('simulated foods receive stable category-owned images', () => {
+  assert.equal(categoryImage('飯糰'), '/food-images/rice-ball.jpg');
+  assert.equal(categoryImage('麵包甜點'), '/food-images/bakery.jpg');
+  assert.equal(categoryImage('未知類別'), '/food-images/bento.jpg');
 });

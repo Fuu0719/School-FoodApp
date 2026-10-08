@@ -103,6 +103,19 @@ void main() {
       );
     },
   );
+
+  test(
+    'catalogue resolves backend-owned image paths against the API host',
+    () async {
+      final item = foodJson('1')..['imageUrl'] = '/food-images/bento.jpg';
+      final source = repository((_) async => page([item]));
+      await source.load();
+      expect(
+        source.allFoods.single.imageUrl,
+        'https://example.test/food-images/bento.jpg',
+      );
+    },
+  );
   test(
     'unknown distance is not shown as zero or a nearby convenience store',
     () async {
