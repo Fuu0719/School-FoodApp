@@ -52,9 +52,22 @@ class MainActivity : FlutterActivity() {
             val uri = data?.data
             if (resultCode != Activity.RESULT_OK || uri == null) avatarResult?.success(null) else try {
                 val bitmap = contentResolver.openInputStream(uri).use { BitmapFactory.decodeStream(it) }
-                val scale = minOf(1.0, 512.0 / maxOf(bitmap.width, bitmap.height))
-                val resized = Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
-                val bytes = ByteArrayOutputStream().also { resized.compress(Bitmap.CompressFormat.JPEG, 82, it) }.toByteArray()
+                    ?: throw IllegalArgumentException("Unsupported image")
+                val scale = minOf(1.0, 480.0 / maxOf(bitmap.width, bitmap.height))
+                val resized = Bitmap.createScaledBitmap(
+                    bitmap,
+                    maxOf(1, (bitmap.width * scale).toInt()),
+                    maxOf(1, (bitmap.height * scale).toInt()),
+                    true,
+                )
+                var quality = 82
+                var bytes: ByteArray
+                do {
+                    bytes = ByteArrayOutputStream().also {
+                        resized.compress(Bitmap.CompressFormat.JPEG, quality, it)
+                    }.toByteArray()
+                    quality -= 8
+                } while (bytes.size > 350_000 && quality >= 50)
                 avatarResult?.success("data:image/jpeg;base64," + Base64.encodeToString(bytes, Base64.NO_WRAP))
             } catch (_: Exception) { avatarResult?.error("avatar", "無法讀取圖片", null) }
             avatarResult = null
