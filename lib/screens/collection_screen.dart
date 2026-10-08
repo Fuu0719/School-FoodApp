@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:my_app/models/food_item.dart';
 import 'package:my_app/models/purchase_record.dart';
 import 'package:my_app/models/search_log.dart';
@@ -8,9 +9,14 @@ import 'package:my_app/services/user_activity_service.dart';
 import 'package:my_app/widgets/food_card.dart';
 
 class CollectionScreen extends StatefulWidget {
-  const CollectionScreen({super.key, this.initialTabIndex = 0});
+  const CollectionScreen({
+    super.key,
+    this.initialTabIndex = 0,
+    this.scrollToTop,
+  });
 
   final int initialTabIndex;
+  final ValueListenable<int>? scrollToTop;
 
   @override
   State<CollectionScreen> createState() => _CollectionScreenState();
@@ -22,6 +28,10 @@ class _CollectionScreenState extends State<CollectionScreen>
   late final TabController _tabController;
   final TextEditingController _foodSearchController = TextEditingController();
   String _foodQuery = '';
+  final List<ScrollController> _scrollControllers = List.generate(
+    4,
+    (_) => ScrollController(),
+  );
 
   @override
   void initState() {
@@ -32,9 +42,21 @@ class _CollectionScreenState extends State<CollectionScreen>
       vsync: this,
     );
     _activityService.addListener(_refresh);
+    widget.scrollToTop?.addListener(_scrollToTop);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _activityService.refreshCloud();
     });
+  }
+
+  void _scrollToTop() {
+    final controller = _scrollControllers[_tabController.index];
+    if (controller.hasClients) {
+      controller.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   @override
@@ -49,8 +71,12 @@ class _CollectionScreenState extends State<CollectionScreen>
   @override
   void dispose() {
     _activityService.removeListener(_refresh);
+    widget.scrollToTop?.removeListener(_scrollToTop);
     _foodSearchController.dispose();
     _tabController.dispose();
+    for (final controller in _scrollControllers) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -141,19 +167,25 @@ class _CollectionScreenState extends State<CollectionScreen>
                     controller: _tabController,
                     children: [
                       _buildFoodList(
+                        controller: _scrollControllers[0],
                         foods: _filterFoods(_activityService.favorites),
                         emptyTitle: '尚未收藏餐點',
                         emptyMessage: '在餐點詳情頁按下收藏，之後就能在這裡快速找到。',
                         removable: true,
                       ),
                       _buildFoodList(
+                        controller: _scrollControllers[1],
                         foods: _filterFoods(_activityService.history),
                         emptyTitle: '尚無瀏覽紀錄',
                         emptyMessage: '點進餐點詳情後，系統會自動留下最近看過的餐點。',
                       ),
-                      _buildSearchLogList(_activityService.searchLogs),
+                      _buildSearchLogList(
+                        _activityService.searchLogs,
+                        _scrollControllers[2],
+                      ),
                       _buildPurchaseRecordList(
                         _activityService.purchaseRecords,
+                        _scrollControllers[3],
                       ),
                     ],
                   ),
@@ -176,6 +208,7 @@ class _CollectionScreenState extends State<CollectionScreen>
   }
 
   Widget _buildFoodList({
+    required ScrollController controller,
     required List<FoodItem> foods,
     required String emptyTitle,
     required String emptyMessage,
@@ -186,6 +219,7 @@ class _CollectionScreenState extends State<CollectionScreen>
     }
 
     return ListView.builder(
+      controller: controller,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       itemCount: foods.length,
       itemBuilder: (context, index) {
@@ -248,12 +282,16 @@ class _CollectionScreenState extends State<CollectionScreen>
     );
   }
 
-  Widget _buildSearchLogList(List<SearchLog> logs) {
+  Widget _buildSearchLogList(
+    List<SearchLog> logs,
+    ScrollController controller,
+  ) {
     if (logs.isEmpty) {
       return _buildEmptyState('尚無搜尋紀錄', '送出搜尋後，系統會留下最近查過的關鍵字與篩選條件。');
     }
 
     return ListView(
+      controller: controller,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
         Row(
@@ -281,12 +319,16 @@ class _CollectionScreenState extends State<CollectionScreen>
     );
   }
 
-  Widget _buildPurchaseRecordList(List<PurchaseRecord> records) {
+  Widget _buildPurchaseRecordList(
+    List<PurchaseRecord> records,
+    ScrollController controller,
+  ) {
     if (records.isEmpty) {
       return _buildEmptyState('尚無購買紀錄', '完成結帳後，系統會將本次購買的餐點與金額留在這裡。');
     }
 
     return ListView(
+      controller: controller,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
         const Text(

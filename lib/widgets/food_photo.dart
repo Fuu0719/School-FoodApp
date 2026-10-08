@@ -17,23 +17,23 @@ class FoodPhoto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final uri = Uri.tryParse(food.imageUrl);
+    final hasRemoteImage =
+        uri != null && uri.scheme == 'https' && uri.host.isNotEmpty;
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: SizedBox(
         width: width,
         height: height,
-        child: Image.network(
-          food.imageUrl,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) => _buildFallback(),
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) {
-              return child;
-            }
-
-            return _buildFallback();
-          },
-        ),
+        child: hasRemoteImage
+            ? Image.network(
+                food.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => _buildFallback(),
+                loadingBuilder: (context, child, loadingProgress) =>
+                    loadingProgress == null ? child : _buildFallback(),
+              )
+            : _buildFallback(),
       ),
     );
   }

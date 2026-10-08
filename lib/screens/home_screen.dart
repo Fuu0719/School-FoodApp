@@ -75,6 +75,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final RecommendationService _recommendationService =
       const RecommendationService();
   final TextEditingController _homeSearchController = TextEditingController();
+  final ScrollController _homeScrollController = ScrollController();
+  final List<ValueNotifier<int>> _scrollToTopSignals = List.generate(
+    5,
+    (_) => ValueNotifier<int>(0),
+  );
   FoodSearchFilters _homeSearchFilters = const FoodSearchFilters();
   int _currentIndex = 0;
   int _collectionTabIndex = 0;
@@ -142,6 +147,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _activityService.removeListener(_refresh);
     _profileService.removeListener(_refresh);
     _homeSearchController.dispose();
+    _homeScrollController.dispose();
+    for (final signal in _scrollToTopSignals) {
+      signal.dispose();
+    }
     super.dispose();
   }
 
@@ -332,6 +341,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _onNavTap(int index) async {
+    if (index == _currentIndex) {
+      if (index == 0 && _homeScrollController.hasClients) {
+        await _homeScrollController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+        );
+      } else {
+        _scrollToTopSignals[index].value++;
+      }
+      return;
+    }
+
     if (index == 0) {
       setState(() {
         _currentIndex = 0;
@@ -401,10 +423,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           index: _currentIndex,
           children: [
             _buildHomeBody(),
-            const RecommendationScreen(),
-            const WheelScreen(),
-            CollectionScreen(initialTabIndex: _collectionTabIndex),
+            RecommendationScreen(scrollToTop: _scrollToTopSignals[1]),
+            WheelScreen(scrollToTop: _scrollToTopSignals[2]),
+            CollectionScreen(
+              initialTabIndex: _collectionTabIndex,
+              scrollToTop: _scrollToTopSignals[3],
+            ),
             ProfileScreen(
+              scrollToTop: _scrollToTopSignals[4],
               onOpenCollectionTab: (tabIndex) =>
                   _goToCollection(initialTabIndex: tabIndex),
               onLoginComplete: _goToHome,
@@ -453,6 +479,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         behavior: HitTestBehavior.translucent,
         onTap: () => FocusScope.of(context).unfocus(),
         child: SingleChildScrollView(
+          key: const Key('home-scroll'),
+          controller: _homeScrollController,
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           child: Column(

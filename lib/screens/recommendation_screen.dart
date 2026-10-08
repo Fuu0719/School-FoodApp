@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/food_feedback.dart';
 import 'package:my_app/models/food_item.dart';
@@ -10,9 +11,14 @@ import 'package:my_app/services/user_profile_service.dart';
 import 'package:my_app/widgets/food_card.dart';
 
 class RecommendationScreen extends StatefulWidget {
-  const RecommendationScreen({super.key, this.showAppBar = true});
+  const RecommendationScreen({
+    super.key,
+    this.showAppBar = true,
+    this.scrollToTop,
+  });
 
   final bool showAppBar;
+  final ValueListenable<int>? scrollToTop;
 
   @override
   State<RecommendationScreen> createState() => _RecommendationScreenState();
@@ -24,6 +30,7 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
   final UserActivityService _activityService = UserActivityService.instance;
   final UserProfileService _profileService = UserProfileService.instance;
   late List<FoodItem> recommendedFoods;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -31,12 +38,25 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
     recommendedFoods = _buildRecommendations();
     _activityService.addListener(_refreshRecommendations);
     _profileService.addListener(_refreshRecommendations);
+    widget.scrollToTop?.addListener(_scrollToTop);
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   @override
   void dispose() {
     _activityService.removeListener(_refreshRecommendations);
     _profileService.removeListener(_refreshRecommendations);
+    widget.scrollToTop?.removeListener(_scrollToTop);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -62,6 +82,8 @@ class _RecommendationScreenState extends State<RecommendationScreen> {
             )
           : null,
       body: CustomScrollView(
+        key: const Key('recommendation-scroll'),
+        controller: _scrollController,
         slivers: [
           SliverPersistentHeader(
             pinned: true,

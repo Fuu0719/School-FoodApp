@@ -49,6 +49,26 @@ void main() {
     expect(find.text('今天想吃哪種感覺？'), findsOneWidget);
   });
 
+  testWidgets('tapping the active bottom destination scrolls its page to top', (
+    WidgetTester tester,
+  ) async {
+    UserProfileService.instance.loginWithDemo();
+    await tester.pumpWidget(const MyApp());
+
+    final homeScroll = find.byKey(const Key('home-scroll'));
+    await tester.drag(homeScroll, const Offset(0, -700));
+    await tester.pumpAndSettle();
+    final controller = tester
+        .widget<SingleChildScrollView>(homeScroll)
+        .controller!;
+    expect(controller.offset, greaterThan(0));
+
+    await tester.tap(find.byIcon(Icons.home_rounded));
+    await tester.pumpAndSettle();
+
+    expect(controller.offset, 0);
+  });
+
   testWidgets('opens search with mood quick filters from home', (
     WidgetTester tester,
   ) async {

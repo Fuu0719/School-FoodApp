@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:my_app/validation/phone.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
@@ -15,10 +16,12 @@ class ProfileScreen extends StatefulWidget {
     super.key,
     this.onOpenCollectionTab,
     this.onLoginComplete,
+    this.scrollToTop,
   });
 
   final ValueChanged<int>? onOpenCollectionTab;
   final VoidCallback? onLoginComplete;
+  final ValueListenable<int>? scrollToTop;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -31,6 +34,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _editing = false;
   bool _completionScheduled = false;
   String? _observedProfileId;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -41,12 +45,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_profileService.profile?.needsProfileCompletion == true) {
       _scheduleProfileCompletion();
     }
+    widget.scrollToTop?.addListener(_scrollToTop);
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   @override
   void dispose() {
     _profileService.removeListener(_refresh);
     _activityService.removeListener(_refresh);
+    widget.scrollToTop?.removeListener(_scrollToTop);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -86,6 +103,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildProfileView(UserProfile profile) {
     return ListView(
+      key: const Key('profile-scroll'),
+      controller: _scrollController,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
         _buildProfileHeader(profile),

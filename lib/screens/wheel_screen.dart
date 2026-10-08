@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/food_item.dart';
@@ -11,7 +12,9 @@ import 'package:my_app/services/user_activity_service.dart';
 import 'package:my_app/widgets/food_card.dart';
 
 class WheelScreen extends StatefulWidget {
-  const WheelScreen({super.key});
+  const WheelScreen({super.key, this.scrollToTop});
+
+  final ValueListenable<int>? scrollToTop;
 
   @override
   State<WheelScreen> createState() => _WheelScreenState();
@@ -26,6 +29,7 @@ class _WheelScreenState extends State<WheelScreen>
   double _rotationTurns = 0;
   bool _isSpinning = false;
   bool _showCelebration = false;
+  final ScrollController _scrollController = ScrollController();
 
   FoodSearchFilters _filters = const FoodSearchFilters();
   FoodItem? _selectedFood;
@@ -63,11 +67,24 @@ class _WheelScreenState extends State<WheelScreen>
     );
     _turns = const AlwaysStoppedAnimation(0);
     _activityService.addListener(_refresh);
+    widget.scrollToTop?.addListener(_scrollToTop);
+  }
+
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   @override
   void dispose() {
     _activityService.removeListener(_refresh);
+    widget.scrollToTop?.removeListener(_scrollToTop);
+    _scrollController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -92,6 +109,8 @@ class _WheelScreenState extends State<WheelScreen>
         iconTheme: const IconThemeData(color: Color(0xFF2E3A2F)),
       ),
       body: ListView(
+        key: const Key('wheel-scroll'),
+        controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           _buildIntroCard(candidates.length),
