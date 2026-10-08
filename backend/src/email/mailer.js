@@ -71,19 +71,25 @@ function createMailer(env = process.env) {
         footer: '請依 App 訂單紀錄向商家確認取餐資訊。每一次剛剛好的選擇，都能少一點浪費。<br><strong>MealMind 膳解人意</strong>',
       }),
     }),
-    sendMerchantOrder: (notice) => transport.sendMail({
-      from: env.SMTP_FROM, to: notice.merchantEmail,
-      subject: `膳解人意新訂單 #${notice.orderId}`,
-      text: `收到新訂單 #${notice.orderId}\n${notice.items.map((item) => `${item.name} x${item.quantity}`).join('\n')}`,
-      html: orderShell({
-        eyebrow: 'MEALMIND · 商家接單通知',
-        title: `收到新訂單 #${html(notice.orderId)}`,
-        intro: '會員已完成付款，請確認品項並為會員保留餐點。',
-        rows: itemRows(notice.items),
-        summary: `<div style="font-weight:800">共 ${notice.items.reduce((sum, item) => sum + Number(item.quantity), 0)} 件餐點待準備</div>`,
-        footer: '請登入膳解人意商家端核對訂單與商品狀態。<br><strong>MealMind 膳解人意</strong>',
-      }),
-    }),
+    sendMerchantOrder: (notice) => {
+      // Seed merchants deliberately use the reserved .test domain and must never receive real mail.
+      if (String(notice.merchantEmail).toLowerCase().endsWith('@foodapp.test')) {
+        return Promise.resolve({ skipped: true, reason: 'test merchant address' });
+      }
+      return transport.sendMail({
+        from: env.SMTP_FROM, to: notice.merchantEmail,
+        subject: `膳解人意新訂單 #${notice.orderId}`,
+        text: `收到新訂單 #${notice.orderId}\n${notice.items.map((item) => `${item.name} x${item.quantity}`).join('\n')}`,
+        html: orderShell({
+          eyebrow: 'MEALMIND · 商家接單通知',
+          title: `收到新訂單 #${html(notice.orderId)}`,
+          intro: '會員已完成付款，請確認品項並為會員保留餐點。',
+          rows: itemRows(notice.items),
+          summary: `<div style="font-weight:800">共 ${notice.items.reduce((sum, item) => sum + Number(item.quantity), 0)} 件餐點待準備</div>`,
+          footer: '請登入膳解人意商家端核對訂單與商品狀態。<br><strong>MealMind 膳解人意</strong>',
+        }),
+      });
+    },
   };
 }
 
