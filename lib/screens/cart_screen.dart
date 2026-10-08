@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/cart_item.dart';
 import 'package:my_app/services/user_activity_service.dart';
 import 'package:my_app/widgets/checkout_success_overlay.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:my_app/widgets/food_photo.dart';
 
 class CartScreen extends StatefulWidget {
@@ -17,6 +17,7 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  static const _browser = MethodChannel('mealmind/browser');
   late final UserActivityService _activityService =
       widget.activity ?? UserActivityService.instance;
 
@@ -299,10 +300,9 @@ class _CartScreenState extends State<CartScreen> {
     }
 
     if (record.checkoutUrl != null) {
-      final opened = await launchUrl(
-        Uri.parse(record.checkoutUrl!),
-        mode: LaunchMode.externalApplication,
-      );
+      final opened =
+          await _browser.invokeMethod<bool>('open', record.checkoutUrl!) ??
+          false;
       if (!opened && mounted) {
         ScaffoldMessenger.of(
           context,
