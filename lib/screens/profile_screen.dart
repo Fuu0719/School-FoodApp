@@ -1408,7 +1408,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final becameLoggedIn = _observedProfileId == null && profile?.id != null;
       _observedProfileId = profile?.id;
       setState(() {});
-      if (becameLoggedIn || profile?.needsProfileCompletion == true) {
+      if ((becameLoggedIn || profile?.needsProfileCompletion == true) &&
+          ModalRoute.of(context)?.isCurrent == true) {
         _scheduleProfileCompletion();
       }
     }

@@ -342,7 +342,7 @@ class _CollectionScreenState extends State<CollectionScreen>
             ),
           ),
           subtitle: Text(
-            '${record.summaryLabel}${record.isCloud ? '（模擬訂單，未付款）' : ''}',
+            '${record.summaryLabel}${record.isCloud ? '（模擬訂單，${record.paymentStatus == 'paid' ? '已付款' : '付款狀態確認中'}）' : ''}',
           ),
           children: record.items
               .map(

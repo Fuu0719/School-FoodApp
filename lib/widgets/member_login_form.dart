@@ -131,7 +131,7 @@ class _MemberLoginFormState extends State<MemberLoginForm> {
     );
     await Future<void>.delayed(const Duration(milliseconds: 300));
     code.dispose();
-    if (verified && mounted) widget.onLoginComplete?.call();
+    if (verified) widget.onLoginComplete?.call();
   }
 
   Future<void> _showPasswordResetDialog() async {

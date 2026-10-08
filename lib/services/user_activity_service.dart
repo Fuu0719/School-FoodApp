@@ -75,6 +75,7 @@ class UserActivityService extends ChangeNotifier {
     _cartQuantities.clear();
     _purchaseRecords.clear();
     _foodFeedback.clear();
+    _ecoLeaderboard.clear();
     await initialize();
     notifyListeners();
   }

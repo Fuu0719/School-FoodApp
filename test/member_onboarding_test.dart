@@ -152,6 +152,7 @@ void main() {
     await tester.enterText(find.widgetWithText(TextField, '驗證碼'), '123456');
     await tester.tap(find.text('完成驗證'));
     await tester.pumpAndSettle();
+    expect(find.text('驗證 Email'), findsNothing);
     expect(find.text('編輯會員資料'), findsOneWidget);
     expect(find.text('身高（公分）'), findsOneWidget);
     expect(find.text('體重（公斤）'), findsOneWidget);
