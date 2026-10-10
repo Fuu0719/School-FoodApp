@@ -31,16 +31,20 @@ if (-not $password) {
   exit 1
 }
 
-$mysqlCandidates = @(
+$mysqlCandidates = @(@(
   (Get-Command mysql.exe -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1),
   'C:\Program Files\MySQL\MySQL Server 26.7\bin\mysql.exe',
   'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
-) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
+) | Where-Object { $_ -and (Test-Path -LiteralPath $_) })
 if (-not $mysqlCandidates) {
   [System.Windows.Forms.MessageBox]::Show('mysql.exe was not found.', 'Database Viewer') | Out-Null
   exit 1
 }
 $mysql = $mysqlCandidates[0]
+if (-not (Test-Path -LiteralPath $mysql -PathType Leaf)) {
+  [System.Windows.Forms.MessageBox]::Show("mysql.exe path is invalid: $mysql", 'Database Viewer') | Out-Null
+  exit 1
+}
 
 function Invoke-Database([string]$Sql, [switch]$NoHeaders) {
   $previousPassword = $env:MYSQL_PWD
