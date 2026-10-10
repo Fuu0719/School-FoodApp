@@ -171,13 +171,20 @@ function Load-Table {
     $offset = $script:page * $PageSize
     $count = [int](Invoke-Database "SELECT COUNT(*) FROM ``$table``$conditions;" -NoHeaders | Select-Object -First 1)
     $rows = @(Invoke-Database "SELECT * FROM ``$table``$conditions LIMIT $PageSize OFFSET $offset;")
+    $data = New-Object System.Data.DataTable
+    foreach ($column in $script:columns) { [void]$data.Columns.Add($column) }
     if ($rows.Count -gt 1) {
-      $grid.DataSource = @($rows | ConvertFrom-Csv -Delimiter "`t")
-    } else {
-      $empty = New-Object System.Data.DataTable
-      foreach ($column in $script:columns) { [void]$empty.Columns.Add($column) }
-      $grid.DataSource = $empty
+      $records = @($rows | ConvertFrom-Csv -Delimiter "`t")
+      foreach ($record in $records) {
+        $dataRow = $data.NewRow()
+        foreach ($column in $script:columns) {
+          $value = $record.PSObject.Properties[$column].Value
+          $dataRow[$column] = if ($null -eq $value) { [DBNull]::Value } else { [string]$value }
+        }
+        [void]$data.Rows.Add($dataRow)
+      }
     }
+    $grid.DataSource = $data
     $pages = [Math]::Max(1, [Math]::Ceiling($count / $PageSize))
     $pageLabel.Text = "Page $($script:page + 1) / $pages"
     $previousButton.Enabled = $script:page -gt 0
