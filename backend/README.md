@@ -59,10 +59,6 @@ MySQL 收藏、瀏覽與訂單端點已提供，詳見 [會員活動 API 與遷�
 App 預設保留展示商品；Cloud Catalog 版改讀 MySQL 目錄、雲端收藏、瀏覽及模擬訂單。購物車、搜尋紀錄與評分回饋仍有本機狀態；模擬訂單不代表已付款或商家已接單。
 學校防火牆與 HTTPS 尚未完成；手機測試暫時使用筆電 API 及 ngrok HTTPS，狀態追蹤見 [部署進度](../docs/deployment_status.md)。
 
-## Windows 唯讀資料庫檢視器
-
-學校伺服器不需安裝 Workbench。更新專案後，直接雙擊 `backend\開啟資料庫檢視器.cmd`，即可用圖形介面選擇資料表、搜尋、排序、翻頁與複製欄位。檢視器會讀取 `backend\.env` 的 MySQL 連線設定，每頁顯示 300 筆，且不提供新增、修改或刪除功能。
-
 ## 實作參考
 
 - [Node.js crypto](https://nodejs.org/api/crypto.html)：scrypt 密碼雜湊及隨機憑證。
