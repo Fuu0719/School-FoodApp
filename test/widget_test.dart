@@ -87,6 +87,21 @@ void main() {
     expect(find.text('180 元內'), findsOneWidget);
   });
 
+  testWidgets(
+    'small happiness shortcut opens cloud-compatible dessert results',
+    (WidgetTester tester) async {
+      UserProfileService.instance.loginWithDemo();
+      await tester.pumpWidget(const MyApp());
+
+      await tester.tap(find.byKey(const ValueKey('mood-filter-小確幸')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('搜尋餐點'), findsOneWidget);
+      expect(find.text('麵包甜點'), findsWidgets);
+      expect(find.text('目前沒有符合條件的餐點'), findsNothing);
+    },
+  );
+
   testWidgets('opens food detail from home recommendation card', (
     WidgetTester tester,
   ) async {

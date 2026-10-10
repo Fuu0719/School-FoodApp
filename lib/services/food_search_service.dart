@@ -71,6 +71,25 @@ class FoodSearchFilters {
 class FoodSearchService {
   const FoodSearchService();
 
+  static const Map<String, Set<String>> _keywordAliases = {
+    '甜點': {'甜點', '麵包甜點', '銅鑼燒', '點心'},
+    '點心': {'點心', '甜點', '麵包甜點', '銅鑼燒'},
+    '下午茶': {'下午茶', '甜點', '麵包甜點', '銅鑼燒'},
+    '麵包': {'麵包', '麵包甜點'},
+    '飲料': {'飲料', '飲品', '果汁', '茶'},
+    '喝的': {'喝的', '飲品', '果汁', '茶'},
+    '麵': {'麵', '麵食', '烏龍'},
+    '早餐': {'早餐', '飯糰', '麵包甜點'},
+    '午餐': {'午餐', '便當', '餐盒', '麵食', '飯糰'},
+    '晚餐': {'晚餐', '便當', '餐盒', '麵食'},
+    '正餐': {'正餐', '便當', '餐盒', '麵食'},
+    '蔬菜': {'蔬菜', '鮮蔬', '沙拉'},
+    '健康': {'健康', '沙拉', '低脂', '低熱量', '蔬食'},
+    '減脂': {'減脂', '低脂', '低熱量', '沙拉'},
+    '健身': {'健身', '高蛋白', '雞胸'},
+    '素食': {'素食', '蔬食'},
+  };
+
   List<FoodItem> search({
     required List<FoodItem> foods,
     String query = '',
@@ -188,6 +207,12 @@ class FoodSearchService {
       ...food.nutritionTags,
     ].join(' ').toLowerCase();
 
-    return searchableText.contains(keyword);
+    final tokens = keyword
+        .split(RegExp(r'\s+'))
+        .where((token) => token.isNotEmpty);
+    return tokens.every((token) {
+      final candidates = _keywordAliases[token] ?? {token};
+      return candidates.any(searchableText.contains);
+    });
   }
 }

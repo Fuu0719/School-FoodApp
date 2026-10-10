@@ -21,6 +21,18 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
+  static const _suggestedKeywords = [
+    '便當',
+    '飯糰',
+    '麵食',
+    '沙拉',
+    '甜點',
+    '飲料',
+    '高蛋白',
+    '低熱量',
+    '蔬食',
+    '即期',
+  ];
   final FoodSearchService _searchService = const FoodSearchService();
   final UserActivityService _activityService = UserActivityService.instance;
   late final TextEditingController _searchController;
@@ -120,6 +132,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
             _buildRecentSearches(),
+            _buildKeywordSuggestions(),
             _buildActiveFilters(),
             _buildSortBar(),
             Expanded(child: _buildResults()),
@@ -266,6 +279,32 @@ class _SearchScreenState extends State<SearchScreen> {
                 .toList(),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildKeywordSuggestions() {
+    if (_searchController.text.isNotEmpty) return const SizedBox.shrink();
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Row(
+        children: _suggestedKeywords
+            .map(
+              (keyword) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ActionChip(
+                  key: ValueKey('suggested-keyword-$keyword'),
+                  label: Text(keyword),
+                  avatar: const Icon(Icons.search_rounded, size: 17),
+                  onPressed: () {
+                    _searchController.text = keyword;
+                    _submitSearch();
+                  },
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }

@@ -22,6 +22,37 @@ void main() {
     );
   });
 
+  test('search expands common meal and dietary keyword aliases', () {
+    final base = MockFoodRepository.allFoods.first;
+    final foods = [
+      base.copyWith(
+        name: '紅豆銅鑼燒',
+        category: '麵包甜點',
+        tags: const ['麵包甜點'],
+        ingredients: const [],
+        nutritionTags: const [],
+      ),
+      base.copyWith(
+        name: '高纖蔬果汁',
+        category: '飲品',
+        tags: const ['清爽'],
+        ingredients: const [],
+        nutritionTags: const [],
+      ),
+      base.copyWith(
+        name: '雞肉鮮蔬沙拉',
+        category: '沙拉',
+        tags: const ['低熱量'],
+        ingredients: const [],
+        nutritionTags: const [],
+      ),
+    ];
+
+    expect(service.search(foods: foods, query: '下午茶').single.name, '紅豆銅鑼燒');
+    expect(service.search(foods: foods, query: '飲料').single.name, '高纖蔬果汁');
+    expect(service.search(foods: foods, query: '減脂').single.name, '雞肉鮮蔬沙拉');
+  });
+
   test('filters by category, budget, distance, and expiring status', () {
     final results = service.search(
       foods: MockFoodRepository.allFoods,

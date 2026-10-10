@@ -55,11 +55,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       description: '甜點點心',
       icon: Icons.cake_rounded,
       query: '甜點',
-      filters: FoodSearchFilters(
-        categories: {'甜點'},
-        tags: {'甜點', '清爽'},
-        maxPrice: 160,
-      ),
+      filters: FoodSearchFilters(categories: {'甜點', '麵包甜點'}, maxPrice: 160),
     ),
     _MoodQuickFilter(
       label: '快速',
