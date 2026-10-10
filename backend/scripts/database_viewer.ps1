@@ -27,7 +27,7 @@ $user = if ($config['DB_USER']) { $config['DB_USER'] } else { 'food_app' }
 $database = if ($config['DB_NAME']) { $config['DB_NAME'] } else { 'shan_jie_ren_yi' }
 $password = $config['DB_PASSWORD']
 if (-not $password) {
-  [System.Windows.Forms.MessageBox]::Show('backend\.env 缺少 DB_PASSWORD。', '資料庫檢視器') | Out-Null
+  [System.Windows.Forms.MessageBox]::Show('DB_PASSWORD is missing from backend\.env.', 'Database Viewer') | Out-Null
   exit 1
 }
 
@@ -37,7 +37,7 @@ $mysqlCandidates = @(
   'C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe'
 ) | Where-Object { $_ -and (Test-Path -LiteralPath $_) }
 if (-not $mysqlCandidates) {
-  [System.Windows.Forms.MessageBox]::Show('找不到 mysql.exe。', '資料庫檢視器') | Out-Null
+  [System.Windows.Forms.MessageBox]::Show('mysql.exe was not found.', 'Database Viewer') | Out-Null
   exit 1
 }
 $mysql = $mysqlCandidates[0]
@@ -70,7 +70,7 @@ function Escape-Like([string]$Value) {
 }
 
 $form = New-Object System.Windows.Forms.Form
-$form.Text = '膳解人意 - 資料庫檢視器（唯讀）'
+$form.Text = 'MealMind - Read-only Database Viewer'
 $form.StartPosition = 'CenterScreen'
 $form.WindowState = 'Maximized'
 $form.MinimumSize = New-Object System.Drawing.Size(980, 620)
@@ -83,7 +83,7 @@ $toolbar.Padding = New-Object System.Windows.Forms.Padding(10, 10, 10, 6)
 $toolbar.WrapContents = $false
 
 $tableLabel = New-Object System.Windows.Forms.Label
-$tableLabel.Text = '資料表'
+$tableLabel.Text = 'Table'
 $tableLabel.AutoSize = $true
 $tableLabel.Margin = New-Object System.Windows.Forms.Padding(0, 7, 6, 0)
 
@@ -96,25 +96,25 @@ $searchBox.Width = 260
 $searchBox.Margin = New-Object System.Windows.Forms.Padding(18, 2, 4, 0)
 
 $searchButton = New-Object System.Windows.Forms.Button
-$searchButton.Text = '搜尋'
+$searchButton.Text = 'Search'
 $searchButton.AutoSize = $true
 
 $clearButton = New-Object System.Windows.Forms.Button
-$clearButton.Text = '清除'
+$clearButton.Text = 'Clear'
 $clearButton.AutoSize = $true
 
 $refreshButton = New-Object System.Windows.Forms.Button
-$refreshButton.Text = '重新整理'
+$refreshButton.Text = 'Refresh'
 $refreshButton.AutoSize = $true
 $refreshButton.Margin = New-Object System.Windows.Forms.Padding(18, 2, 4, 0)
 
 $previousButton = New-Object System.Windows.Forms.Button
-$previousButton.Text = '上一頁'
+$previousButton.Text = 'Previous'
 $previousButton.AutoSize = $true
 $previousButton.Margin = New-Object System.Windows.Forms.Padding(18, 2, 4, 0)
 
 $nextButton = New-Object System.Windows.Forms.Button
-$nextButton.Text = '下一頁'
+$nextButton.Text = 'Next'
 $nextButton.AutoSize = $true
 
 $pageLabel = New-Object System.Windows.Forms.Label
@@ -175,12 +175,12 @@ function Load-Table {
       $grid.DataSource = $empty
     }
     $pages = [Math]::Max(1, [Math]::Ceiling($count / $PageSize))
-    $pageLabel.Text = "第 $($script:page + 1) / $pages 頁"
+    $pageLabel.Text = "Page $($script:page + 1) / $pages"
     $previousButton.Enabled = $script:page -gt 0
     $nextButton.Enabled = ($offset + $PageSize) -lt $count
-    $statusLabel.Text = "$database.$table，共 $count 筆；畫面為唯讀"
+    $statusLabel.Text = "$database.$table - $count rows - read only"
   } catch {
-    [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, '讀取失敗') | Out-Null
+    [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Read failed') | Out-Null
   }
 }
 
@@ -197,7 +197,7 @@ try {
   [void]$tableSelect.Items.AddRange([object[]]$tables)
   if ($tables.Count -gt 0) { $tableSelect.SelectedIndex = 0 }
 } catch {
-  [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, '連線失敗') | Out-Null
+  [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Connection failed') | Out-Null
   exit 1
 }
 
