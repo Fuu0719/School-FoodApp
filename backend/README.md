@@ -1,9 +1,9 @@
 # 膳解人意 Backend
 
 會員、商品目錄、會員活動與商家管理 API 使用 MySQL；推薦 API 尚未完成。商家可自行註冊並直接啟用，登入後再新增一間或多間門市。舊版客戶端在註冊時附帶首間門市的格式仍相容。
-初始化或升級請依部署文件核對結構，勿重匯 schema。既有環境依序套用 migration；本版另需套用 `008_member_custom_avatar.sql`，將預設圖示改為會員自訂圖片。通過 db:check 才啟動新版 API。
+初始化或升級請依部署文件核對結構，勿重匯 schema。學校現有環境已套用 migration `001` 至 `008`；不得重複執行。通過 db:check 才啟動新版 API。
 
-部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)。
+部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)，日常查詢、備份與測試會員刪除見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
 
 ## 啟動
 
@@ -56,8 +56,8 @@ GET /api/foods、/api/foods/:foodId、/api/stores/:storeId 已讀 MySQL，GET /a
 MySQL 收藏、瀏覽與訂單端點已提供，詳見 [會員活動 API 與遷移](MEMBER_ACTIVITY.md)。
 商家帳號與商品管理使用獨立驗證及 MySQL 寫入，需套用 003；刪除門市功能另需 004，見 [商家管理與部署](MERCHANT_MANAGEMENT.md) 與 [門市刪除](STORE_DELETION.md)。商品分類是不跨商家的自訂文字，會從該商家現有商品彙整選項。
 其他尚未實作正式驗證的原型寫入與回饋端點仍回應 501；僅舊原型測試顯式開啟。
-App 預設保留展示商品；Cloud Catalog 版改讀 MySQL 目錄、雲端收藏、瀏覽及模擬訂單。購物車、搜尋紀錄與評分回饋仍有本機狀態；模擬訂單不代表已付款或商家已接單。
-學校防火牆與 HTTPS 尚未完成；手機測試暫時使用筆電 API 及 ngrok HTTPS，狀態追蹤見 [部署進度](../docs/deployment_status.md)。
+App 預設保留展示商品；Cloud Catalog 版改讀 MySQL 目錄、雲端收藏、瀏覽、排行榜及訂單。綠界 Stage 成功回傳後訂單標記為 `paid`，App 顯示「模擬訂單，已付款」；這不等於正式金流或商家接單。購物車與部分搜尋狀態仍在裝置端。
+學校伺服器已透過 ngrok 固定 HTTPS 網址供手機測試，狀態追蹤見 [部署進度](../docs/deployment_status.md)。
 
 ## 實作參考
 

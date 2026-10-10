@@ -1,5 +1,18 @@
 # 膳解人意 Flutter App
 
+## 最新狀態（2026-10-10）
+
+- App 版本為 `1.0.0+24`，手機透過 ngrok HTTPS 連到學校 Windows Server 上的 Node.js API 與 MySQL。
+- 會員註冊已包含 6 位數 Email 驗證、忘記密碼、驗證完成歡迎信；Gmail SMTP 已在學校伺服器完成設定及實際收信驗證。
+- 會員資料可不選頭像直接儲存；支援上傳、移除自訂 JPG／PNG 頭像，未設定時使用系統預設圖示。編輯資料後不會再次跳回 Email 驗證。
+- 全體惜食排行榜由現有會員與已付款訂單計算，顯示會員自訂或預設頭像；刪除會員後不保留排行榜快取。
+- 六類模擬餐點由後端提供固定分類圖片；搜尋已擴充同義關鍵字，首頁「小確幸」會帶入甜點／點心候選。
+- 底部五個分頁重複點擊目前分頁時會回到頁面頂端。
+- 綠界 Stage 測試付款留在 App 內進行；成功後購買紀錄顯示「模擬訂單，已付款」。這是測試金流，不代表正式收款。
+- 付款成功後寄送會員訂單確認信。模擬商家的 `.test` 信箱不寄信，避免 Gmail 退信；尚未導入真實商家接單流程。
+- 學校資料庫已套用 migration `001` 至 `008`。既有資料庫不可重匯 `schema.sql`，也不可重複執行已完成的 migration。
+- Windows Server 2016 沒有 `winget`，且不在目前 MySQL Workbench 官方支援範圍；資料庫日常管理使用 MySQL CLI，操作步驟見 [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)。
+
 ## 手機測試更新（2026-09-26）
 
 - 新會員身高／體重以 NULL 保存，不補展示值；首次登入後開啟會員資料編輯，填寫並儲存後才返回原流程。舊帳號已有數值不自動清除。
@@ -129,7 +142,7 @@ ngrok http 3000
 
 啟動後依序檢查 `http://127.0.0.1:3000/api/health` 與 ngrok 顯示的 `https://.../api/health`。兩者都回應 `status: ok` 才開啟 App。目前 APK 內建的測試網址是 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`；若 ngrok 免費網址改變，必須用新網址重新打包 APK。
 
-一般重開機不需要重跑 `npm ci`、資料庫遷移或 Flutter 打包。只有更新程式或依賴時才需要 `npm ci`；只有新版明確新增遷移時才能在備份後套用。不可重匯 `schema.sql`，也不要對現有資料庫重跑 001–004。
+一般重開機不需要重跑 `npm ci`、資料庫遷移或 Flutter 打包。只有更新程式或依賴時才需要 `npm ci`；只有新版明確新增遷移時才能在備份後套用。不可重匯 `schema.sql`，也不要對現有資料庫重跑 `001` 至 `008`。
 
 本機測試時筆電需保持開機、聯網且不進入睡眠；關閉 API 或 ngrok 任一視窗，本機入口就會中斷。請勿讓筆電與學校伺服器同時占用相同 ngrok 固定網址。
 
@@ -144,7 +157,7 @@ ngrok http 3000
 | API | SchoolFoodAppApi，Running／Auto／LocalService，127.0.0.1:3000 |
 | 專案 MySQL | 3307、shan_jie_ren_yi、food_app 應用帳號 |
 | 原有服務 | AppServ MySQL 3306、Apache 80，與專案分開，勿任意變更 |
-| 遷移 | 001–004 已套用；`db:check` 通過 |
+| 遷移 | `001` 至 `008` 已套用；`db:check` 通過 |
 | 資料 | 筆電完整測試資料已匯入學校 MySQL；匯入前已建立學校端備份 |
 | HTTPS | ngrok Windows 服務，固定網址 `https://estimator-flagman-fidgeting.ngrok-free.dev` |
 | 開機驗收 | MySQLFoodApp、SchoolFoodAppApi、ngrok 均為 Running／Automatic；整台主機重開後公開健康檢查通過 |
@@ -155,24 +168,26 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ### 使用學校資料測試
 
-APK `1.0.0+16` 已設定 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`。ngrok 與 API 都在學校主機以 Windows 服務執行；Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。ngrok 免費入口的瀏覽器警告不影響 App，API client 會送出 `ngrok-skip-browser-warning` 標頭。
+目前 App 版本為 `1.0.0+24`，雲端建置使用 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`。ngrok 與 API 都在學校主機以 Windows 服務執行；Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。ngrok 免費入口的瀏覽器警告不影響 App，API client 會送出 `ngrok-skip-browser-warning` 標頭。
 
 ## 待完成與部署順序
 
-1. 完成手機行動網路下的會員、商家、上下架與結帳最終驗收。
-2. 建立定期異機備份並實際演練還原；目前僅確認匯出與跨主機匯入成功。
-3. 本次 Email 功能部署前先備份，套用 `backend/database/migrations/005_member_email.sql`，並在學校 `backend/.env` 設定 SMTP；再執行 `npm ci`、`npm run db:check`、測試及重新啟動服務。migration 不可重複執行。
-4. 學校借用期限依提供資料為 2026-12-31，需提前備份或申請續借。
+1. 完成手機行動網路下的會員、商家、上下架與綠界 Stage 付款最終回歸驗收。
+2. 建立定期異機備份並實際演練還原；目前已確認手動匯出與跨主機匯入，尚未完成排程及還原演練。
+3. 正式上線前申請正式金流商店資料、正式 HTTPS 網域並完成交易與退款流程；目前只可宣稱綠界測試付款。
+4. 將模擬商家改為真實商家前，補上接單狀態、商家通知信箱與營運管理流程。
+5. 學校借用期限依提供資料為 2026-12-31，需提前備份或申請續借。
 
-金流、商家接單狀態及圖片檔案上傳未完成；模擬訂單不代表已付款或已接單。Email 驗證、忘記密碼、會員訂單通知與商家新訂單通知已完成程式實作，仍需在學校主機套用 005 migration、設定 SMTP 並實際收信驗收。購物車、搜尋紀錄及評分回饋仍為本機資料。後端 /api/recommendations 暫回應 501，不能宣稱完整雲端 AI 推薦引擎已完成。
+購物車與部分搜尋狀態仍保存在裝置；後端 `/api/recommendations` 暫回應 501，不能宣稱完整雲端 AI 推薦引擎已完成。模擬餐點圖片是分類共用圖，不是真實商品逐筆照片。
 部分模擬器啟動設定會先更新 Git，但遇到未提交修改會停止；雲端啟動設定沒有掛同一更新作業，不能保證每次重開就是最新版。
 
 ## 驗證與文件
 
-2026-09-29 最終驗收：Flutter 完整測試 117 通過／2 跳過，`flutter analyze` 無問題；後端單元測試 50 通過／3 整合測試跳過，真實 MySQL 測試 24 項全數通過，`npm audit --omit=dev` 為 0 個漏洞。資料庫已驗證 5 個會員、17 個商家、42 間門市、630 項商品及 3 間跨夜門市，沒有重複帳號、重複商品名稱、孤兒關聯、負數營養／庫存、無效座標或缺少營業日。Samsung Android 16 實機已驗證會員與商家登入、推薦收合、搜尋商家、詳情、收藏、瀏覽、購物車左滑刪除、結帳扣庫存、點餐紀錄與 Android 返回導覽；商家端已驗證門市清單／編輯、24 小時制營業時間、商品清單與新增表單。APK `1.0.0+16` 使用相同 ngrok 測試 API；推薦收合列會顯示目前偏好，商家商品真正過期時會明確顯示「已過期」。
+2026-09-29 的基準驗收為：Flutter 完整測試 117 通過／2 跳過，`flutter analyze` 無問題；後端單元測試 50 通過／3 整合測試跳過，真實 MySQL 測試 24 項全數通過，`npm audit --omit=dev` 為 0 個漏洞。其後已加入 Email、頭像、付款、圖片與搜尋更新，目前版本為 `1.0.0+24`；舊測試數字僅是歷史基準，不代表最新版完整測試數量。
 
 - [部署進度與未解決事項](docs/deployment_status.md)
 - [Windows 部署說明](backend/DEPLOY_WINDOWS.md)
+- [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)
 - [商家註冊與商品管理](backend/MERCHANT_MANAGEMENT.md)
 - [商品目錄](backend/CATALOG.md)
 - [會員活動](backend/MEMBER_ACTIVITY.md)

@@ -2,12 +2,9 @@
 
 ## 目前範圍
 
-會員註冊、登入、登出、個人資料與飲食偏好已使用 MySQL。
-商品和推薦清單仍是模擬資料；App 的收藏、購物車和購買紀錄仍存於裝置，已按伺服器和會員分開保存，不會跨帳號顯示。
-舊版不分會員的本機紀錄不會自動移轉到任何新帳號，原資料不刪除。
-App 雲端模式已串接會員活動及獨立商家商品管理；尚未實作正式驗證的回饋原型寫入仍回應 501。
-既有主機更新商家管理前，務必先依 [商家部署](MERCHANT_MANAGEMENT.md) 備份及套用 003，不能只更新程式後重啟。
-更新刪除門市功能前另需套用 `database/migrations/004_store_deletion.sql`。此遷移只新增 `stores.deleted_at`，不清除資料，可重跑；若以最新版 schema 初始化則已包含此欄位。既有主機勿重匯 schema 或重跑 003。
+會員註冊、Email 驗證、登入、登出、個人資料、頭像與飲食偏好已使用 MySQL。雲端模式已串接商品、收藏、瀏覽、排行榜、訂單、綠界 Stage 測試付款及獨立商家商品管理。
+學校現有資料庫已套用 migration `001` 至 `008`，不可重跑，也不可重新匯入 `schema.sql`。新增 migration 時必須先備份並查核現有結構。
+資料庫查詢、備份及刪除測試會員的完整步驟見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
 
 ## 學校伺服器更新
 
@@ -21,7 +18,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -A
 ```powershell
 cd C:\School\my_app
 git status
-git pull --ff-only
+git pull --ff-only origin main
 cd backend
 npm.cmd ci
 ```
@@ -34,19 +31,16 @@ npm.cmd ci
 & "C:\Program Files\MySQL\MySQL Server 26.7\bin\mysql.exe" --protocol=TCP -h 127.0.0.1 -P 3307 -u root -p
 ```
 
-在 mysql> 執行：
+平常更新只需確認資料庫與資料表。只有版本明確新增尚未套用的 migration，才執行指定檔案：
 
 ```sql
 SELECT @@port, @@datadir;
-SOURCE C:/School/my_app/backend/database/migrations/001_user_sessions.sql;
 USE shan_jie_ren_yi;
 SHOW TABLES;
 EXIT;
 ```
 
-確認連接的是新資料目錄、3307。原本 14 張資料表會增加為 15 張，不要重新匯入 schema.sql。
-第一次全新部署的環境才先匯入 schema.sql，再匯入 migration。
-原本 food_app 的 SELECT、INSERT、UPDATE、DELETE 資料庫權限也適用於新增的 user_sessions。
+確認連接的是專案資料目錄與 3307。只有全新空白資料庫才使用最新版 `schema.sql`；既有環境一律依尚未套用的 migration 升級。
 
 保留 backend/.env 裡原有密碼，確認以下設定：
 
@@ -113,6 +107,6 @@ Windows 桌面外掛的符號連結錯誤需在開發電腦處理；與伺服器
 
 ## 待完成項目
 
-外部 HTTPS、001–004、資料搬移及三項 Windows 服務的重開機驗收已完成。仍需完成手機行動網路下的會員／商家端到端操作驗收、定期異機備份與還原演練。Email 驗證、忘記密碼與正式金流仍未實作。
+外部 HTTPS、migration `001` 至 `008`、資料搬移、SMTP、綠界 Stage 與三項 Windows 服務均已部署。仍需完成正式金流申請及退款／對帳流程、真實商家接單流程、定期異機備份與還原演練。綠界 Stage 成功不可當作正式收款完成。
 目前登入憑證有效七天，資料庫只存 SHA-256 摘要；每次請求查驗效期，登出即撤銷該憑證。
 App 安全儲存憑證，不保存會員密碼。密碼使用 Node.js scrypt 加上隨機 salt。
