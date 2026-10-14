@@ -60,14 +60,16 @@ module.exports = function merchantRoutes(repository) {
     if (!record || !record.email_verified_at || !await verifyPassword(password, record.password_hash)) {
       return res.status(401).json({ message: '會員帳號或密碼不正確' });
     }
-    try { await repository.linkMember(req.merchant.id, record.id); }
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    try {
+      await repository.switchToMember(req.merchant.id, record.id, req.merchantSession,
+        tokenHash(token), expiresAt, { link: true });
+    }
     catch (error) {
       if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: '此會員已綁定其他商家' });
       throw error;
     }
-    const token = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await users.createSession(record.id, tokenHash(token), expiresAt);
     res.json({ merchant: await repository.account(req.merchant.id), user: await users.get(record.id), token, expiresAt: expiresAt.toISOString() });
   }));
   router.delete('/me/member-link', run(async (req, res) => res.json(await repository.unlinkMember(req.merchant.id))));
@@ -78,7 +80,8 @@ module.exports = function merchantRoutes(repository) {
     const users = new UserRepository(repository.pool);
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await users.createSession(linked.id, tokenHash(token), expiresAt);
+    await repository.switchToMember(req.merchant.id, linked.id, req.merchantSession,
+      tokenHash(token), expiresAt);
     res.json({ user: await users.get(linked.id), token, expiresAt: expiresAt.toISOString() });
   }));
   router.get('/categories', run(async (req, res) => {

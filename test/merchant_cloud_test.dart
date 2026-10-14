@@ -795,6 +795,14 @@ void main() {
       final result = await service.switchToMember();
       expect(result['token'], 'b' * 64);
       expect(requests.last.method, 'POST');
+      await service.leaveForIdentitySwitch();
+      expect(service.isLoggedIn, isFalse);
+      expect(
+        await const FlutterSecureStorage().read(
+          key: 'merchant_session:https://example.test/api',
+        ),
+        isNull,
+      );
     },
   );
 

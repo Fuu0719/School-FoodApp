@@ -126,6 +126,20 @@ class MerchantRepository {
     });
     return this.account(merchantId);
   }
+  async switchToMember(merchantId, userId, merchantSessionHash, memberSessionHash, expiresAt, { link = false } = {}) {
+    return this.transaction(merchantId, async (connection) => {
+      if (link) {
+        await connection.execute('DELETE FROM member_merchant_links WHERE merchant_id = ?', [merchantId]);
+        await connection.execute('INSERT INTO member_merchant_links (user_id, merchant_id) VALUES (?, ?)',
+          [userId, merchantId]);
+      }
+      await connection.execute(
+        'INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
+        [userId, memberSessionHash, expiresAt]);
+      await connection.execute('DELETE FROM merchant_sessions WHERE merchant_id = ? AND token_hash = ?',
+        [merchantId, merchantSessionHash]);
+    });
+  }
   async unlinkMember(merchantId) {
     await this.pool.execute('DELETE FROM member_merchant_links WHERE merchant_id = ?', [merchantId]);
     return this.account(merchantId);

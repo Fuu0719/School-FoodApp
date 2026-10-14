@@ -3,6 +3,7 @@ import 'package:my_app/models/merchant_product.dart';
 import 'package:my_app/models/merchant_account.dart';
 import 'package:my_app/services/merchant_auth_service.dart';
 import 'package:my_app/services/member_api.dart';
+import 'package:my_app/services/user_profile_service.dart';
 import 'package:my_app/screens/merchant_product_editor.dart';
 import 'package:my_app/screens/merchant_register_screen.dart';
 import 'package:my_app/screens/merchant_account_screen.dart';
@@ -388,8 +389,19 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
     ),
   );
   Future<void> _logout() => _act(() async {
-    await service.logout();
+    Object? failure;
+    try {
+      await service.logout();
+    } catch (error) {
+      failure = error;
+    }
+    try {
+      await UserProfileService.instance.logout();
+    } catch (error) {
+      failure ??= error;
+    }
     if (mounted) _login();
+    if (failure is MemberApiException) throw failure;
   });
   @override
   Widget build(BuildContext context) => AnimatedBuilder(

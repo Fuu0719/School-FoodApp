@@ -261,16 +261,22 @@ class MerchantAuthService extends ChangeNotifier {
       return;
     }
     await _run(() async {
-      if (_token != null) {
-        try {
+      Object? failure;
+      try {
+        _token ??= await _storage.read(key: _tokenKey);
+        if (_token != null) {
           await _api.request('POST', '/merchant/auth/logout', token: _token);
-        } on MemberApiException catch (error) {
-          if (error.statusCode != 401) rethrow;
         }
+      } on MemberApiException catch (error) {
+        if (error.statusCode != 401) failure = error;
+      } finally {
+        await _clearSession();
       }
-      await _clearSession();
+      if (failure != null) throw failure;
     });
   }
+
+  Future<void> leaveForIdentitySwitch() => _clearSession();
 
   Future<void> _clearSession() async {
     _account = null;

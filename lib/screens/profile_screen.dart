@@ -648,9 +648,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 12),
             _buildEcoMissionList(achievement),
-            const SizedBox(height: 12),
-            _buildEcoLeaderboard(achievement),
           ],
+          const SizedBox(height: 12),
+          _buildEcoLeaderboard(achievement),
         ],
       ),
     );
@@ -1110,7 +1110,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ? null
                 : () async {
                     try {
-                      await _profileService.logout();
+                      Object? failure;
+                      try {
+                        await _profileService.logout();
+                      } catch (error) {
+                        failure = error;
+                      }
+                      try {
+                        await MerchantAuthService.instance.logout();
+                      } catch (error) {
+                        failure ??= error;
+                      }
+                      if (failure is MemberApiException) throw failure;
                     } on MemberApiException catch (error) {
                       if (mounted) {
                         ScaffoldMessenger.of(
@@ -1190,6 +1201,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
     await MerchantAuthService.instance.acceptLinkedSession(response);
+    await _profileService.leaveForIdentitySwitch();
     if (!mounted) return;
     Navigator.of(
       context,

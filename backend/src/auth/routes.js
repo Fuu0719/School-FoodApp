@@ -202,12 +202,18 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
     if (!record || !await verifyPassword(password, record.password_hash) || record.status !== 'active') {
       return res.status(401).json({ message: '商家帳號或密碼不正確' });
     }
-    try { await repository.linkMerchant(req.member.id, record.id); }
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    try {
+      await repository.switchToMerchant(req.member.id, record.id, req.sessionHash,
+        tokenHash(token), expiresAt, { link: true });
+    }
     catch (error) {
       if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: '此商家已綁定其他會員' });
       throw error;
     }
-    res.json({ user: await repository.get(req.member.id), ...(await merchants.issueSession(record.id)) });
+    res.json({ user: await repository.get(req.member.id), merchant: await merchants.account(record.id),
+      token, expiresAt: expiresAt.toISOString() });
   }));
   router.delete('/me/merchant-link', requireMember, run(async (req, res) => {
     res.json(await repository.unlinkMerchant(req.member.id));
@@ -216,7 +222,12 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
     const linked = await repository.linkedMerchant(req.member.id);
     if (!linked) return res.status(404).json({ message: '尚未綁定可使用的商家帳號' });
     const MerchantRepository = require('../merchant/repository');
-    res.json(await new MerchantRepository(repository.pool).issueSession(linked.id));
+    const merchants = new MerchantRepository(repository.pool);
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    await repository.switchToMerchant(req.member.id, linked.id, req.sessionHash,
+      tokenHash(token), expiresAt);
+    res.json({ merchant: await merchants.account(linked.id), token, expiresAt: expiresAt.toISOString() });
   }));
   if (activityRepository) router.use(activityRoutes(activityRepository, requireMember, mailer));
   if (repository.pool) {

@@ -80,6 +80,27 @@ test('store update is owner scoped and returns the refreshed account', async (t)
   assert.deepEqual(saved, { merchantId: '7', storeId: '8', data: storeInput(input) });
 });
 
+test('merchant to member switch creates only the destination session in one transaction', async () => {
+  const events = [];
+  const connection = {
+    beginTransaction: async () => events.push('begin'), commit: async () => events.push('commit'),
+    rollback: async () => events.push('rollback'), release: () => events.push('release'),
+    execute: async (sql, args) => {
+      if (sql.startsWith('SELECT status FROM merchants')) return [[{ status: 'active' }]];
+      if (sql.startsWith('INSERT INTO user_sessions')) {
+        assert.deepEqual(args, ['4', 'member-hash', 'expiry']); events.push('member session'); return [{}];
+      }
+      if (sql.startsWith('DELETE FROM merchant_sessions')) {
+        assert.deepEqual(args, ['9', 'merchant-hash']); events.push('merchant revoked'); return [{}];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+  const repository = new MerchantRepository({ getConnection: async () => connection });
+  await repository.switchToMember('9', '4', 'merchant-hash', 'member-hash', 'expiry');
+  assert.deepEqual(events, ['begin', 'member session', 'merchant revoked', 'commit', 'release']);
+});
+
 test('merchant self-registration validates fields and cannot assign existing stores or elevated roles', async (t) => {
   let saved;
   let hash;

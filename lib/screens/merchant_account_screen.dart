@@ -155,6 +155,7 @@ class _MerchantAccountScreenState extends State<MerchantAccountScreen> {
       }
     }
     await UserProfileService.instance.acceptLinkedSession(response);
+    await widget.service.leaveForIdentitySwitch();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeScreen()),

@@ -142,15 +142,12 @@ void main() {
     },
   );
 
-  test('logout network failure retains current session for retry', () async {
+  test('logout network failure still clears the local session', () async {
     await service.login(email: 'test@example.com', password: 'test-password');
     handler = (_) async => throw http.ClientException('offline');
     await expectLater(service.logout(), throwsA(isA<MemberApiException>()));
-    expect(service.isLoggedIn, isTrue);
-    expect(
-      await const FlutterSecureStorage().read(key: tokenKey),
-      'session-token',
-    );
+    expect(service.isLoggedIn, isFalse);
+    expect(await const FlutterSecureStorage().read(key: tokenKey), isNull);
   });
 
   test(
@@ -183,6 +180,9 @@ void main() {
       expect(service.profile!.linkedMerchant!.businessName, '好食商家');
       expect(linked['token'], 'c' * 64);
       expect((await service.switchToMerchant())['token'], 'd' * 64);
+      await service.leaveForIdentitySwitch();
+      expect(service.isLoggedIn, isFalse);
+      expect(await const FlutterSecureStorage().read(key: tokenKey), isNull);
     },
   );
 }

@@ -218,6 +218,21 @@ class UserRepository {
     return this.get(userId);
   }
 
+  async switchToMerchant(userId, merchantId, memberSessionHash, merchantSessionHash, expiresAt, { link = false } = {}) {
+    return this.transaction(async (connection) => {
+      if (link) {
+        await connection.execute('DELETE FROM member_merchant_links WHERE user_id = ?', [userId]);
+        await connection.execute('INSERT INTO member_merchant_links (user_id, merchant_id) VALUES (?, ?)',
+          [userId, merchantId]);
+      }
+      await connection.execute(
+        'INSERT INTO merchant_sessions (merchant_id, token_hash, expires_at) VALUES (?, ?, ?)',
+        [merchantId, merchantSessionHash, expiresAt]);
+      await connection.execute('DELETE FROM user_sessions WHERE user_id = ? AND token_hash = ?',
+        [userId, memberSessionHash]);
+    });
+  }
+
   async unlinkMerchant(userId) {
     await this.pool.execute('DELETE FROM member_merchant_links WHERE user_id = ?', [userId]);
     return this.get(userId);

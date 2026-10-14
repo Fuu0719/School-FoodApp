@@ -408,6 +408,25 @@ void main() {
     expect(find.text('尚無瀏覽紀錄'), findsOneWidget);
   });
 
+  testWidgets('new zero-point member can still see the leaderboard', (
+    WidgetTester tester,
+  ) async {
+    UserProfileService.instance.loginWithDemo();
+    await tester.pumpWidget(const MyApp());
+
+    await tester.tap(find.text('我的'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('全體惜食排行榜'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('尚未累積惜食點數，購買即期優惠或高減廢餐點後會自動更新。'), findsOneWidget);
+    expect(find.text('全體惜食排行榜'), findsOneWidget);
+  });
+
   testWidgets('opens purchase records from profile order stat', (
     WidgetTester tester,
   ) async {

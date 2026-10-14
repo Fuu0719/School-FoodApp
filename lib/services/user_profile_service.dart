@@ -199,16 +199,22 @@ class UserProfileService extends ChangeNotifier {
       return;
     }
     await _perform(() async {
-      if (_token != null) {
-        try {
+      Object? failure;
+      try {
+        _token ??= await _storage.read(key: _tokenKey);
+        if (_token != null) {
           await _api.request('POST', '/auth/logout', token: _token);
-        } on MemberApiException catch (error) {
-          if (error.statusCode != 401) rethrow;
         }
+      } on MemberApiException catch (error) {
+        if (error.statusCode != 401) failure = error;
+      } finally {
+        await _clearSession();
       }
-      await _clearSession();
+      if (failure != null) throw failure;
     });
   }
+
+  Future<void> leaveForIdentitySwitch() => _clearSession();
 
   Future<void> _acceptProfile(Map<String, dynamic> json) async {
     final UserProfile profile;
