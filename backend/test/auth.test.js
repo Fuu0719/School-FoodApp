@@ -9,6 +9,8 @@ class MemoryUsers {
   passwords = new Map();
   sessions = new Map();
   emailCodes = new Map();
+  pendingRegistrations = new Map();
+  resetTokens = new Map();
   deliveredCodes = new Map();
   async create({ name, email, passwordHash }) {
     if ([...this.users.values()].some((u) => u.email === email)) {
@@ -26,6 +28,26 @@ class MemoryUsers {
     return user && { id: user.id, email: user.email, password_hash: this.passwords.get(user.id),
       email_verified_at: user.emailVerified ? new Date() : null };
   }
+  async hasAccount(email) {
+    return Boolean(await this.credentials(email));
+  }
+  async savePendingRegistration(data) {
+    this.pendingRegistrations.set(data.email, { ...data, attempts: 0 });
+  }
+  async refreshPendingRegistrationCode(email, codeHash, expiresAt) {
+    const pending = this.pendingRegistrations.get(email);
+    if (!pending) return false;
+    Object.assign(pending, { codeHash, expiresAt, attempts: 0 });
+    return true;
+  }
+  async completePendingRegistration(email, codeHash) {
+    const pending = this.pendingRegistrations.get(email);
+    if (!pending || pending.codeHash !== codeHash || pending.expiresAt <= new Date()) return null;
+    this.pendingRegistrations.delete(email);
+    const user = await this.create(pending);
+    user.emailVerified = true;
+    return user;
+  }
   async saveEmailCode(id, purpose, hash, expiresAt) { this.emailCodes.set(`${id}:${purpose}`, { hash, expiresAt, attempts: 0 }); }
   async consumeEmailCode(email, purpose, hash) {
     const user = [...this.users.values()].find((u) => u.email === email);
@@ -35,8 +57,22 @@ class MemoryUsers {
     this.emailCodes.delete(key);
     return user.id;
   }
+  async exchangePasswordResetCode(email, hash, resetTokenHash, expiresAt) {
+    const id = await this.consumeEmailCode(email, 'reset_password', hash);
+    if (!id) return false;
+    this.resetTokens.set(resetTokenHash, { id, expiresAt });
+    return true;
+  }
   async verifyEmail(id) { const user = await this.get(id); user.emailVerified = true; return user; }
   async resetPassword(id, hash) { this.passwords.set(String(id), hash); this.sessions.clear(); }
+  async resetPasswordWithToken(resetTokenHash, hash) {
+    const record = this.resetTokens.get(resetTokenHash);
+    if (!record || record.expiresAt <= new Date()) return false;
+    this.resetTokens.delete(resetTokenHash);
+    this.passwords.set(String(record.id), hash);
+    this.sessions.clear();
+    return true;
+  }
   async get(id) { return this.users.get(String(id)); }
   async update(id, values) {
     const updated = { ...await this.get(id), ...values };
@@ -74,7 +110,8 @@ async function memberFlow(t, repository, email) {
   const password = 'TestPass123!';
   const registration = { name: '會員測試', email, password };
   assert.equal((await call('/auth/register', 'POST', registration)).status, 201);
-  assert.equal((await call('/auth/register', 'POST', { ...registration, email: email.toUpperCase() })).status, 409);
+  assert.equal(await repository.credentials(email), undefined);
+  assert.equal((await call('/auth/register', 'POST', { ...registration, email: email.toUpperCase() })).status, 201);
   const verification = await call('/auth/verify-email', 'POST', {
     email, code: repository.deliveredCodes.get(`verify_email:${email}`),
   });
@@ -174,9 +211,20 @@ test('password reset code changes the password and revokes prior sessions', asyn
   });
   const oldSession = await call('/auth/login', 'POST', { email, password: 'OldPass123!' });
   assert.equal((await call('/auth/forgot-password', 'POST', { email })).status, 200);
+  assert.equal((await call('/auth/verify-reset-code', 'POST', {
+    email, code: '000000',
+  })).status, 400);
+  const verification = await call('/auth/verify-reset-code', 'POST', {
+    email, code: repository.deliveredCodes.get(`reset_password:${email}`),
+  });
+  assert.equal(verification.status, 200);
+  assert.match(verification.body.resetToken, /^[a-f0-9]{64}$/);
   assert.equal((await call('/auth/reset-password', 'POST', {
-    email, code: repository.deliveredCodes.get(`reset_password:${email}`), password: 'NewPass456!',
+    resetToken: verification.body.resetToken, password: 'NewPass456!',
   })).status, 200);
+  assert.equal((await call('/auth/reset-password', 'POST', {
+    resetToken: verification.body.resetToken, password: 'AnotherPass789!',
+  })).status, 400);
   assert.equal((await call('/me', 'GET', undefined, oldSession.body.token)).status, 401);
   assert.equal((await call('/auth/login', 'POST', { email, password: 'OldPass123!' })).status, 401);
   assert.equal((await call('/auth/login', 'POST', { email, password: 'NewPass456!' })).status, 200);

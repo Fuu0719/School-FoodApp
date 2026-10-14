@@ -1,16 +1,16 @@
 # 膳解人意 Flutter App
 
-## 最新狀態（2026-10-10）
+## 最新狀態（2026-10-14）
 
-- App 版本為 `1.0.0+24`，手機透過 ngrok HTTPS 連到學校 Windows Server 上的 Node.js API 與 MySQL。
-- 會員註冊已包含 6 位數 Email 驗證、忘記密碼、驗證完成歡迎信；Gmail SMTP 已在學校伺服器完成設定及實際收信驗證。
+- 原始碼 App 版本為 `1.0.0+25`，手機透過 ngrok HTTPS 連到學校 Windows Server 上的 Node.js API 與 MySQL。
+- 新版註冊在 Email 驗證成功前只保存 10 分鐘有效的待驗證資料，不會建立正式 `users` 會員。忘記密碼改為「驗證 Email」與「設定新密碼」兩個完整頁面。
 - 會員資料可不選頭像直接儲存；支援上傳、移除自訂 JPG／PNG 頭像，未設定時使用系統預設圖示。編輯資料後不會再次跳回 Email 驗證。
 - 全體惜食排行榜由現有會員與已付款訂單計算，顯示會員自訂或預設頭像；刪除會員後不保留排行榜快取。
 - 六類模擬餐點由後端提供固定分類圖片；搜尋已擴充同義關鍵字，首頁「小確幸」會帶入甜點／點心候選。
 - 底部五個分頁重複點擊目前分頁時會回到頁面頂端。
 - 綠界 Stage 測試付款留在 App 內進行；成功後購買紀錄顯示「模擬訂單，已付款」。這是測試金流，不代表正式收款。
 - 付款成功後寄送會員訂單確認信。模擬商家的 `.test` 信箱不寄信，避免 Gmail 退信；尚未導入真實商家接單流程。
-- 學校資料庫已套用 migration `001` 至 `008`。既有資料庫不可重匯 `schema.sql`，也不可重複執行已完成的 migration。
+- 學校資料庫目前已套用 migration `001` 至 `008`；部署 `1.0.0+25` 前需備份並套用一次 `009_pending_registration_and_password_reset.sql`。既有資料庫不可重匯 `schema.sql`。
 - Windows Server 2016 沒有 `winget`，且不在目前 MySQL Workbench 官方支援範圍；資料庫日常管理使用 MySQL CLI，操作步驟見 [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)。
 
 ## 手機測試更新（2026-09-26）
@@ -21,7 +21,7 @@
 - 商家後台「門市管理」可刪除門市及全部商品，包含草稿；刪除前需確認。已刪除門市不可新增商品、重新上架或接受新訂單，既有訂單與商品快照保留。不影響其他門市或商家帳號。
 - 會員電話、商家聯絡電話與門市電話維持選填；有填時必須符合台灣手機、含區碼市話或 `+886` 格式，前後端會共同驗證並標準化後儲存。
 - 商家新增／編輯商品時可用分類旁的加號建立自訂分類。分類儲存於商品，後續會從該商家所有未刪除門市的商品載入，不會顯示其他商家的分類。
-- 本次需先以資料庫管理者執行 `backend/database/migrations/004_store_deletion.sql`，新增門市刪除標記；不要重新匯入 schema.sql。前後端須一起更新並重新啟動 API；學校尚未部署此更新。全新 schema 已包含此欄位。
+- 學校既有 migration `001` 至 `008` 已完成；本版新增 `009_pending_registration_and_password_reset.sql`，只建立待驗證註冊與一次性密碼重設憑證資料表。
 - 刪除門市採邏輯刪除，以保留訂單的商品參照；不是清空資料庫。門市及其所有商品從商家管理、公開目錄、收藏與瀏覽清單排除，App 不提供復原。管理者清空測試資料是獨立操作，必須先備份及確認範圍。
 - Android 打包須讓 flutter pub get 成功完成以產生原生外掛註冊類別，不要在初始化失敗後直接用 --no-pub 發布。手機實機啟動驗收不可只用編譯成功替代。
 - 新註冊會員與商家密碼限制為 8–16 字元；既有較長密碼仍可登入，避免舊帳號被鎖住。商品必填數字欄預設為空白，不顯示 0，未輸入時不可儲存。
@@ -142,7 +142,7 @@ ngrok http 3000
 
 啟動後依序檢查 `http://127.0.0.1:3000/api/health` 與 ngrok 顯示的 `https://.../api/health`。兩者都回應 `status: ok` 才開啟 App。目前 APK 內建的測試網址是 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`；若 ngrok 免費網址改變，必須用新網址重新打包 APK。
 
-一般重開機不需要重跑 `npm ci`、資料庫遷移或 Flutter 打包。只有更新程式或依賴時才需要 `npm ci`；只有新版明確新增遷移時才能在備份後套用。不可重匯 `schema.sql`，也不要對現有資料庫重跑 `001` 至 `008`。
+一般重開機不需要重跑 `npm ci`、資料庫遷移或 Flutter 打包。只有更新程式或依賴時才需要 `npm ci`；只有新版明確新增遷移時才能在備份後套用。不可重匯 `schema.sql`，也不要重跑已完成的 migration。
 
 本機測試時筆電需保持開機、聯網且不進入睡眠；關閉 API 或 ngrok 任一視窗，本機入口就會中斷。請勿讓筆電與學校伺服器同時占用相同 ngrok 固定網址。
 
@@ -168,7 +168,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ### 使用學校資料測試
 
-目前 App 版本為 `1.0.0+24`，雲端建置使用 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`。ngrok 與 API 都在學校主機以 Windows 服務執行；Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。ngrok 免費入口的瀏覽器警告不影響 App，API client 會送出 `ngrok-skip-browser-warning` 標頭。
+目前原始碼 App 版本為 `1.0.0+25`，雲端建置使用 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`。ngrok 與 API 都在學校主機以 Windows 服務執行；Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。ngrok 免費入口的瀏覽器警告不影響 App，API client 會送出 `ngrok-skip-browser-warning` 標頭。
 
 ## 待完成與部署順序
 
@@ -183,7 +183,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ## 驗證與文件
 
-2026-09-29 的基準驗收為：Flutter 完整測試 117 通過／2 跳過，`flutter analyze` 無問題；後端單元測試 50 通過／3 整合測試跳過，真實 MySQL 測試 24 項全數通過，`npm audit --omit=dev` 為 0 個漏洞。其後已加入 Email、頭像、付款、圖片與搜尋更新，目前版本為 `1.0.0+24`；舊測試數字僅是歷史基準，不代表最新版完整測試數量。
+2026-10-14 最新驗收為：Flutter 完整測試 122 通過／2 跳過，`flutter analyze` 無問題；後端測試 53 通過／3 項真實 MySQL 整合測試跳過，`npm audit --omit=dev` 為 0 個漏洞。真實 MySQL 測試需在套用 migration `009` 後執行，目前尚未直接修改學校資料庫。
 
 - [部署進度與未解決事項](docs/deployment_status.md)
 - [Windows 部署說明](backend/DEPLOY_WINDOWS.md)

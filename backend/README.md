@@ -1,7 +1,7 @@
 # 膳解人意 Backend
 
 會員、商品目錄、會員活動與商家管理 API 使用 MySQL；推薦 API 尚未完成。商家可自行註冊並直接啟用，登入後再新增一間或多間門市。舊版客戶端在註冊時附帶首間門市的格式仍相容。
-初始化或升級請依部署文件核對結構，勿重匯 schema。學校現有環境已套用 migration `001` 至 `008`；不得重複執行。通過 db:check 才啟動新版 API。
+初始化或升級請依部署文件核對結構，勿重匯 schema。學校現有環境已套用 migration `001` 至 `008`；部署本版前需再套用一次 `009_pending_registration_and_password_reset.sql`。通過 db:check 才啟動新版 API。
 
 部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)，日常查詢、備份與測試會員刪除見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
 
@@ -25,18 +25,19 @@ test:mysql 會建立並清除隨機測試會員。API 啟動前檢查資料庫�
 
 | Method | 路徑 | 用途 |
 | --- | --- | --- |
-| POST | /api/auth/register | name、email、password；寄出 Email 驗證碼 |
-| POST | /api/auth/verify-email | 驗證 Email 並簽發登入憑證 |
+| POST | /api/auth/register | 暫存 name、email、密碼雜湊並寄出 Email 驗證碼，不建立正式會員 |
+| POST | /api/auth/verify-email | 驗證成功後建立會員並簽發登入憑證 |
 | POST | /api/auth/resend-verification | 重新寄送 Email 驗證碼 |
 | POST | /api/auth/forgot-password | 寄送重設密碼驗證碼 |
-| POST | /api/auth/reset-password | 驗證後更新密碼並撤銷舊憑證 |
+| POST | /api/auth/verify-reset-code | 驗證重設碼並簽發 10 分鐘有效的一次性重設憑證 |
+| POST | /api/auth/reset-password | 使用一次性憑證更新密碼並撤銷舊登入憑證 |
 | POST | /api/auth/login | email、password；回傳 token、expiresAt、user |
 | POST | /api/auth/logout | 撤銷目前登入憑證 |
 | GET | /api/me | 取得自己的會員資料 |
 | PUT | /api/me | 儲存自己的資料與偏好 |
 
 除註冊登入外，會員端點需 Authorization: Bearer <token>。
-Email 會轉為小寫；新註冊密碼為 8–16 字元，既有較長密碼仍可登入。新會員完成 6 位數 Email 驗證後才簽發 session，接著立即完成首次個人資料。驗證碼 10 分鐘失效，最多嘗試 5 次。
+Email 會轉為小寫；新註冊密碼為 8–16 字元，既有較長密碼仍可登入。註冊資料先存於 `pending_member_registrations`，完成 6 位數 Email 驗證後才在同一交易建立 `users`、偏好與 session。驗證碼 10 分鐘失效，最多嘗試 5 次；過期暫存會在後續註冊時清除。
 PUT /api/me 接受完整的 name、phone、avatarKey、heightCm、weightKg、healthGoal、dietaryTags、budgetMax、distanceLimitMeters。phone 可留空；有值時接受台灣手機、含區碼市話或 `+886`，儲存前移除空白、括號與連字號。
 healthGoal 為 maintain、muscleGain 或 fatLoss；預算和距離可為 null（不限）。
 不接受透過 body 的 id 指定其他會員，Email 修改尚未開放。

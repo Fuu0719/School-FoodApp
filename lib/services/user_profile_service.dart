@@ -93,15 +93,30 @@ class UserProfileService extends ChangeNotifier {
     await _api.request('POST', '/auth/forgot-password', body: {'email': email});
   });
 
-  Future<void> resetPassword({
+  Future<String> verifyPasswordResetCode({
     required String email,
     required String code,
+  }) => _performResult(() async {
+    final response = await _api.request(
+      'POST',
+      '/auth/verify-reset-code',
+      body: {'email': email, 'code': code},
+    );
+    final resetToken = response['resetToken'];
+    if (resetToken is! String || resetToken.isEmpty) {
+      throw const MemberApiException('會員服務回應格式不正確');
+    }
+    return resetToken;
+  });
+
+  Future<void> resetPassword({
+    required String resetToken,
     required String password,
   }) => _perform(() async {
     await _api.request(
       'POST',
       '/auth/reset-password',
-      body: {'email': email, 'code': code, 'password': password},
+      body: {'resetToken': resetToken, 'password': password},
     );
   });
 
@@ -202,13 +217,16 @@ class UserProfileService extends ChangeNotifier {
     await _storage.delete(key: _tokenKey);
   }
 
-  Future<void> _perform(Future<void> Function() operation) async {
+  Future<void> _perform(Future<void> Function() operation) =>
+      _performResult<void>(operation);
+
+  Future<T> _performResult<T>(Future<T> Function() operation) async {
     if (_busy) throw const MemberApiException('請等待目前操作完成');
     _busy = true;
     errorMessage = null;
     notifyListeners();
     try {
-      await operation();
+      return await operation();
     } on MemberApiException catch (error) {
       errorMessage = error.message;
       if (error.statusCode == 401 && _token != null) await _clearSession();

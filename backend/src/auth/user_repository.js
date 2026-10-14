@@ -48,6 +48,50 @@ class UserRepository {
     });
   }
 
+  async hasAccount(email) {
+    const [users] = await this.pool.execute('SELECT 1 FROM users WHERE email = ? LIMIT 1', [email]);
+    return users.length > 0;
+  }
+
+  async savePendingRegistration({ name, email, passwordHash, codeHash, expiresAt }) {
+    await this.pool.execute('DELETE FROM pending_member_registrations WHERE expires_at <= UTC_TIMESTAMP()');
+    await this.pool.execute(`INSERT INTO pending_member_registrations
+      (email, name, password_hash, code_hash, expires_at, attempts)
+      VALUES (?, ?, ?, ?, ?, 0)
+      ON DUPLICATE KEY UPDATE name = VALUES(name), password_hash = VALUES(password_hash),
+      code_hash = VALUES(code_hash), expires_at = VALUES(expires_at), attempts = 0`,
+    [email, name, passwordHash, codeHash, expiresAt]);
+  }
+
+  async refreshPendingRegistrationCode(email, codeHash, expiresAt) {
+    const [result] = await this.pool.execute(`UPDATE pending_member_registrations
+      SET code_hash = ?, expires_at = ?, attempts = 0
+      WHERE email = ?`, [codeHash, expiresAt, email]);
+    return result.affectedRows > 0;
+  }
+
+  async completePendingRegistration(email, codeHash) {
+    return this.transaction(async (connection) => {
+      const [rows] = await connection.execute(`SELECT name, password_hash, code_hash, expires_at, attempts
+        FROM pending_member_registrations WHERE email = ? FOR UPDATE`, [email]);
+      const row = rows[0];
+      if (!row || row.attempts >= 5 || new Date(row.expires_at) <= new Date() || row.code_hash !== codeHash) {
+        if (row && row.attempts < 5) await connection.execute(
+          'UPDATE pending_member_registrations SET attempts = attempts + 1 WHERE email = ?', [email]);
+        return null;
+      }
+      const [result] = await connection.execute(
+        `INSERT INTO users (name, email, password_hash, email_verified_at, height_cm, weight_kg)
+         VALUES (?, ?, ?, UTC_TIMESTAMP(), NULL, NULL)`, [row.name, email, row.password_hash]);
+      await connection.execute(
+        `INSERT INTO user_preferences (user_id, dietary_tags, budget_max, distance_limit_meters)
+         VALUES (?, ?, 150, 1000)`, [result.insertId, '[]']);
+      await connection.execute('DELETE FROM pending_member_registrations WHERE email = ?', [email]);
+      const [created] = await connection.execute(`${columns} WHERE u.id = ?`, [result.insertId]);
+      return profile(created[0]);
+    });
+  }
+
   async credentials(email) {
     const [rows] = await this.pool.execute(
       'SELECT id, email, password_hash, email_verified_at FROM users WHERE email = ?', [email]);
@@ -78,6 +122,27 @@ class UserRepository {
     });
   }
 
+  async exchangePasswordResetCode(email, codeHash, resetTokenHash, expiresAt) {
+    return this.transaction(async (connection) => {
+      const [rows] = await connection.execute(`SELECT u.id, c.code_hash, c.expires_at, c.attempts
+        FROM users u JOIN member_email_codes c ON c.user_id = u.id
+        WHERE u.email = ? AND c.purpose = 'reset_password' FOR UPDATE`, [email]);
+      const row = rows[0];
+      if (!row || row.attempts >= 5 || new Date(row.expires_at) <= new Date() || row.code_hash !== codeHash) {
+        if (row && row.attempts < 5) await connection.execute(
+          `UPDATE member_email_codes SET attempts = attempts + 1
+           WHERE user_id = ? AND purpose = 'reset_password'`, [row.id]);
+        return false;
+      }
+      await connection.execute(
+        `DELETE FROM member_email_codes WHERE user_id = ? AND purpose = 'reset_password'`, [row.id]);
+      await connection.execute('DELETE FROM member_password_reset_tokens WHERE user_id = ?', [row.id]);
+      await connection.execute(`INSERT INTO member_password_reset_tokens
+        (token_hash, user_id, expires_at) VALUES (?, ?, ?)`, [resetTokenHash, row.id, expiresAt]);
+      return true;
+    });
+  }
+
   async verifyEmail(id) {
     await this.pool.execute('UPDATE users SET email_verified_at = COALESCE(email_verified_at, UTC_TIMESTAMP()) WHERE id = ?', [id]);
     return this.get(id);
@@ -87,6 +152,19 @@ class UserRepository {
     await this.transaction(async (connection) => {
       await connection.execute('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, id]);
       await connection.execute('DELETE FROM user_sessions WHERE user_id = ?', [id]);
+    });
+  }
+
+  async resetPasswordWithToken(resetTokenHash, passwordHash) {
+    return this.transaction(async (connection) => {
+      const [rows] = await connection.execute(`SELECT user_id FROM member_password_reset_tokens
+        WHERE token_hash = ? AND expires_at > UTC_TIMESTAMP() FOR UPDATE`, [resetTokenHash]);
+      if (!rows.length) return false;
+      const userId = rows[0].user_id;
+      await connection.execute('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, userId]);
+      await connection.execute('DELETE FROM user_sessions WHERE user_id = ?', [userId]);
+      await connection.execute('DELETE FROM member_password_reset_tokens WHERE user_id = ?', [userId]);
+      return true;
     });
   }
 

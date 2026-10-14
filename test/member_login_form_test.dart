@@ -77,4 +77,83 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('password reset uses two full pages and verifies code first', (
+    tester,
+  ) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    final resetToken = List.filled(64, 'a').join();
+    final paths = <String>[];
+    final service = UserProfileService(
+      api: MemberApi(
+        baseUrl: 'https://test.example/api',
+        client: MockClient((request) async {
+          paths.add(request.url.path);
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          if (request.url.path.endsWith('/forgot-password')) {
+            expect(body['email'], 'member@example.com');
+            return http.Response(jsonEncode({'message': 'sent'}), 200);
+          }
+          if (request.url.path.endsWith('/verify-reset-code')) {
+            if (body['code'] != '123456') {
+              return http.Response.bytes(
+                utf8.encode(jsonEncode({'message': '驗證碼錯誤或已失效'})),
+                400,
+                headers: {'content-type': 'application/json; charset=utf-8'},
+              );
+            }
+            return http.Response(jsonEncode({'resetToken': resetToken}), 200);
+          }
+          expect(request.url.path, '/api/auth/reset-password');
+          expect(body['resetToken'], resetToken);
+          expect(body['password'], 'NewPass123!');
+          return http.Response(jsonEncode({'message': 'updated'}), 200);
+        }),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: MemberLoginForm(service: service)),
+      ),
+    );
+
+    await tester.tap(find.text('忘記密碼'));
+    await tester.pumpAndSettle();
+    expect(find.text('步驟 1／2'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('reset-email')),
+      'member@example.com',
+    );
+    await tester.tap(find.byKey(const ValueKey('reset-primary')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reset-code')), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('reset-code')), '000000');
+    await tester.tap(find.byKey(const ValueKey('reset-primary')));
+    await tester.pumpAndSettle();
+    expect(find.text('步驟 1／2'), findsOneWidget);
+    expect(find.text('驗證碼錯誤或已失效'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('reset-code')), '123456');
+    await tester.tap(find.byKey(const ValueKey('reset-primary')));
+    await tester.pumpAndSettle();
+    expect(find.text('步驟 2／2'), findsOneWidget);
+    expect(paths, contains('/api/auth/verify-reset-code'));
+
+    await tester.enterText(
+      find.byKey(const ValueKey('new-password')),
+      'NewPass123!',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('new-password-confirmation')),
+      'NewPass123!',
+    );
+    await tester.tap(find.byKey(const ValueKey('save-new-password')));
+    await tester.pumpAndSettle();
+    expect(find.text('密碼已更新，請使用新密碼登入'), findsOneWidget);
+    expect(paths.last, '/api/auth/reset-password');
+    expect(find.byType(AlertDialog), findsNothing);
+  });
 }

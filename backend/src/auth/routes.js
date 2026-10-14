@@ -68,6 +68,7 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
   };
   const emailCode = () => String(randomInt(100000, 1000000));
   const codeHash = (code) => tokenHash(`email-code:${code}`);
+  const resetTokenHash = (token) => tokenHash(`password-reset:${token}`);
   const issueEmailCode = async (user, purpose) => {
     const code = emailCode();
     await repository.saveEmailCode(user.id, purpose, codeHash(code), new Date(Date.now() + 10 * 60 * 1000));
@@ -91,11 +92,18 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
   router.post('/auth/register', limiter, run(async (req, res) => {
     const { email, password } = credentials(req.body, { registration: true });
     const name = text(req.body.name, '姓名', 80);
+    if (await repository.hasAccount(email)) {
+      return res.status(409).json({ message: '此 Email 已註冊' });
+    }
     try {
-      const user = await repository.create({ name, email, passwordHash: await hashPassword(password) });
+      const code = emailCode();
+      await repository.savePendingRegistration({
+        name, email, passwordHash: await hashPassword(password), codeHash: codeHash(code),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      });
       let deliveryFailed = false;
-      try { await issueEmailCode(user, 'verify_email'); } catch (_) { deliveryFailed = true; }
-      return res.status(201).json({ verificationRequired: true, email: user.email, deliveryFailed });
+      try { await mailer.sendVerification(email, code); } catch (_) { deliveryFailed = true; }
+      return res.status(201).json({ verificationRequired: true, email, deliveryFailed });
     } catch (error) {
       if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: '此 Email 已註冊' });
       throw error;
@@ -103,9 +111,19 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
   }));
   router.post('/auth/verify-email', limiter, run(async (req, res) => {
     const email = emailOnly(req.body);
-    const id = await repository.consumeEmailCode(email, 'verify_email', codeHash(submittedCode(req.body)));
-    if (!id) return res.status(400).json({ message: '驗證碼錯誤或已失效' });
-    const user = await repository.verifyEmail(id);
+    let user;
+    try {
+      user = await repository.completePendingRegistration(email, codeHash(submittedCode(req.body)));
+    } catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: '此 Email 已註冊' });
+      throw error;
+    }
+    if (!user) {
+      const legacyId = await repository.consumeEmailCode(
+        email, 'verify_email', codeHash(req.body.code));
+      if (legacyId) user = await repository.verifyEmail(legacyId);
+    }
+    if (!user) return res.status(400).json({ message: '驗證碼錯誤或已失效' });
     const session = await issueSession(user);
     res.json(session);
     Promise.resolve(mailer.sendWelcome?.(user)).catch((error) =>
@@ -114,10 +132,18 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
   router.post('/auth/resend-verification', limiter, run(async (req, res) => {
     const email = emailOnly(req.body);
     if (!mailer.configured) throw Object.assign(new Error('Email 寄送服務尚未設定'), { statusCode: 503 });
-    const record = await repository.credentials(email);
-    if (record && !record.email_verified_at) {
-      try { await issueEmailCode({ id: String(record.id), email }, 'verify_email'); }
+    const code = emailCode();
+    const refreshed = await repository.refreshPendingRegistrationCode(
+      email, codeHash(code), new Date(Date.now() + 10 * 60 * 1000));
+    if (refreshed) {
+      try { await mailer.sendVerification(email, code); }
       catch (error) { console.error('Verification email delivery failed:', error.message); }
+    } else {
+      const record = await repository.credentials(email);
+      if (record && !record.email_verified_at) {
+        try { await issueEmailCode({ id: String(record.id), email }, 'verify_email'); }
+        catch (error) { console.error('Verification email delivery failed:', error.message); }
+      }
     }
     res.json({ message: '若帳號尚未驗證，系統已寄出新的驗證碼' });
   }));
@@ -131,12 +157,25 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
     }
     res.json({ message: '若此 Email 已註冊，系統會寄出重設密碼驗證碼' });
   }));
-  router.post('/auth/reset-password', limiter, run(async (req, res) => {
+  router.post('/auth/verify-reset-code', limiter, run(async (req, res) => {
     const email = emailOnly(req.body);
-    const password = credentials({ email, password: req.body?.password }, { registration: true }).password;
-    const id = await repository.consumeEmailCode(email, 'reset_password', codeHash(submittedCode(req.body)));
-    if (!id) return res.status(400).json({ message: '驗證碼錯誤或已失效' });
-    await repository.resetPassword(id, await hashPassword(password));
+    const resetToken = randomBytes(32).toString('hex');
+    const valid = await repository.exchangePasswordResetCode(
+      email, codeHash(submittedCode(req.body)), resetTokenHash(resetToken),
+      new Date(Date.now() + 10 * 60 * 1000));
+    if (!valid) return res.status(400).json({ message: '驗證碼錯誤或已失效' });
+    res.json({ resetToken });
+  }));
+  router.post('/auth/reset-password', limiter, run(async (req, res) => {
+    const password = credentials({ email: 'reset@example.invalid', password: req.body?.password },
+      { registration: true }).password;
+    const resetToken = req.body?.resetToken;
+    if (typeof resetToken !== 'string' || !/^[a-f0-9]{64}$/.test(resetToken)) {
+      throw invalid('重設密碼憑證格式不正確');
+    }
+    const updated = await repository.resetPasswordWithToken(
+      resetTokenHash(resetToken), await hashPassword(password));
+    if (!updated) return res.status(400).json({ message: '重設密碼憑證錯誤或已失效' });
     res.json({ message: '密碼已更新，請重新登入' });
   }));
   router.post('/auth/login', limiter, run(async (req, res) => {

@@ -185,4 +185,28 @@ cd C:\School\my_app\backend
 npm.cmd run db:check
 ```
 
-只有新版明確要求且已確認尚未套用時，才能執行對應 migration。學校現有資料庫已完成 `001` 至 `008`，不可重跑，也不可重新匯入 `schema.sql`。
+只有新版明確要求且已確認尚未套用時，才能執行對應 migration。學校現有資料庫已完成 `001` 至 `008`；部署 App `1.0.0+25` 前需套用一次 `009_pending_registration_and_password_reset.sql`。不可重跑，也不可重新匯入 `schema.sql`。
+
+## 清理舊版留下的未驗證會員
+
+新版不會在驗證成功前建立 `users`。舊版已留下的未驗證資料不會由 migration 自動刪除，先查清單：
+
+```sql
+SELECT id, name, email, created_at
+FROM users
+WHERE email_verified_at IS NULL
+ORDER BY id;
+```
+
+確認都是測試資料後，逐一使用本文件的交易刪除流程。也可在已備份並再次核對清單後，以明確 Email 刪除：
+
+```sql
+START TRANSACTION;
+DELETE FROM users
+WHERE email_verified_at IS NULL
+  AND email IN ('aa@food.com', 'liuTest@test.com');
+SELECT ROW_COUNT() AS deleted_users;
+COMMIT;
+```
+
+不要只以 `email_verified_at IS NULL` 批次刪除，避免誤刪仍需保留的舊帳號。

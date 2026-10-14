@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/services/member_api.dart';
 import 'package:my_app/services/user_profile_service.dart';
+import 'package:my_app/screens/password_reset_screen.dart';
 
 class MemberLoginForm extends StatefulWidget {
   const MemberLoginForm({
@@ -134,93 +135,16 @@ class _MemberLoginFormState extends State<MemberLoginForm> {
     if (verified) widget.onLoginComplete?.call();
   }
 
-  Future<void> _showPasswordResetDialog() async {
-    final email = TextEditingController(text: _email.text.trim());
-    final code = TextEditingController();
-    final password = TextEditingController();
-    var codeSent = false;
-    String? error;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('重設密碼'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: email,
-                  enabled: !codeSent,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                if (codeSent) ...[
-                  TextField(
-                    controller: code,
-                    keyboardType: TextInputType.number,
-                    maxLength: 6,
-                    decoration: const InputDecoration(labelText: '6 位數驗證碼'),
-                  ),
-                  TextField(
-                    controller: password,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: '新密碼（8 至 16 字元）',
-                    ),
-                  ),
-                ],
-                if (error != null)
-                  Text(
-                    error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                try {
-                  if (!codeSent) {
-                    await widget.service.requestPasswordReset(
-                      email.text.trim(),
-                    );
-                    if (context.mounted) {
-                      setDialogState(() {
-                        codeSent = true;
-                        error = null;
-                      });
-                    }
-                  } else {
-                    await widget.service.resetPassword(
-                      email: email.text.trim(),
-                      code: code.text.trim(),
-                      password: password.text,
-                    );
-                    if (dialogContext.mounted) Navigator.pop(dialogContext);
-                    if (mounted) setState(() => _notice = '密碼已更新，請重新登入');
-                  }
-                } on MemberApiException catch (e) {
-                  if (context.mounted) setDialogState(() => error = e.message);
-                }
-              },
-              child: Text(codeSent ? '更新密碼' : '寄送驗證碼'),
-            ),
-          ],
+  Future<void> _openPasswordReset() async {
+    final message = await Navigator.of(context).push<String>(
+      MaterialPageRoute<String>(
+        builder: (_) => PasswordResetScreen(
+          service: widget.service,
+          initialEmail: _email.text.trim(),
         ),
       ),
     );
-    await Future<void>.delayed(const Duration(milliseconds: 300));
-    email.dispose();
-    code.dispose();
-    password.dispose();
+    if (message != null && mounted) setState(() => _notice = message);
   }
 
   @override
@@ -372,7 +296,7 @@ class _MemberLoginFormState extends State<MemberLoginForm> {
                 ),
                 if (!_register)
                   TextButton(
-                    onPressed: _busy ? null : _showPasswordResetDialog,
+                    onPressed: _busy ? null : _openPasswordReset,
                     child: const Text('忘記密碼'),
                   ),
                 const SizedBox(height: 12),
