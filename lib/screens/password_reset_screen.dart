@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:my_app/services/member_api.dart';
 import 'package:my_app/services/user_profile_service.dart';
+import 'package:my_app/widgets/brand_logo.dart';
 
 class PasswordResetScreen extends StatefulWidget {
   const PasswordResetScreen({
@@ -104,11 +105,7 @@ class _PasswordResetScreenState extends State<PasswordResetScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
             children: [
-              const Icon(
-                Icons.mark_email_read_outlined,
-                size: 58,
-                color: Color(0xFF4E8D57),
-              ),
+              const Center(child: BrandLogo(size: 72)),
               const SizedBox(height: 18),
               Text(
                 '步驟 1／2',

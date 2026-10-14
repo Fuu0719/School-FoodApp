@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:my_app/services/member_api.dart';
 import 'package:my_app/services/user_profile_service.dart';
 import 'package:my_app/screens/password_reset_screen.dart';
+import 'package:my_app/widgets/brand_logo.dart';
 
 class MemberLoginForm extends StatefulWidget {
   const MemberLoginForm({
@@ -84,7 +85,13 @@ class _MemberLoginFormState extends State<MemberLoginForm> {
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('驗證 Email'),
+          title: const Row(
+            children: [
+              BrandLogo(size: 36),
+              SizedBox(width: 12),
+              Text('驗證 Email'),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -159,11 +166,7 @@ class _MemberLoginFormState extends State<MemberLoginForm> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  Icons.account_circle_rounded,
-                  size: 64,
-                  color: Color(0xFF4E8D57),
-                ),
+                const Center(child: BrandLogo(size: 80)),
                 const SizedBox(height: 20),
                 SegmentedButton<bool>(
                   segments: const [

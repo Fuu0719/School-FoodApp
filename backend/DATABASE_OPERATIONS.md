@@ -185,7 +185,7 @@ cd C:\School\my_app\backend
 npm.cmd run db:check
 ```
 
-只有新版明確要求且已確認尚未套用時，才能執行對應 migration。學校現有資料庫已完成 `001` 至 `008`；部署 App `1.0.0+25` 前需套用一次 `009_pending_registration_and_password_reset.sql`。不可重跑，也不可重新匯入 `schema.sql`。
+只有新版明確要求且已確認尚未套用時，才能執行對應 migration。學校現有資料庫已完成 `001` 至 `009`，不可重跑，也不可重新匯入 `schema.sql`。
 
 ## 清理舊版留下的未驗證會員
 

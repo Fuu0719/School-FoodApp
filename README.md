@@ -2,7 +2,7 @@
 
 ## 最新狀態（2026-10-14）
 
-- 原始碼 App 版本為 `1.0.0+25`，手機透過 ngrok HTTPS 連到學校 Windows Server 上的 Node.js API 與 MySQL。
+- 原始碼 App 版本為 `1.0.0+26`，新增品牌 App icon、原生啟動畫面、3 秒 Logo 動畫及 Email 畫面品牌圖示。手機透過 ngrok HTTPS 連到學校 Windows Server 上的 Node.js API 與 MySQL。
 - 新版註冊在 Email 驗證成功前只保存 10 分鐘有效的待驗證資料，不會建立正式 `users` 會員。忘記密碼改為「驗證 Email」與「設定新密碼」兩個完整頁面。
 - 會員資料可不選頭像直接儲存；支援上傳、移除自訂 JPG／PNG 頭像，未設定時使用系統預設圖示。編輯資料後不會再次跳回 Email 驗證。
 - 全體惜食排行榜由現有會員與已付款訂單計算，顯示會員自訂或預設頭像；刪除會員後不保留排行榜快取。
@@ -10,7 +10,7 @@
 - 底部五個分頁重複點擊目前分頁時會回到頁面頂端。
 - 綠界 Stage 測試付款留在 App 內進行；成功後購買紀錄顯示「模擬訂單，已付款」。這是測試金流，不代表正式收款。
 - 付款成功後寄送會員訂單確認信。模擬商家的 `.test` 信箱不寄信，避免 Gmail 退信；尚未導入真實商家接單流程。
-- 學校資料庫目前已套用 migration `001` 至 `008`；部署 `1.0.0+25` 前需備份並套用一次 `009_pending_registration_and_password_reset.sql`。既有資料庫不可重匯 `schema.sql`。
+- 學校資料庫已套用 migration `001` 至 `009`，新版 API、真實 MySQL 測試與公開健康檢查均已通過。既有資料庫不可重匯 `schema.sql`。
 - Windows Server 2016 沒有 `winget`，且不在目前 MySQL Workbench 官方支援範圍；資料庫日常管理使用 MySQL CLI，操作步驟見 [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)。
 
 ## 手機測試更新（2026-09-26）
@@ -168,7 +168,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ### 使用學校資料測試
 
-目前原始碼 App 版本為 `1.0.0+25`，雲端建置使用 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`。ngrok 與 API 都在學校主機以 Windows 服務執行；Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。ngrok 免費入口的瀏覽器警告不影響 App，API client 會送出 `ngrok-skip-browser-warning` 標頭。
+目前原始碼 App 版本為 `1.0.0+26`，雲端建置使用 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`。ngrok 與 API 都在學校主機以 Windows 服務執行；Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。ngrok 免費入口的瀏覽器警告不影響 App，API client 會送出 `ngrok-skip-browser-warning` 標頭。
 
 ## 待完成與部署順序
 

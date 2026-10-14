@@ -3,7 +3,7 @@
 ## 目前範圍
 
 會員註冊、Email 驗證、登入、登出、個人資料、頭像與飲食偏好已使用 MySQL。雲端模式已串接商品、收藏、瀏覽、排行榜、訂單、綠界 Stage 測試付款及獨立商家商品管理。
-學校現有資料庫已套用 migration `001` 至 `008`，不可重跑，也不可重新匯入 `schema.sql`。部署 `1.0.0+25` 前必須先備份，再套用一次 `009_pending_registration_and_password_reset.sql`。
+學校現有資料庫已套用 migration `001` 至 `009`，不可重跑，也不可重新匯入 `schema.sql`。新增 migration 時必須先備份並確認尚未套用。
 資料庫查詢、備份及刪除測試會員的完整步驟見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
 
 ## 學校伺服器更新
@@ -36,12 +36,13 @@ npm.cmd ci
 ```sql
 SELECT @@port, @@datadir;
 USE shan_jie_ren_yi;
-SOURCE C:/School/my_app/backend/database/migrations/009_pending_registration_and_password_reset.sql;
+SHOW TABLES LIKE 'pending_member_registrations';
+SHOW TABLES LIKE 'member_password_reset_tokens';
 SHOW TABLES;
 EXIT;
 ```
 
-確認連接的是專案資料目錄與 3307。只有全新空白資料庫才使用最新版 `schema.sql`；既有環境一律依尚未套用的 migration 升級。
+確認連接的是專案資料目錄與 3307；兩張 `009` 資料表都應存在，不要再次執行 migration。只有全新空白資料庫才使用最新版 `schema.sql`；既有環境一律依尚未套用的 migration 升級。
 
 保留 backend/.env 裡原有密碼，確認以下設定：
 
@@ -108,6 +109,6 @@ Windows 桌面外掛的符號連結錯誤需在開發電腦處理；與伺服器
 
 ## 待完成項目
 
-外部 HTTPS、migration `001` 至 `008`、資料搬移、SMTP、綠界 Stage 與三項 Windows 服務均已部署；`009` 與 App `1.0.0+25` 尚待部署。仍需完成正式金流申請及退款／對帳流程、真實商家接單流程、定期異機備份與還原演練。
+外部 HTTPS、migration `001` 至 `009`、資料搬移、SMTP、綠界 Stage 與三項 Windows 服務均已部署；真實 MySQL 測試 25 項全數通過。App `1.0.0+26` 尚待手機安裝驗收。仍需完成正式金流申請及退款／對帳流程、真實商家接單流程、定期異機備份與還原演練。
 目前登入憑證有效七天，資料庫只存 SHA-256 摘要；每次請求查驗效期，登出即撤銷該憑證。
 App 安全儲存憑證，不保存會員密碼。密碼使用 Node.js scrypt 加上隨機 salt。
