@@ -146,6 +146,34 @@ class UserProfileService extends ChangeNotifier {
     }
   }
 
+  Future<void> acceptLinkedSession(Map<String, dynamic> response) =>
+      _perform(() => _acceptSession(response));
+
+  Future<Map<String, dynamic>> linkMerchant(String email, String password) =>
+      _performResult(() async {
+        if (_token == null) throw const MemberApiException('請先登入', 401);
+        final response = await _api.request(
+          'POST',
+          '/me/merchant-link',
+          token: _token,
+          body: {'email': email, 'password': password},
+        );
+        await _acceptProfile(response['user'] as Map<String, dynamic>);
+        return response;
+      });
+
+  Future<Map<String, dynamic>> switchToMerchant() => _performResult(() async {
+    if (_token == null) throw const MemberApiException('請先登入', 401);
+    return _api.request('POST', '/me/switch-to-merchant', token: _token);
+  });
+
+  Future<void> unlinkMerchant() => _perform(() async {
+    if (_token == null) throw const MemberApiException('請先登入', 401);
+    await _acceptProfile(
+      await _api.request('DELETE', '/me/merchant-link', token: _token),
+    );
+  });
+
   Future<void> updateProfile(UserProfile profile) async {
     if (_testing) {
       _profile = profile;

@@ -141,12 +141,14 @@ CREATE TABLE foods (
   recommendation_reason VARCHAR(255) NULL,
   status ENUM('draft', 'active', 'sold_out', 'paused') NOT NULL DEFAULT 'draft',
   merchant_revision INT UNSIGNED NOT NULL DEFAULT 0,
+  deleted_at DATETIME NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY foods_store_id_index (store_id),
   KEY foods_category_index (category),
   KEY foods_expiring_index (is_expiring_soon, expires_at),
+  KEY foods_deleted_at_index (deleted_at),
   CONSTRAINT foods_store_fk
     FOREIGN KEY (store_id) REFERENCES stores(id)
     ON DELETE CASCADE
@@ -159,6 +161,16 @@ CREATE TABLE merchant_sessions (
   PRIMARY KEY (token_hash),
   KEY merchant_sessions_expiry (merchant_id, expires_at),
   CONSTRAINT merchant_sessions_merchant_fk FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
+);
+
+CREATE TABLE member_merchant_links (
+  user_id BIGINT UNSIGNED NOT NULL,
+  merchant_id BIGINT UNSIGNED NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id),
+  UNIQUE KEY member_merchant_links_merchant_unique (merchant_id),
+  CONSTRAINT member_merchant_links_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT member_merchant_links_merchant_fk FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
 );
 
 CREATE TABLE merchant_product_requests (

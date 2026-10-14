@@ -6,6 +6,7 @@ class MerchantAccount {
     required this.contactPhone,
     required this.allowedStoreNames,
     this.stores = const [],
+    this.linkedMember,
   });
 
   final String id;
@@ -14,6 +15,7 @@ class MerchantAccount {
   final String contactPhone;
   final List<String> allowedStoreNames;
   final List<MerchantStore> stores;
+  final LinkedMember? linkedMember;
 
   factory MerchantAccount.fromJson(Map<String, dynamic> json) {
     final stores = (json['stores'] as List)
@@ -26,6 +28,9 @@ class MerchantAccount {
       contactPhone: json['contactPhone'] as String,
       stores: List.unmodifiable(stores),
       allowedStoreNames: List.unmodifiable(stores.map((store) => store.name)),
+      linkedMember: json['linkedMember'] is Map<String, dynamic>
+          ? LinkedMember.fromJson(json['linkedMember'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -47,6 +52,7 @@ class MerchantAccount {
       contactPhone: contactPhone ?? this.contactPhone,
       allowedStoreNames: allowedStoreNames ?? this.allowedStoreNames,
       stores: stores,
+      linkedMember: linkedMember,
     );
   }
 
@@ -57,6 +63,14 @@ class MerchantAccount {
     contactPhone: '03-350-7001',
     allowedStoreNames: ['全家龜山銘美店', '7-11 龜山銘傳門市'],
   );
+}
+
+class LinkedMember {
+  const LinkedMember({required this.id, required this.name});
+  final String id;
+  final String name;
+  factory LinkedMember.fromJson(Map<String, dynamic> json) =>
+      LinkedMember(id: json['id'] as String, name: json['name'] as String);
 }
 
 class MerchantStore {

@@ -1,7 +1,7 @@
 const select = `SELECT f.*, s.name AS store_name, m.business_name AS merchant_name, s.brand, s.address AS store_address,
   s.business_hours, s.contact_phone, s.distance_meters
   FROM foods f JOIN stores s ON s.id = f.store_id JOIN merchants m ON m.id = s.merchant_id`;
-const published = "s.deleted_at IS NULL AND m.status = 'active' AND f.status = 'active' AND f.stock_count > 0 AND (f.expires_at IS NULL OR f.expires_at > UTC_TIMESTAMP())";
+const published = "s.deleted_at IS NULL AND f.deleted_at IS NULL AND m.status = 'active' AND f.status = 'active' AND f.stock_count > 0 AND (f.expires_at IS NULL OR f.expires_at > UTC_TIMESTAMP())";
 const escapeLike = (text) => text.replace(/[!%_]/g, (character) => `!${character}`);
 const { taipeiClock } = require('../stores/business_hours');
 

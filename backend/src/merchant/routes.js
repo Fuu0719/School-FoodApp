@@ -2,7 +2,7 @@ const express = require('express');
 const { rateLimit } = require('express-rate-limit');
 const { randomBytes } = require('node:crypto');
 const { hashPassword, verifyPassword, tokenHash } = require('../auth/passwords');
-const { fail, id, integer, credentials, product, registration, storeInput } = require('./validation');
+const { fail, id, integer, credentials, product, registration, storeInput, accountInput, passwordInput } = require('./validation');
 const run = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 module.exports = function merchantRoutes(repository) {
   const router = express.Router();
@@ -41,6 +41,46 @@ module.exports = function merchantRoutes(repository) {
     next();
   }));
   router.get('/me', (req, res) => res.json(req.merchant));
+  router.put('/me', run(async (req, res) => res.json(
+    await repository.updateAccount(req.merchant.id, accountInput(req.body)))));
+  router.post('/me/change-password', limiter, run(async (req, res) => {
+    const input = passwordInput(req.body);
+    const record = await repository.credentialsById(req.merchant.id);
+    if (!await verifyPassword(input.currentPassword, record.password_hash)) {
+      return res.status(401).json({ message: '目前密碼不正確' });
+    }
+    await repository.changePassword(req.merchant.id, await hashPassword(input.newPassword), req.merchantSession);
+    res.json({ message: '密碼已更新' });
+  }));
+  router.post('/me/member-link', limiter, run(async (req, res) => {
+    const { email, password } = credentials(req.body);
+    const UserRepository = require('../auth/user_repository');
+    const users = new UserRepository(repository.pool);
+    const record = await users.credentials(email);
+    if (!record || !record.email_verified_at || !await verifyPassword(password, record.password_hash)) {
+      return res.status(401).json({ message: '會員帳號或密碼不正確' });
+    }
+    try { await repository.linkMember(req.merchant.id, record.id); }
+    catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: '此會員已綁定其他商家' });
+      throw error;
+    }
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await users.createSession(record.id, tokenHash(token), expiresAt);
+    res.json({ merchant: await repository.account(req.merchant.id), user: await users.get(record.id), token, expiresAt: expiresAt.toISOString() });
+  }));
+  router.delete('/me/member-link', run(async (req, res) => res.json(await repository.unlinkMember(req.merchant.id))));
+  router.post('/me/switch-to-member', run(async (req, res) => {
+    const linked = await repository.linkedMember(req.merchant.id);
+    if (!linked) return res.status(404).json({ message: '尚未綁定會員帳號' });
+    const UserRepository = require('../auth/user_repository');
+    const users = new UserRepository(repository.pool);
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await users.createSession(linked.id, tokenHash(token), expiresAt);
+    res.json({ user: await users.get(linked.id), token, expiresAt: expiresAt.toISOString() });
+  }));
   router.get('/categories', run(async (req, res) => {
     res.json(await repository.categories(req.merchant.id));
   }));
@@ -73,6 +113,10 @@ module.exports = function merchantRoutes(repository) {
   router.put('/products/:id/status', run(async (req, res) => {
     if (!['active', 'paused'].includes(req.body?.status)) throw fail(400, '上架狀態格式不正確');
     res.json(await repository.status(req.merchant.id, id(req.params.id), integer(req.body.revision, '版本'), req.body.status));
+  }));
+  router.delete('/products/:id', run(async (req, res) => {
+    await repository.deleteProduct(req.merchant.id, id(req.params.id), integer(req.body?.revision, '版本'));
+    res.json({ message: '餐點已刪除' });
   }));
   router.use((req, res) => res.status(404).json({ message: '找不到此商家 API 路徑' }));
   return router;

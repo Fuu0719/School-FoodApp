@@ -44,3 +44,33 @@ test('profile update binds user input and rolls back both tables on failure', as
     healthGoal: 'fatLoss', dietaryTags: [], budgetMax: null, distanceLimitMeters: null }), /save failed/);
   assert.deepEqual(events, ['begin', 'rollback', 'release']);
 });
+
+test('member linking replaces only its own link and rolls back one-to-one conflicts', async () => {
+  for (const conflict of [false, true]) {
+    const events = [];
+    const connection = {
+      beginTransaction: async () => events.push('begin'), commit: async () => events.push('commit'),
+      rollback: async () => events.push('rollback'), release: () => events.push('release'),
+      execute: async (sql, args) => {
+        if (sql.startsWith('DELETE FROM member_merchant_links')) {
+          assert.deepEqual(args, ['42']); events.push('delete own'); return [{}];
+        }
+        if (sql.startsWith('INSERT INTO member_merchant_links')) {
+          assert.deepEqual(args, ['42', '9']);
+          if (conflict) throw Object.assign(new Error('duplicate'), { code: 'ER_DUP_ENTRY' });
+          events.push('insert'); return [{}];
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    };
+    const repository = new UserRepository({ getConnection: async () => connection });
+    repository.get = async () => ({ id: '42' });
+    if (conflict) {
+      await assert.rejects(repository.linkMerchant('42', '9'), { code: 'ER_DUP_ENTRY' });
+      assert.deepEqual(events, ['begin', 'delete own', 'rollback', 'release']);
+    } else {
+      assert.deepEqual(await repository.linkMerchant('42', '9'), { id: '42' });
+      assert.deepEqual(events, ['begin', 'delete own', 'insert', 'commit', 'release']);
+    }
+  }
+});

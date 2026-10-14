@@ -152,4 +152,37 @@ void main() {
       'session-token',
     );
   });
+
+  test(
+    'member can receive linked merchant data and request a merchant session',
+    () async {
+      await service.login(email: 'test@example.com', password: 'test-password');
+      handler = (request) async {
+        if (request.url.path.endsWith('/merchant-link')) {
+          return response({
+            'user': {
+              ...saved,
+              'linkedMerchant': {'id': '9', 'businessName': '好食商家'},
+            },
+            'merchant': {'id': '9', 'businessName': '好食商家'},
+            'token': 'c' * 64,
+          });
+        }
+        if (request.url.path.endsWith('/switch-to-merchant')) {
+          return response({
+            'merchant': {'id': '9'},
+            'token': 'd' * 64,
+          });
+        }
+        throw StateError('unexpected request');
+      };
+      final linked = await service.linkMerchant(
+        'shop@example.com',
+        'merchant-pass',
+      );
+      expect(service.profile!.linkedMerchant!.businessName, '好食商家');
+      expect(linked['token'], 'c' * 64);
+      expect((await service.switchToMerchant())['token'], 'd' * 64);
+    },
+  );
 }

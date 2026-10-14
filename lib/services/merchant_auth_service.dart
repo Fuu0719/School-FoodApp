@@ -133,6 +133,73 @@ class MerchantAuthService extends ChangeNotifier {
     });
   }
 
+  Future<void> acceptLinkedSession(Map<String, dynamic> data) => _run(() async {
+    final token = data['token'];
+    if (token is! String || data['merchant'] is! Map<String, dynamic>) {
+      throw const MemberApiException('商家切換回應異常');
+    }
+    await _storage.write(key: _tokenKey, value: token);
+    _token = token;
+    _account = MerchantAccount.fromJson(
+      data['merchant'] as Map<String, dynamic>,
+    );
+    await _restorePending();
+  });
+
+  Future<void> updateAccount(String businessName, String contactPhone) =>
+      _run(() async {
+        _requireAccount();
+        _account = MerchantAccount.fromJson(
+          await _api.request(
+            'PUT',
+            '/merchant/me',
+            token: _token,
+            body: {'businessName': businessName, 'contactPhone': contactPhone},
+          ),
+        );
+      });
+
+  Future<void> changePassword(String currentPassword, String newPassword) =>
+      _run(() async {
+        _requireAccount();
+        await _api.request(
+          'POST',
+          '/merchant/me/change-password',
+          token: _token,
+          body: {
+            'currentPassword': currentPassword,
+            'newPassword': newPassword,
+          },
+        );
+      });
+
+  Future<Map<String, dynamic>> linkMember(String email, String password) =>
+      _run(() async {
+        _requireAccount();
+        final response = await _api.request(
+          'POST',
+          '/merchant/me/member-link',
+          token: _token,
+          body: {'email': email, 'password': password},
+        );
+        _account = MerchantAccount.fromJson(
+          response['merchant'] as Map<String, dynamic>,
+        );
+        return response;
+      });
+
+  Future<Map<String, dynamic>> switchToMember() => _run(() async {
+    _requireAccount();
+    return _api.request('POST', '/merchant/me/switch-to-member', token: _token);
+  });
+
+  Future<void> unlinkMember() => _run(() async {
+    _requireAccount();
+    _account = MerchantAccount.fromJson(
+      await _api.request('DELETE', '/merchant/me/member-link', token: _token),
+    );
+  });
+
   Future<void> createStore(Map<String, Object?> data) => _run(() async {
     _requireAccount();
     _account = MerchantAccount.fromJson(
@@ -387,6 +454,19 @@ class MerchantAuthService extends ChangeNotifier {
           // The merchant write succeeded; member catalogue polling will retry.
         }
       });
+  Future<void> deleteProduct(MerchantProduct product) => _run(() async {
+    _requireAccount();
+    await _api.request(
+      'DELETE',
+      '/merchant/products/${product.id}',
+      token: _token,
+      body: {'revision': product.revision},
+    );
+    _products.removeWhere((item) => item.id == product.id);
+    try {
+      await FoodCatalogRepository.instance.load();
+    } catch (_) {}
+  });
   @visibleForTesting
   void clearForTesting() {
     _account = null;

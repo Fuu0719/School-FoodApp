@@ -38,6 +38,10 @@ class MerchantRepository {
     const [rows] = await this.pool.execute('SELECT id, password_hash, status FROM merchants WHERE email = ?', [email]);
     return rows[0];
   }
+  async credentialsById(id) {
+    const [rows] = await this.pool.execute('SELECT id, password_hash, status FROM merchants WHERE id = ?', [id]);
+    return rows[0];
+  }
   async createStore(merchantId, data) {
     const location = await this.geocoder(data.address);
     return this.transaction(merchantId, async (connection) => {
@@ -71,8 +75,10 @@ class MerchantRepository {
     });
   }
   async account(id, connection = this.pool) {
-    const [rows] = await connection.execute(`SELECT id, business_name AS businessName, email,
-      contact_phone AS contactPhone FROM merchants WHERE id = ? AND status = 'active'`, [id]);
+    const [rows] = await connection.execute(`SELECT m.id, m.business_name AS businessName, m.email,
+      m.contact_phone AS contactPhone, u.id AS linkedMemberId, u.name AS linkedMemberName
+      FROM merchants m LEFT JOIN member_merchant_links l ON l.merchant_id = m.id
+      LEFT JOIN users u ON u.id = l.user_id WHERE m.id = ? AND m.status = 'active'`, [id]);
     if (!rows.length) return null;
     const [stores] = await connection.execute(`SELECT id, name, address, business_hours AS businessHours,
       contact_phone AS contactPhone, distance_meters AS distanceMeters
@@ -81,12 +87,53 @@ class MerchantRepository {
     const [weekdays] = storeIds.length ? await connection.execute(
       `SELECT store_id, weekday FROM store_business_weekdays WHERE store_id IN (${storeIds.map(() => '?').join(',')}) ORDER BY weekday`, storeIds) : [[]];
     return { ...rows[0], id: String(rows[0].id), contactPhone: rows[0].contactPhone || '',
-      stores: stores.map((store) => ({ ...store, id: String(store.id), contactPhone: store.contactPhone || '',
+      linkedMember: rows[0].linkedMemberId == null ? null : {
+        id: String(rows[0].linkedMemberId), name: rows[0].linkedMemberName,
+      }, stores: stores.map((store) => ({ ...store, id: String(store.id), contactPhone: store.contactPhone || '',
         businessWeekdays: weekdays.filter((day) => String(day.store_id) === String(store.id)).map((day) => day.weekday) })) };
   }
   async createSession(id, hash, expiresAt) {
     await this.pool.execute('DELETE FROM merchant_sessions WHERE merchant_id = ? AND expires_at <= UTC_TIMESTAMP()', [id]);
     await this.pool.execute('INSERT INTO merchant_sessions (merchant_id, token_hash, expires_at) VALUES (?, ?, ?)', [id, hash, expiresAt]);
+  }
+  async issueSession(id) {
+    const { randomBytes } = require('node:crypto');
+    const { tokenHash } = require('../auth/passwords');
+    const merchant = await this.account(id);
+    if (!merchant) throw fail(401, '商家帳號尚未啟用');
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 8 * 60 * 60 * 1000);
+    await this.createSession(id, tokenHash(token), expiresAt);
+    return { merchant, token, expiresAt: expiresAt.toISOString() };
+  }
+  async updateAccount(id, data) {
+    await this.pool.execute('UPDATE merchants SET business_name = ?, contact_phone = ? WHERE id = ?',
+      [data.businessName, data.contactPhone, id]);
+    return this.account(id);
+  }
+  async changePassword(id, passwordHash, currentSessionHash) {
+    await this.transaction(id, async (connection) => {
+      await connection.execute('UPDATE merchants SET password_hash = ? WHERE id = ?', [passwordHash, id]);
+      await connection.execute('DELETE FROM merchant_sessions WHERE merchant_id = ? AND token_hash <> ?',
+        [id, currentSessionHash]);
+    });
+  }
+  async linkMember(merchantId, userId) {
+    await this.transaction(merchantId, async (connection) => {
+      await connection.execute('DELETE FROM member_merchant_links WHERE merchant_id = ?', [merchantId]);
+      await connection.execute('INSERT INTO member_merchant_links (user_id, merchant_id) VALUES (?, ?)',
+        [userId, merchantId]);
+    });
+    return this.account(merchantId);
+  }
+  async unlinkMember(merchantId) {
+    await this.pool.execute('DELETE FROM member_merchant_links WHERE merchant_id = ?', [merchantId]);
+    return this.account(merchantId);
+  }
+  async linkedMember(merchantId) {
+    const [rows] = await this.pool.execute(`SELECT u.id FROM member_merchant_links l
+      JOIN users u ON u.id = l.user_id WHERE l.merchant_id = ?`, [merchantId]);
+    return rows[0];
   }
   async session(hash) {
     const [rows] = await this.pool.execute(`SELECT merchant_id FROM merchant_sessions
@@ -135,12 +182,12 @@ class MerchantRepository {
       tags: tags.map((v) => v.tag), ingredients: ingredients.map((v) => v.ingredient) };
   }
   async get(merchantId, productId, connection = this.pool, lock = false) {
-    const [rows] = await connection.execute(`${select} WHERE s.merchant_id = ? AND s.deleted_at IS NULL AND f.id = ?${lock ? ' FOR UPDATE' : ''}`, [merchantId, productId]);
+    const [rows] = await connection.execute(`${select} WHERE s.merchant_id = ? AND s.deleted_at IS NULL AND f.deleted_at IS NULL AND f.id = ?${lock ? ' FOR UPDATE' : ''}`, [merchantId, productId]);
     if (!rows.length) throw fail(404, '找不到可管理的商品');
     return this.hydrate(rows[0], connection);
   }
   async list(merchantId, before) {
-    const [rows] = await this.pool.execute(`${select} WHERE s.merchant_id = ? AND s.deleted_at IS NULL AND f.id < ? ORDER BY f.id DESC LIMIT 21`, [merchantId, before]);
+    const [rows] = await this.pool.execute(`${select} WHERE s.merchant_id = ? AND s.deleted_at IS NULL AND f.deleted_at IS NULL AND f.id < ? ORDER BY f.id DESC LIMIT 21`, [merchantId, before]);
     const items = [];
     for (const row of rows.slice(0, 20)) items.push(await this.hydrate(row, this.pool));
     return { items, nextCursor: rows.length > 20 ? items.at(-1).id : null };
@@ -148,7 +195,7 @@ class MerchantRepository {
   async categories(merchantId) {
     const [rows] = await this.pool.execute(`SELECT DISTINCT f.category FROM foods f
       JOIN stores s ON s.id = f.store_id
-      WHERE s.merchant_id = ? AND s.deleted_at IS NULL ORDER BY f.category`, [merchantId]);
+      WHERE s.merchant_id = ? AND s.deleted_at IS NULL AND f.deleted_at IS NULL ORDER BY f.category`, [merchantId]);
     return { items: rows.map((row) => row.category) };
   }
   async relations(productId, data, connection) {
@@ -200,6 +247,15 @@ class MerchantRepository {
       }
       await connection.execute('UPDATE foods SET status = ?, merchant_revision = merchant_revision + 1 WHERE id = ?', [status, productId]);
       return this.get(merchantId, productId, connection);
+    });
+  }
+  async deleteProduct(merchantId, productId, revision) {
+    return this.transaction(merchantId, async (connection) => {
+      const current = await this.get(merchantId, productId, connection, true);
+      if (current.revision !== revision) throw fail(409, '商品已更新，請重新載入');
+      if (current.status === 'active') throw fail(409, '請先下架再刪除商品');
+      await connection.execute(`UPDATE foods SET deleted_at = UTC_TIMESTAMP(), status = 'paused',
+        merchant_revision = merchant_revision + 1 WHERE id = ?`, [productId]);
     });
   }
 }

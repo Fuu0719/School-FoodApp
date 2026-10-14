@@ -11,6 +11,7 @@ class UserProfile {
     required this.heightCm,
     required this.weightKg,
     required this.healthGoal,
+    this.linkedMerchant,
   });
 
   final String? id;
@@ -25,6 +26,7 @@ class UserProfile {
   final double? weightKg;
   bool get needsProfileCompletion => heightCm == null || weightKg == null;
   final HealthGoal healthGoal;
+  final LinkedMerchant? linkedMerchant;
 
   double get bmi {
     final heightMeters = (heightCm ?? 0) / 100;
@@ -128,6 +130,7 @@ class UserProfile {
       heightCm: heightCm ?? this.heightCm,
       weightKg: weightKg ?? this.weightKg,
       healthGoal: healthGoal ?? this.healthGoal,
+      linkedMerchant: linkedMerchant,
     );
   }
 
@@ -162,6 +165,11 @@ class UserProfile {
       heightCm: (json['heightCm'] as num?)?.toDouble(),
       weightKg: (json['weightKg'] as num?)?.toDouble(),
       healthGoal: HealthGoal.fromName(json['healthGoal'] as String?),
+      linkedMerchant: json['linkedMerchant'] is Map<String, dynamic>
+          ? LinkedMerchant.fromJson(
+              json['linkedMerchant'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 
@@ -176,6 +184,16 @@ class UserProfile {
     heightCm: 170,
     weightKg: 65,
     healthGoal: HealthGoal.maintain,
+  );
+}
+
+class LinkedMerchant {
+  const LinkedMerchant({required this.id, required this.businessName});
+  final String id;
+  final String businessName;
+  factory LinkedMerchant.fromJson(Map<String, dynamic> json) => LinkedMerchant(
+    id: json['id'] as String,
+    businessName: json['businessName'] as String,
   );
 }
 

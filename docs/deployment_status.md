@@ -12,7 +12,7 @@
 | MySQL | `MySQLFoodApp` Windows 服務，`127.0.0.1:3307`，資料庫 `shan_jie_ren_yi` |
 | HTTPS | ngrok Windows 服務，固定入口 `https://estimator-flagman-fidgeting.ngrok-free.dev` |
 | App | 最新原始碼為 `1.0.0+26`；新增品牌 icon 與啟動動畫 |
-| Migration | 學校已套用 `001` 至 `009`；真實 MySQL 測試 25 項全數通過 |
+| Migration | 學校已套用 `001` 至 `009`；本版 `010` 尚待套用 |
 | SMTP | Gmail SMTP 已設定；Email 驗證、歡迎信及會員訂單信已實際收信 |
 | 測試付款 | 綠界 Stage；App 內完成流程，成功訂單標記 `paid` |
 | 資料庫管理 | 使用 MySQL CLI；自製資料庫檢視器已撤銷，不再部署 |
@@ -49,7 +49,7 @@ Node.js 與 MySQL 僅監聽本機，不直接對外開放。手機流量由同�
 
 1. 更新前先建立專案外的資料庫備份，並確認檔案存在且大小大於 0。
 2. 不覆蓋 `backend/.env`，不把 SMTP、資料庫或綠界密鑰提交到 Git。
-3. 只有新版明確新增 migration 且查核未套用時才能執行；現有 `001` 至 `008` 不得重跑。
+3. 本版部署前先備份，再執行一次 `010_merchant_account_linking.sql`；現有 `001` 至 `009` 不得重跑。
 4. `npm.cmd run db:check`、後端測試與服務狀態都成功後，再驗證公開 `/api/health`。
 5. 編譯成功不等於手機驗收；會員、商家、付款與 Email 流程仍需以實機操作確認。
 

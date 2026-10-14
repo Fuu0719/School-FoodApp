@@ -194,6 +194,30 @@ function authRoutes(repository, activityRepository = repository.pool ? new Activ
   router.put('/me', requireMember, run(async (req, res) => {
     res.json(await repository.update(req.member.id, validateProfile(req.body)));
   }));
+  router.post('/me/merchant-link', requireMember, limiter, run(async (req, res) => {
+    const MerchantRepository = require('../merchant/repository');
+    const merchants = new MerchantRepository(repository.pool);
+    const { email, password } = require('../merchant/validation').credentials(req.body);
+    const record = await merchants.credentials(email);
+    if (!record || !await verifyPassword(password, record.password_hash) || record.status !== 'active') {
+      return res.status(401).json({ message: '商家帳號或密碼不正確' });
+    }
+    try { await repository.linkMerchant(req.member.id, record.id); }
+    catch (error) {
+      if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({ message: '此商家已綁定其他會員' });
+      throw error;
+    }
+    res.json({ user: await repository.get(req.member.id), ...(await merchants.issueSession(record.id)) });
+  }));
+  router.delete('/me/merchant-link', requireMember, run(async (req, res) => {
+    res.json(await repository.unlinkMerchant(req.member.id));
+  }));
+  router.post('/me/switch-to-merchant', requireMember, run(async (req, res) => {
+    const linked = await repository.linkedMerchant(req.member.id);
+    if (!linked) return res.status(404).json({ message: '尚未綁定可使用的商家帳號' });
+    const MerchantRepository = require('../merchant/repository');
+    res.json(await new MerchantRepository(repository.pool).issueSession(linked.id));
+  }));
   if (activityRepository) router.use(activityRoutes(activityRepository, requireMember, mailer));
   if (repository.pool) {
     const MerchantRepository = require('../merchant/repository');

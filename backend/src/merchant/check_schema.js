@@ -1,4 +1,6 @@
 module.exports = async function checkMerchantSchema(pool) {
+  await pool.query('SELECT deleted_at FROM foods LIMIT 0');
+  await pool.query('SELECT user_id, merchant_id FROM member_merchant_links LIMIT 0');
   try {
     await pool.query('SELECT deleted_at FROM stores LIMIT 0');
   } catch (error) {

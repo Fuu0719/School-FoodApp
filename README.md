@@ -10,7 +10,8 @@
 - 底部五個分頁重複點擊目前分頁時會回到頁面頂端。
 - 綠界 Stage 測試付款留在 App 內進行；成功後購買紀錄顯示「模擬訂單，已付款」。這是測試金流，不代表正式收款。
 - 付款成功後寄送會員訂單確認信。模擬商家的 `.test` 信箱不寄信，避免 Gmail 退信；尚未導入真實商家接單流程。
-- 學校資料庫已套用 migration `001` 至 `009`，新版 API、真實 MySQL 測試與公開健康檢查均已通過。既有資料庫不可重匯 `schema.sql`。
+- 學校資料庫目前已套用 migration `001` 至 `009`。本版新增 `010_merchant_account_linking.sql`，部署新版 API 前必須先套用；既有資料庫不可重匯 `schema.sql`。
+- 商家商品可在編輯與上下架區直接刪除未上架商品；商家可編輯帳號資料及變更密碼。會員與商家帳號支援一對一綁定及雙向切換，未設定時維持未綁定狀態。
 - Windows Server 2016 沒有 `winget`，且不在目前 MySQL Workbench 官方支援範圍；資料庫日常管理使用 MySQL CLI，操作步驟見 [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)。
 
 ## 手機測試更新（2026-09-26）
@@ -50,6 +51,7 @@
 - 下單使用資料庫價格、交易、庫存鎖定與識別碼防重複送單
 - 商家獨立註冊／登入、第一間門市、草稿新增／編輯／上架／下架
 - 商家可新增、編輯多間門市，刪除門市及其全部商品，並建立自訂食物分類
+- 商家可刪除未上架商品、編輯商家資料、修改密碼；會員與商家帳號可一對一綁定並互相切換
 - 會員、商家與門市電話的選填格式驗證
 - 未登入功能導向登入頁
 - 推薦、搜尋、轉盤、會員服務測試
@@ -157,7 +159,7 @@ ngrok http 3000
 | API | SchoolFoodAppApi，Running／Auto／LocalService，127.0.0.1:3000 |
 | 專案 MySQL | 3307、shan_jie_ren_yi、food_app 應用帳號 |
 | 原有服務 | AppServ MySQL 3306、Apache 80，與專案分開，勿任意變更 |
-| 遷移 | `001` 至 `008` 已套用；`db:check` 通過 |
+| 遷移 | `001` 至 `009` 已套用；本版 `010` 尚待部署 |
 | 資料 | 筆電完整測試資料已匯入學校 MySQL；匯入前已建立學校端備份 |
 | HTTPS | ngrok Windows 服務，固定網址 `https://estimator-flagman-fidgeting.ngrok-free.dev` |
 | 開機驗收 | MySQLFoodApp、SchoolFoodAppApi、ngrok 均為 Running／Automatic；整台主機重開後公開健康檢查通過 |
@@ -183,7 +185,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ## 驗證與文件
 
-2026-10-14 最新驗收為：Flutter 完整測試 122 通過／2 跳過，`flutter analyze` 無問題；後端測試 53 通過／3 項真實 MySQL 整合測試跳過，`npm audit --omit=dev` 為 0 個漏洞。真實 MySQL 測試需在套用 migration `009` 後執行，目前尚未直接修改學校資料庫。
+2026-10-14 最新驗收為：本版新增商家商品軟刪除、商家帳號管理及會員／商家一對一綁定。`flutter analyze` 無問題，Flutter 測試 126 通過／2 跳過，後端測試 56 通過／3 項真實 MySQL 整合測試跳過，`npm audit --omit=dev` 為 0 個漏洞。真實 MySQL 測試需先套用 migration `010`，目前尚未直接修改學校資料庫。
 
 - [部署進度與未解決事項](docs/deployment_status.md)
 - [Windows 部署說明](backend/DEPLOY_WINDOWS.md)

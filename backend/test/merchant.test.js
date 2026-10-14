@@ -132,6 +132,42 @@ test('store deletion requires merchant identity and validates the store ID', asy
   assert.deepEqual(calls, [['7', '8']]);
 });
 
+test('product deletion requires ownership, revision and an inactive product', async (t) => {
+  const token = 'a'.repeat(64);
+  const calls = [];
+  const call = await serve(t, app({
+    session: async (hash) => hash === tokenHash(token) ? { id: '7' } : null,
+    deleteProduct: async (...args) => calls.push(args),
+  }));
+  assert.equal((await call('/merchant/products/8', 'DELETE', { revision: 2 })).status, 401);
+  assert.equal((await call('/merchant/products/nope', 'DELETE', { revision: 2 }, token)).status, 400);
+  assert.equal((await call('/merchant/products/8', 'DELETE', { revision: 2, merchantId: '999' }, token)).status, 200);
+  assert.deepEqual(calls, [['7', '8', 2]]);
+});
+
+test('product soft deletion is transactional and preserves the food row', async () => {
+  const events = [];
+  const connection = {
+    beginTransaction: async () => events.push('begin'), commit: async () => events.push('commit'),
+    rollback: async () => events.push('rollback'), release: () => events.push('release'),
+    execute: async (sql, args) => {
+      if (sql.startsWith('SELECT status FROM merchants')) return [[{ status: 'active' }]];
+      if (sql.startsWith('UPDATE foods SET deleted_at')) {
+        assert.deepEqual(args, ['8']); events.push('soft delete'); return [{ affectedRows: 1 }];
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+  const repository = new MerchantRepository({ getConnection: async () => connection });
+  repository.get = async (merchantId, productId, db, lock) => {
+    assert.deepEqual([merchantId, productId, db, lock], ['7', '8', connection, true]);
+    return { revision: 3, status: 'paused' };
+  };
+  await repository.deleteProduct('7', '8', 3);
+  assert.deepEqual(events, ['begin', 'soft delete', 'commit', 'release']);
+  await assert.rejects(repository.deleteProduct('7', '8', 2), { statusCode: 409 });
+});
+
 test('category options are authenticated and scoped to the session owner across all products', async (t) => {
   const token = 'a'.repeat(64);
   const call = await serve(t, app({

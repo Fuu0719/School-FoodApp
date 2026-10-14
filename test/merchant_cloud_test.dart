@@ -766,4 +766,57 @@ void main() {
       expect(find.text('商家商品'), findsNothing);
     },
   );
+
+  test(
+    'linked member switch response is stored as a member-ready payload',
+    () async {
+      final requests = <http.Request>[];
+      final linkedMerchant = {
+        ...merchant,
+        'linkedMember': {'id': '4', 'name': '會員王'},
+      };
+      final service = await connect(
+        api((request) async {
+          requests.add(request);
+          if (request.url.path.endsWith('/switch-to-member')) {
+            return response({
+              'user': {'id': '4', 'name': '會員王'},
+              'token': 'b' * 64,
+            });
+          }
+          if (request.url.path.endsWith('/merchant/me')) {
+            return response(linkedMerchant);
+          }
+          return null;
+        }),
+      );
+      await service.refresh();
+      expect(service.account!.linkedMember!.name, '會員王');
+      final result = await service.switchToMember();
+      expect(result['token'], 'b' * 64);
+      expect(requests.last.method, 'POST');
+    },
+  );
+
+  test(
+    'deleting a product sends its revision and removes it locally',
+    () async {
+      late http.Request deleted;
+      final service = await connect(
+        api((request) async {
+          if (request.method == 'DELETE' &&
+              request.url.path.endsWith('/products/7')) {
+            deleted = request;
+            return response({'message': '餐點已刪除'});
+          }
+          return null;
+        }),
+      );
+      await service.refresh();
+      expect(service.products, hasLength(1));
+      await service.deleteProduct(service.products.single);
+      expect(jsonDecode(deleted.body), {'revision': 0});
+      expect(service.products, isEmpty);
+    },
+  );
 }

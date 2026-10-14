@@ -5,6 +5,8 @@ import 'package:my_app/validation/phone.dart';
 import 'package:my_app/data/food_catalog_repository.dart';
 import 'package:my_app/models/user_profile.dart';
 import 'package:my_app/screens/merchant_login_screen.dart';
+import 'package:my_app/screens/merchant_products_screen.dart';
+import 'package:my_app/services/merchant_auth_service.dart';
 import 'package:my_app/services/user_activity_service.dart';
 import 'package:my_app/services/user_profile_service.dart';
 import 'package:my_app/widgets/meal_avatar.dart';
@@ -1079,6 +1081,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 10),
         SizedBox(
           width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _profileService.isBusy
+                ? null
+                : () => _switchToMerchant(profile),
+            icon: const Icon(Icons.swap_horiz_rounded),
+            label: Text(
+              profile.linkedMerchant == null ? '綁定並切換商家帳號' : '切換商家帳號',
+            ),
+          ),
+        ),
+        if (profile.linkedMerchant != null) ...[
+          Text(
+            '已綁定：${profile.linkedMerchant!.businessName}',
+            style: const TextStyle(color: Colors.black54),
+          ),
+          TextButton.icon(
+            onPressed: _profileService.isBusy ? null : _unlinkMerchant,
+            icon: const Icon(Icons.link_off),
+            label: const Text('解除商家綁定'),
+          ),
+        ],
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
           child: TextButton.icon(
             onPressed: _profileService.isBusy
                 ? null
@@ -1099,6 +1125,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ],
     );
+  }
+
+  Future<void> _switchToMerchant(UserProfile profile) async {
+    Map<String, dynamic> response;
+    if (profile.linkedMerchant == null) {
+      final email = TextEditingController();
+      final password = TextEditingController();
+      final accepted = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('綁定商家帳號'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: '商家 Email'),
+              ),
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: '商家密碼'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('綁定並切換'),
+            ),
+          ],
+        ),
+      );
+      if (accepted != true) return;
+      try {
+        response = await _profileService.linkMerchant(
+          email.text.trim(),
+          password.text,
+        );
+      } on MemberApiException catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.message)));
+        }
+        return;
+      }
+    } else {
+      try {
+        response = await _profileService.switchToMerchant();
+      } on MemberApiException catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(error.message)));
+        }
+        return;
+      }
+    }
+    await MerchantAuthService.instance.acceptLinkedSession(response);
+    if (!mounted) return;
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MerchantProductsScreen()));
+  }
+
+  Future<void> _unlinkMerchant() async {
+    try {
+      await _profileService.unlinkMerchant();
+    } on MemberApiException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    }
   }
 
   Future<void> _completeProfile() async {

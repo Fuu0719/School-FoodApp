@@ -92,4 +92,15 @@ function storeInput(body = {}) {
     contactPhone: phone(body.contactPhone ?? ''),
     businessHours: `${body.opensAt}-${body.closesAt}`, businessWeekdays: [...new Set(body.businessWeekdays)].sort() };
 }
-module.exports = { fail, text, id, integer, credentials, product, registration, storeInput };
+function accountInput(body = {}) {
+  return { businessName: text(body.businessName, '商家名稱', 120), contactPhone: phone(body.contactPhone ?? '') };
+}
+function passwordInput(body = {}) {
+  const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
+  const newPassword = typeof body.newPassword === 'string' ? body.newPassword : '';
+  if (currentPassword.length < 8 || currentPassword.length > 128) throw fail(400, '目前密碼格式不正確');
+  if (newPassword.length < 8 || newPassword.length > 16) throw fail(400, '新密碼長度須為 8 至 16 個字元');
+  if (currentPassword === newPassword) throw fail(400, '新密碼不可與目前密碼相同');
+  return { currentPassword, newPassword };
+}
+module.exports = { fail, text, id, integer, credentials, product, registration, storeInput, accountInput, passwordInput };

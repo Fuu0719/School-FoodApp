@@ -5,6 +5,7 @@ import 'package:my_app/services/merchant_auth_service.dart';
 import 'package:my_app/services/member_api.dart';
 import 'package:my_app/screens/merchant_product_editor.dart';
 import 'package:my_app/screens/merchant_register_screen.dart';
+import 'package:my_app/screens/merchant_account_screen.dart';
 
 class CloudMerchantLoginScreen extends StatefulWidget {
   const CloudMerchantLoginScreen({super.key, this.service});
@@ -235,6 +236,37 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
     }
   }
 
+  Future<void> _deleteProduct(MerchantProduct product) async {
+    if (product.status == 'active') {
+      setState(() => error = '請先下架再刪除商品');
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('刪除餐點？'),
+        content: Text('「${product.input.name}」將從商家商品與會員餐點中移除，既有訂單紀錄會保留。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('刪除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await _act(() => service.deleteProduct(product));
+    }
+  }
+
   Future<void> _deleteStore(MerchantStore store) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -411,6 +443,20 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                                   ? null
                                   : () => Navigator.push(
                                       context,
+                                      MaterialPageRoute(
+                                        builder: (_) => MerchantAccountScreen(
+                                          service: service,
+                                        ),
+                                      ),
+                                    ),
+                              icon: const Icon(Icons.manage_accounts_outlined),
+                              label: const Text('帳號與商家資料'),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: service.isBusy
+                                  ? null
+                                  : () => Navigator.push(
+                                      context,
                                       MaterialPageRoute<void>(
                                         builder: (_) => MerchantRegisterScreen(
                                           service: service,
@@ -542,8 +588,10 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                                         onSelected: (value) {
                                           if (value == 'edit') {
                                             _edit(product);
-                                          } else {
+                                          } else if (value == 'status') {
                                             _status(product);
+                                          } else if (value == 'delete') {
+                                            _deleteProduct(product);
                                           }
                                         },
                                         itemBuilder: (_) => [
@@ -560,6 +608,20 @@ class _MerchantProductsScreenState extends State<MerchantProductsScreen> {
                                                   : '上架',
                                             ),
                                           ),
+                                          if (product.status != 'active')
+                                            const PopupMenuItem(
+                                              value: 'delete',
+                                              child: Row(
+                                                children: [
+                                                  Icon(
+                                                    Icons.delete_outline,
+                                                    color: Colors.red,
+                                                  ),
+                                                  SizedBox(width: 10),
+                                                  Text('刪除餐點'),
+                                                ],
+                                              ),
+                                            ),
                                         ],
                                       ),
                                     ],

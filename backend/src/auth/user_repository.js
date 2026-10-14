@@ -1,8 +1,11 @@
 const goalsToDb = { maintain: 'maintain', muscleGain: 'muscle_gain', fatLoss: 'fat_loss' };
 const goalsFromDb = { maintain: 'maintain', muscle_gain: 'muscleGain', fat_loss: 'fatLoss' };
 const columns = `SELECT u.id, u.name, u.email, u.email_verified_at, u.phone, u.avatar_key, u.height_cm, u.weight_kg,
-  u.health_goal, p.dietary_tags, p.budget_max, p.distance_limit_meters
-  FROM users u LEFT JOIN user_preferences p ON p.user_id = u.id`;
+  u.health_goal, p.dietary_tags, p.budget_max, p.distance_limit_meters,
+  m.id AS linked_merchant_id, m.business_name AS linked_merchant_name
+  FROM users u LEFT JOIN user_preferences p ON p.user_id = u.id
+  LEFT JOIN member_merchant_links l ON l.user_id = u.id
+  LEFT JOIN merchants m ON m.id = l.merchant_id`;
 
 function profile(row) {
   if (!row) return null;
@@ -16,6 +19,9 @@ function profile(row) {
     dietaryTags: typeof row.dietary_tags === 'string'
       ? JSON.parse(row.dietary_tags) : row.dietary_tags || [],
     budgetMax: row.budget_max, distanceLimitMeters: row.distance_limit_meters,
+    linkedMerchant: row.linked_merchant_id == null ? null : {
+      id: String(row.linked_merchant_id), businessName: row.linked_merchant_name,
+    },
   };
 }
 
@@ -201,6 +207,27 @@ class UserRepository {
 
   async revoke(hash) {
     await this.pool.execute('DELETE FROM user_sessions WHERE token_hash = ?', [hash]);
+  }
+
+  async linkMerchant(userId, merchantId) {
+    await this.transaction(async (connection) => {
+      await connection.execute('DELETE FROM member_merchant_links WHERE user_id = ?', [userId]);
+      await connection.execute('INSERT INTO member_merchant_links (user_id, merchant_id) VALUES (?, ?)',
+        [userId, merchantId]);
+    });
+    return this.get(userId);
+  }
+
+  async unlinkMerchant(userId) {
+    await this.pool.execute('DELETE FROM member_merchant_links WHERE user_id = ?', [userId]);
+    return this.get(userId);
+  }
+
+  async linkedMerchant(userId) {
+    const [rows] = await this.pool.execute(`SELECT m.id, m.business_name, m.email, m.contact_phone
+      FROM member_merchant_links l JOIN merchants m ON m.id = l.merchant_id
+      WHERE l.user_id = ? AND m.status = 'active'`, [userId]);
+    return rows[0];
   }
 }
 

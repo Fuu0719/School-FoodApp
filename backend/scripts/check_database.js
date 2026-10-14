@@ -16,7 +16,7 @@ async function main() {
     console.log('Database, member activity and merchant management tables are ready.');
   } catch (error) {
     console.error('Database check failed:', error.code);
-    console.error('Check .env and apply all missing SQL migrations through 009_pending_registration_and_password_reset.sql as the database administrator.');
+    console.error('Check .env and apply all missing SQL migrations through 010_merchant_account_linking.sql as the database administrator.');
     process.exitCode = 1;
   } finally { await pool.end(); }
 }

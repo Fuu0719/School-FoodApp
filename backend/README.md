@@ -1,7 +1,7 @@
 # 膳解人意 Backend
 
 會員、商品目錄、會員活動與商家管理 API 使用 MySQL；推薦 API 尚未完成。商家可自行註冊並直接啟用，登入後再新增一間或多間門市。舊版客戶端在註冊時附帶首間門市的格式仍相容。
-初始化或升級請依部署文件核對結構，勿重匯 schema。學校現有環境已套用 migration `001` 至 `009`；不得重複執行。通過 db:check 才啟動新版 API。
+初始化或升級請依部署文件核對結構，勿重匯 schema。學校現有環境已套用 migration `001` 至 `009`；部署本版前需再套用 `010_merchant_account_linking.sql`。通過 db:check 才啟動新版 API。
 
 部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)，日常查詢、備份與測試會員刪除見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
 
@@ -35,6 +35,9 @@ test:mysql 會建立並清除隨機測試會員。API 啟動前檢查資料庫�
 | POST | /api/auth/logout | 撤銷目前登入憑證 |
 | GET | /api/me | 取得自己的會員資料 |
 | PUT | /api/me | 儲存自己的資料與偏好 |
+| POST | /api/me/merchant-link | 驗證並綁定一個商家帳號 |
+| POST | /api/me/switch-to-merchant | 切換至已綁定的商家帳號 |
+| DELETE | /api/me/merchant-link | 解除商家帳號綁定 |
 
 除註冊登入外，會員端點需 Authorization: Bearer <token>。
 Email 會轉為小寫；新註冊密碼為 8–16 字元，既有較長密碼仍可登入。註冊資料先存於 `pending_member_registrations`，完成 6 位數 Email 驗證後才在同一交易建立 `users`、偏好與 session。驗證碼 10 分鐘失效，最多嘗試 5 次；過期暫存會在後續註冊時清除。
@@ -55,7 +58,7 @@ SMTP 由 `.env` 的 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`、`SMTP_USER`、`S
 GET /api/health 回應 API 運作狀態，不代表其他資料功能已完成。
 GET /api/foods、/api/foods/:foodId、/api/stores/:storeId 已讀 MySQL，GET /api/recommendations 暫回應 501；詳見 [商品目錄](CATALOG.md)。
 MySQL 收藏、瀏覽與訂單端點已提供，詳見 [會員活動 API 與遷移](MEMBER_ACTIVITY.md)。
-商家帳號與商品管理使用獨立驗證及 MySQL 寫入，需套用 003；刪除門市功能另需 004，見 [商家管理與部署](MERCHANT_MANAGEMENT.md) 與 [門市刪除](STORE_DELETION.md)。商品分類是不跨商家的自訂文字，會從該商家現有商品彙整選項。
+商家帳號與商品管理使用獨立驗證及 MySQL 寫入，需套用 003；刪除門市功能另需 004；商品軟刪除及會員／商家一對一綁定需套用 010，見 [商家管理與部署](MERCHANT_MANAGEMENT.md) 與 [門市刪除](STORE_DELETION.md)。商品分類是不跨商家的自訂文字，會從該商家現有商品彙整選項。
 其他尚未實作正式驗證的原型寫入與回饋端點仍回應 501；僅舊原型測試顯式開啟。
 App 預設保留展示商品；Cloud Catalog 版改讀 MySQL 目錄、雲端收藏、瀏覽、排行榜及訂單。綠界 Stage 成功回傳後訂單標記為 `paid`，App 顯示「模擬訂單，已付款」；這不等於正式金流或商家接單。購物車與部分搜尋狀態仍在裝置端。
 學校伺服器已透過 ngrok 固定 HTTPS 網址供手機測試，狀態追蹤見 [部署進度](../docs/deployment_status.md)。

@@ -29,7 +29,7 @@ class ActivityRepository {
     const [rows] = await this.pool.execute(
       `SELECT v.food_id AS foodId, v.created_at AS createdAt FROM favorites v
        JOIN foods f ON f.id = v.food_id JOIN stores s ON s.id = f.store_id
-       WHERE v.user_id = ? AND v.food_id < ? AND s.deleted_at IS NULL ORDER BY v.food_id DESC LIMIT 50`, [userId, before]);
+       WHERE v.user_id = ? AND v.food_id < ? AND s.deleted_at IS NULL AND f.deleted_at IS NULL ORDER BY v.food_id DESC LIMIT 50`, [userId, before]);
     return rows.map((row) => ({ ...row, foodId: String(row.foodId) }));
   }
 
@@ -56,7 +56,7 @@ class ActivityRepository {
   async history(userId) {
     const [rows] = await this.pool.execute(`SELECT h.food_id AS foodId, MAX(h.viewed_at) AS viewedAt
       FROM browsing_histories h JOIN foods f ON f.id = h.food_id JOIN stores s ON s.id = f.store_id
-      WHERE h.user_id = ? AND s.deleted_at IS NULL GROUP BY h.food_id
+      WHERE h.user_id = ? AND s.deleted_at IS NULL AND f.deleted_at IS NULL GROUP BY h.food_id
       ORDER BY viewedAt DESC, MAX(h.id) DESC LIMIT 20`, [userId]);
     return rows.map((row) => ({ ...row, foodId: String(row.foodId) }));
   }
@@ -188,7 +188,7 @@ class ActivityRepository {
       const lines = [];
       for (const item of sorted) {
         const food = foods.find((row) => String(row.id) === item.foodId);
-        if (!food || food.store_deleted_at || food.status !== 'active' || food.merchant_status !== 'active' ||
+        if (!food || food.deleted_at || food.store_deleted_at || food.status !== 'active' || food.merchant_status !== 'active' ||
             (food.expires_at && new Date(food.expires_at) <= now)) throw fail(409, '部分餐點已下架或過期');
         const [days] = await connection.execute(
           'SELECT weekday FROM store_business_weekdays WHERE store_id = ?', [food.store_id]);
