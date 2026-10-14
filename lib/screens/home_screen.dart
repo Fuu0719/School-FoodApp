@@ -16,6 +16,7 @@ import 'package:my_app/services/food_search_service.dart';
 import 'package:my_app/services/recommendation_service.dart';
 import 'package:my_app/services/user_activity_service.dart';
 import 'package:my_app/services/user_profile_service.dart';
+import 'package:my_app/widgets/brand_logo.dart';
 import 'package:my_app/widgets/food_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -575,19 +576,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildHeader() {
     return Row(
       children: [
-        Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: const Color(0xFFDDEED9),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Icon(
-            Icons.eco_rounded,
-            color: Color(0xFF4E8D57),
-            size: 30,
-          ),
-        ),
+        const BrandLogo(key: ValueKey('home-brand-logo'), size: 52),
         const SizedBox(width: 12),
         const Expanded(
           child: Column(

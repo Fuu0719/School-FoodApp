@@ -42,6 +42,7 @@ void main() {
   testWidgets('renders home screen content', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
+    expect(find.byKey(const ValueKey('home-brand-logo')), findsOneWidget);
     expect(find.text('膳解人意'), findsOneWidget);
     expect(find.text('今日推薦'), findsOneWidget);
     expect(find.text('即期優惠'), findsWidgets);

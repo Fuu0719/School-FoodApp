@@ -164,7 +164,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ### 使用學校資料測試
 
-目前原始碼 App 版本為 `1.0.0+30`，正式測試建置使用 `https://api.mealmind-app.online/api`。Cloudflare Tunnel 已安裝成自動啟動的 Windows 服務。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
+目前原始碼 App 版本為 `1.0.0+31`，正式測試建置使用 `https://api.mealmind-app.online/api`。Cloudflare Tunnel 已安裝成自動啟動的 Windows 服務。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
 
 ## 待完成與部署順序
 
