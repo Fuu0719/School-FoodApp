@@ -2,7 +2,7 @@
 
 ## 最新狀態（2026-10-14）
 
-- 原始碼 App 版本為 `1.0.0+28`。會員／商家切換會以交易撤銷來源 session，登出會清除裝置上的兩種登入狀態；新會員即使尚無惜食點數也能查看全體排行榜。手機透過 ngrok HTTPS 連到學校 Windows Server 上的 Node.js API 與 MySQL。
+- 原始碼 App 版本為 `1.0.0+29`。會員／商家切換會以交易撤銷來源 session，登出會清除裝置上的兩種登入狀態；新會員即使尚無惜食點數也能查看全體排行榜。目前測試 APK 暫時改用 Cloudflare Quick Tunnel 連到學校 Windows Server 上的 Node.js API 與 MySQL。
 - 新版註冊在 Email 驗證成功前只保存 10 分鐘有效的待驗證資料，不會建立正式 `users` 會員。忘記密碼改為「驗證 Email」與「設定新密碼」兩個完整頁面。
 - 會員資料可不選頭像直接儲存；支援上傳、移除自訂 JPG／PNG 頭像，未設定時使用系統預設圖示。編輯資料後不會再次跳回 Email 驗證。
 - 全體惜食排行榜由現有會員與已付款訂單計算，顯示會員自訂或預設頭像；刪除會員後不保留排行榜快取。
@@ -170,7 +170,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ### 使用學校資料測試
 
-目前原始碼 App 版本為 `1.0.0+28`，雲端建置使用 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`。ngrok 與 API 都在學校主機以 Windows 服務執行；Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。ngrok 免費入口的瀏覽器警告不影響 App，API client 會送出 `ngrok-skip-browser-warning` 標頭。
+目前原始碼 App 版本為 `1.0.0+29`，臨時測試建置使用 `https://nation-rebates-eye-campus.trycloudflare.com/api`。這是 Cloudflare Quick Tunnel 隨機網址，程序停止或重新建立 Tunnel 後可能失效，不能視為正式固定入口。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
 
 ## 待完成與部署順序
 
