@@ -1,7 +1,12 @@
 const nodemailer = require('nodemailer');
 
 function createMailer(env = process.env) {
-  const configured = env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASSWORD && env.SMTP_FROM;
+  const allowedDomain = String(env.SMTP_ALLOWED_FROM_DOMAIN || 'mealmind-app.online')
+    .trim().toLowerCase();
+  const senderMatch = String(env.SMTP_FROM || '').match(/(?:<)?([^<\s]+@([^>\s]+))(?:>)?\s*$/);
+  const senderDomain = senderMatch?.[2]?.toLowerCase();
+  const configured = Boolean(env.SMTP_HOST && env.SMTP_USER && env.SMTP_PASSWORD &&
+    env.SMTP_FROM && senderDomain === allowedDomain);
   if (!configured) {
     return {
       configured: false,
@@ -21,10 +26,13 @@ function createMailer(env = process.env) {
   const html = (value) => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   })[character]);
+  const appUrl = String(env.APP_PUBLIC_URL || 'https://mealmind-app.online').replace(/\/$/, '');
+  const brandFooter = `MealMind 膳解人意\n${appUrl}`;
+  const brandFooterHtml = `<strong>MealMind 膳解人意</strong><br><a href="${html(appUrl)}" style="color:#315c3a">${html(appUrl)}</a>`;
   const send = (to, subject, title, code) => transport.sendMail({
     from: env.SMTP_FROM, to, subject,
-    text: `${title}\n\n驗證碼：${code}\n\n驗證碼 10 分鐘內有效。若不是你本人操作，請忽略這封信。`,
-    html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#243128"><h2>${title}</h2><p>你的驗證碼是：</p><p style="font-size:30px;font-weight:700;letter-spacing:6px">${code}</p><p>驗證碼 10 分鐘內有效。若不是你本人操作，請忽略這封信。</p></div>`,
+    text: `${title}\n\n驗證碼：${code}\n\n驗證碼 10 分鐘內有效。若不是你本人操作，請忽略這封信。\n\n${brandFooter}`,
+    html: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#243128"><h2>${title}</h2><p>你的驗證碼是：</p><p style="font-size:30px;font-weight:700;letter-spacing:6px">${code}</p><p>驗證碼 10 分鐘內有效。若不是你本人操作，請忽略這封信。</p><p style="margin-top:24px;color:#68746a">${brandFooterHtml}</p></div>`,
   });
   const money = (value) => `NT$ ${Number(value).toLocaleString('zh-TW')}`;
   const orderItems = (notice) => notice.merchants.flatMap((merchant) => merchant.items);
@@ -55,8 +63,8 @@ function createMailer(env = process.env) {
       from: env.SMTP_FROM,
       to: user.email,
       subject: '註冊成功！歡迎加入膳解人意',
-      text: `註冊成功！\n\n${user.name}，今天開始，讓美食不被錯過。\n\n膳解人意會依照你的預算、距離與飲食偏好，替你找到剛剛好的餐點，也讓即期美食多一次被選中的機會。`,
-      html: `<!doctype html><html lang="zh-Hant"><body style="margin:0;background:#f2f6ef;font-family:Arial,'Microsoft JhengHei',sans-serif;color:#26382b"><div style="padding:28px 12px"><div style="max-width:600px;margin:auto;background:#fff;border:1px solid #dfe8dc"><div style="background:#315c3a;padding:28px;color:#fff"><div style="font-size:13px;letter-spacing:2px;color:#dcebdc;font-weight:700">MEALMIND 膳解人意</div><h1 style="font-size:30px;margin:12px 0 4px">註冊成功！</h1><div style="color:#eaf4e8">你的惜食旅程，現在開動。</div></div><div style="padding:30px"><h2 style="font-size:23px;margin:0 0 14px">${html(user.name)}，讓美食不被錯過。</h2><p style="line-height:1.8;margin:0 0 24px">我們會依照你的預算、距離與飲食偏好，找出剛剛好的餐點，也讓即期美食多一次被選中的機會。</p><table role="presentation" style="width:100%;border-collapse:collapse"><tr><td style="padding:16px;background:#e9f4e6;border-bottom:8px solid #fff"><strong style="color:#2f6f3d">01　完成偏好</strong><br><span style="font-size:14px;color:#59655b">讓推薦更貼近你的日常</span></td></tr><tr><td style="padding:16px;background:#fff4d6;border-bottom:8px solid #fff"><strong style="color:#8c6615">02　探索即期美食</strong><br><span style="font-size:14px;color:#6d6250">用更划算的價格減少浪費</span></td></tr><tr><td style="padding:16px;background:#edf3f6"><strong style="color:#3f6877">03　累積惜食成果</strong><br><span style="font-size:14px;color:#59655b">每一餐都會留下改變</span></td></tr></table><p style="margin:26px 0 0;color:#68746a;font-size:14px;line-height:1.7">少一點猶豫，多一餐剛好。<br><strong>MealMind 膳解人意</strong></p></div></div></div></body></html>`,
+      text: `註冊成功！\n\n${user.name}，今天開始，讓美食不被錯過。\n\n膳解人意會依照你的預算、距離與飲食偏好，替你找到剛剛好的餐點，也讓即期美食多一次被選中的機會。\n\n${brandFooter}`,
+      html: `<!doctype html><html lang="zh-Hant"><body style="margin:0;background:#f2f6ef;font-family:Arial,'Microsoft JhengHei',sans-serif;color:#26382b"><div style="padding:28px 12px"><div style="max-width:600px;margin:auto;background:#fff;border:1px solid #dfe8dc"><div style="background:#315c3a;padding:28px;color:#fff"><div style="font-size:13px;letter-spacing:2px;color:#dcebdc;font-weight:700">MEALMIND 膳解人意</div><h1 style="font-size:30px;margin:12px 0 4px">註冊成功！</h1><div style="color:#eaf4e8">你的惜食旅程，現在開動。</div></div><div style="padding:30px"><h2 style="font-size:23px;margin:0 0 14px">${html(user.name)}，讓美食不被錯過。</h2><p style="line-height:1.8;margin:0 0 24px">我們會依照你的預算、距離與飲食偏好，找出剛剛好的餐點，也讓即期美食多一次被選中的機會。</p><table role="presentation" style="width:100%;border-collapse:collapse"><tr><td style="padding:16px;background:#e9f4e6;border-bottom:8px solid #fff"><strong style="color:#2f6f3d">01　完成偏好</strong><br><span style="font-size:14px;color:#59655b">讓推薦更貼近你的日常</span></td></tr><tr><td style="padding:16px;background:#fff4d6;border-bottom:8px solid #fff"><strong style="color:#8c6615">02　探索即期美食</strong><br><span style="font-size:14px;color:#6d6250">用更划算的價格減少浪費</span></td></tr><tr><td style="padding:16px;background:#edf3f6"><strong style="color:#3f6877">03　累積惜食成果</strong><br><span style="font-size:14px;color:#59655b">每一餐都會留下改變</span></td></tr></table><p style="margin:26px 0 0;color:#68746a;font-size:14px;line-height:1.7">少一點猶豫，多一餐剛好。<br>${brandFooterHtml}</p></div></div></div></body></html>`,
     }),
     sendOrderConfirmation: (notice) => transport.sendMail({
       from: env.SMTP_FROM, to: notice.memberEmail,
@@ -68,7 +76,7 @@ function createMailer(env = process.env) {
         intro: '付款已確認，商家正在為你保留這份美食。謝謝你讓即期美食多一次被好好享用的機會。',
         rows: itemRows(orderItems(notice)),
         summary: `<div style="font-size:14px;color:#6f5b28">本次訂單</div><div style="font-size:24px;font-weight:800;margin-top:5px">${Number(notice.totalQuantity)} 件 · ${money(notice.totalPrice)}</div>`,
-        footer: '請依 App 訂單紀錄向商家確認取餐資訊。每一次剛剛好的選擇，都能少一點浪費。<br><strong>MealMind 膳解人意</strong>',
+        footer: `請依 App 訂單紀錄向商家確認取餐資訊。每一次剛剛好的選擇，都能少一點浪費。<br>${brandFooterHtml}`,
       }),
     }),
     sendMerchantOrder: (notice) => {
@@ -86,7 +94,7 @@ function createMailer(env = process.env) {
           intro: '會員已完成付款，請確認品項並為會員保留餐點。',
           rows: itemRows(notice.items),
           summary: `<div style="font-weight:800">共 ${notice.items.reduce((sum, item) => sum + Number(item.quantity), 0)} 件餐點待準備</div>`,
-          footer: '請登入膳解人意商家端核對訂單與商品狀態。<br><strong>MealMind 膳解人意</strong>',
+          footer: `請登入膳解人意商家端核對訂單與商品狀態。<br>${brandFooterHtml}`,
         }),
       });
     },

@@ -107,4 +107,4 @@ test:mysql 會新增隨機測試會員、店家和餐點，測試兩個會員隔
 
 ## 未完成事項
 
-學校伺服器已透過 ngrok HTTPS 提供手機測試。綠界目前僅為 Stage 測試付款；正式商店資料、正式網域、退款、對帳與商家接單狀態仍未完成，見 [部署狀態](../docs/deployment_status.md)。
+學校伺服器已透過固定 Cloudflare Named Tunnel 提供手機測試。綠界目前僅為 Stage 測試付款；正式商店資料、退款、對帳與商家接單狀態仍未完成，見 [部署狀態](../docs/deployment_status.md)。

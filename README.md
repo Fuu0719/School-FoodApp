@@ -1,8 +1,8 @@
 # 膳解人意 Flutter App
 
-## 最新狀態（2026-10-14）
+## 最新狀態（2026-10-15）
 
-- 原始碼 App 版本為 `1.0.0+29`。會員／商家切換會以交易撤銷來源 session，登出會清除裝置上的兩種登入狀態；新會員即使尚無惜食點數也能查看全體排行榜。目前測試 APK 暫時改用 Cloudflare Quick Tunnel 連到學校 Windows Server 上的 Node.js API 與 MySQL。
+- 原始碼 App 版本為 `1.0.0+32`。會員／商家切換會以交易撤銷來源 session，登出會清除裝置上的兩種登入狀態；新會員即使尚無惜食點數也能查看全體排行榜。正式測試 APK 使用 `https://api.mealmind-app.online/api`，由 Cloudflare Named Tunnel Windows 服務連到學校伺服器。
 - 新版註冊在 Email 驗證成功前只保存 10 分鐘有效的待驗證資料，不會建立正式 `users` 會員。忘記密碼改為「驗證 Email」與「設定新密碼」兩個完整頁面。
 - 會員資料可不選頭像直接儲存；支援上傳、移除自訂 JPG／PNG 頭像，未設定時使用系統預設圖示。編輯資料後不會再次跳回 Email 驗證。
 - 全體惜食排行榜由現有會員與已付款訂單計算，顯示會員自訂或預設頭像；刪除會員後不保留排行榜快取。
@@ -10,7 +10,7 @@
 - 底部五個分頁重複點擊目前分頁時會回到頁面頂端。
 - 綠界 Stage 測試付款留在 App 內進行；成功後購買紀錄顯示「模擬訂單，已付款」。這是測試金流，不代表正式收款。
 - 付款成功後寄送會員訂單確認信。模擬商家的 `.test` 信箱不寄信，避免 Gmail 退信；尚未導入真實商家接單流程。
-- 學校資料庫目前已套用 migration `001` 至 `009`。本版新增 `010_merchant_account_linking.sql`，部署新版 API 前必須先套用；既有資料庫不可重匯 `schema.sql`。
+- 學校資料庫目前已套用 migration `001` 至 `010`；既有資料庫不可重匯 `schema.sql` 或重跑已完成 migration。
 - 商家商品可在編輯與上下架區直接刪除未上架商品；商家可編輯帳號資料及變更密碼。會員與商家帳號支援一對一綁定及雙向切換，未設定時維持未綁定狀態。
 - Windows Server 2016 沒有 `winget`，且不在目前 MySQL Workbench 官方支援範圍；資料庫日常管理使用 MySQL CLI，操作步驟見 [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)。
 
@@ -37,7 +37,7 @@
 - 結帳成功會先顯示約 1.8 秒的煙火過場、商品數量及總金額，再自動返回首頁。
 - 預算及距離設為「不限」時不會套用數值上限；搜尋頁無條件搜尋會列出所有仍上架、有庫存且未過期的商品。推薦頁另外排除目前未營業門市；會員有設定偏好標籤時，餐點必須至少符合其中一項，標籤同時參與排序。首頁則是推薦預覽，優先讓每個商家各顯示一項，最多五項。
 
-「膳解人意」以個人化餐飲推薦與即期食品減廢為目標，已具備 Flutter、Node.js API 與 MySQL 持久化。2026-10-07 已將目前版本、004 migration 與筆電測試資料搬至學校伺服器；手機透過 ngrok HTTPS 連到學校 API 與 MySQL，不再依賴開發筆電常駐。
+「膳解人意」以個人化餐飲推薦與即期食品減廢為目標，已具備 Flutter、Node.js API 與 MySQL 持久化。手機透過 `https://api.mealmind-app.online` 的 Cloudflare Named Tunnel 連到學校 API；Node 與 MySQL 仍只監聽本機。舊 ngrok 與 Cloudflare Quick Tunnel 已退出作用中架構，歷史見 [通道遷移紀錄](docs/tunnel_migration_history.md)。
 
 ## 目前已完成
 
@@ -126,7 +126,7 @@ flutter run -d <device-id> --dart-define=CLOUD_CATALOG=true --dart-define=API_BA
 
 ### 本機開發測試啟動
 
-以下只供需要改用筆電資料庫進行本機開發時使用。正常手機驗收已改連學校伺服器，不需在筆電開啟 API 或 ngrok。
+以下只供需要改用筆電資料庫進行本機開發時使用。正常手機驗收已改連學校伺服器，不需在筆電開啟 API 或額外通道。
 
 PowerShell 視窗 1（API）：
 
@@ -164,13 +164,13 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ### 使用學校資料測試
 
-目前原始碼 App 版本為 `1.0.0+31`，正式測試建置使用 `https://api.mealmind-app.online/api`。Cloudflare Tunnel 已安裝成自動啟動的 Windows 服務。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
+目前原始碼 App 版本為 `1.0.0+32`，正式測試建置使用 `https://api.mealmind-app.online/api`。Cloudflare Named Tunnel 已安裝成自動啟動的 Windows 服務。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
 
 ## 待完成與部署順序
 
 1. 完成手機行動網路下的會員、商家、上下架與綠界 Stage 付款最終回歸驗收。
 2. 建立定期異機備份並實際演練還原；目前已確認手動匯出與跨主機匯入，尚未完成排程及還原演練。
-3. 正式上線前申請正式金流商店資料、正式 HTTPS 網域並完成交易與退款流程；目前只可宣稱綠界測試付款。
+3. 正式上線前申請正式金流商店資料並完成交易與退款流程；固定 HTTPS 網域已完成，目前仍只可宣稱綠界測試付款。
 4. 將模擬商家改為真實商家前，補上接單狀態、商家通知信箱與營運管理流程。
 5. 學校借用期限依提供資料為 2026-12-31，需提前備份或申請續借。
 
@@ -179,10 +179,12 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ## 驗證與文件
 
-2026-10-14 最新驗收為：本版新增商家商品軟刪除、商家帳號管理及會員／商家一對一綁定。`flutter analyze` 無問題，Flutter 測試 126 通過／2 跳過，後端測試 56 通過／3 項真實 MySQL 整合測試跳過，`npm audit --omit=dev` 為 0 個漏洞。真實 MySQL 測試需先套用 migration `010`，目前尚未直接修改學校資料庫。
+2026-10-15 最新部署已使用固定 Cloudflare Named Tunnel，學校資料庫已套用 migration `010`。Email 寄件者改用經驗證的 `mealmind-app.online` 網域，禁止再以 Gmail 地址作為品牌寄件者。
 
 - [部署進度與未解決事項](docs/deployment_status.md)
 - [Windows 部署說明](backend/DEPLOY_WINDOWS.md)
+- [網域交易郵件設定](docs/email_delivery.md)
+- [HTTPS 通道遷移紀錄](docs/tunnel_migration_history.md)
 - [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)
 - [商家註冊與商品管理](backend/MERCHANT_MANAGEMENT.md)
 - [商品目錄](backend/CATALOG.md)

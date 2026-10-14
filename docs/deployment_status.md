@@ -1,6 +1,6 @@
 # 部署進度與未解決事項
 
-更新日期：2026-10-14。
+更新日期：2026-10-15。
 
 ## 學校伺服器現況
 
@@ -10,14 +10,14 @@
 | 專案 | `C:\School\my_app`，由 GitHub `main` 更新 |
 | API | `SchoolFoodAppApi` Windows 服務，自動啟動，監聽 `127.0.0.1:3000` |
 | MySQL | `MySQLFoodApp` Windows 服務，`127.0.0.1:3307`，資料庫 `shan_jie_ren_yi` |
-| HTTPS | ngrok Windows 服務，固定入口 `https://estimator-flagman-fidgeting.ngrok-free.dev` |
-| App | 最新原始碼為 `1.0.0+26`；新增品牌 icon 與啟動動畫 |
-| Migration | 學校已套用 `001` 至 `009`；本版 `010` 尚待套用 |
-| SMTP | Gmail SMTP 已設定；Email 驗證、歡迎信及會員訂單信已實際收信 |
+| HTTPS | Cloudflare Named Tunnel Windows 服務，固定入口 `https://api.mealmind-app.online` |
+| App | 最新原始碼為 `1.0.0+32`；固定 API 網址及完整品牌識別 |
+| Migration | 學校已套用 `001` 至 `010`，不得重跑 |
+| SMTP | 正在由 Gmail 遷移至驗證過的 `mealmind-app.online` 交易郵件寄件網域 |
 | 測試付款 | 綠界 Stage；App 內完成流程，成功訂單標記 `paid` |
 | 資料庫管理 | 使用 MySQL CLI；自製資料庫檢視器已撤銷，不再部署 |
 
-Node.js 與 MySQL 僅監聽本機，不直接對外開放。手機流量由同機 ngrok agent 建立 HTTPS 通道轉送至 API。Windows 服務不會自動拉取 GitHub 更新，每次部署仍須人工停止 API、拉取、安裝依賴、檢查並重啟。
+Node.js 與 MySQL 僅監聽本機，不直接對外開放。手機流量由同機 Cloudflare Named Tunnel 建立 HTTPS 通道轉送至 API。ngrok 與 Cloudflare Quick Tunnel 已退出作用中架構。Windows 服務不會自動拉取 GitHub 更新，每次部署仍須人工停止 API、拉取、安裝依賴、檢查並重啟。
 
 ## 已完成
 
@@ -36,8 +36,9 @@ Node.js 與 MySQL 僅監聽本機，不直接對外開放。手機流量由同�
 
 ## 尚未完成或不可宣稱
 
-- `1.0.0+26` APK 尚待手機安裝驗收；學校 API 與 migration `009` 已部署完成。
-- 綠界目前是 Stage 測試環境，不是正式收款；尚未完成正式商店申請、正式網域、退款及對帳流程。
+- `1.0.0+32` APK 尚待手機安裝驗收；學校 API、固定網域與 migration `010` 已部署完成。
+- 綠界目前是 Stage 測試環境，不是正式收款；尚未完成正式商店申請、退款及對帳流程。
+- 網域寄件者需完成交易郵件服務商的 SPF／DKIM 驗證及學校端 SMTP 金鑰更新，舊 Gmail 寄件者不得再使用。
 - 商家資料目前仍以模擬資料為主，尚未導入真實商家接單狀態與營運通知流程。
 - 模擬餐點使用六類共用分類圖片，不是真實餐點逐筆照片。
 - 後端 `/api/recommendations` 仍回應 501，推薦由 App 現有規則與目錄資料完成，不能宣稱完整雲端 AI 推薦引擎。
@@ -49,7 +50,7 @@ Node.js 與 MySQL 僅監聽本機，不直接對外開放。手機流量由同�
 
 1. 更新前先建立專案外的資料庫備份，並確認檔案存在且大小大於 0。
 2. 不覆蓋 `backend/.env`，不把 SMTP、資料庫或綠界密鑰提交到 Git。
-3. 本版部署前先備份，再執行一次 `010_merchant_account_linking.sql`；現有 `001` 至 `009` 不得重跑。
+3. 現有 `001` 至 `010` 均已完成，不得重跑；只有新版明確新增 migration 才在備份後執行。
 4. `npm.cmd run db:check`、後端測試與服務狀態都成功後，再驗證公開 `/api/health`。
 5. 編譯成功不等於手機驗收；會員、商家、付款與 Email 流程仍需以實機操作確認。
 

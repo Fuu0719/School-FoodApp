@@ -1,9 +1,9 @@
 # 膳解人意 Backend
 
 會員、商品目錄、會員活動與商家管理 API 使用 MySQL；推薦 API 尚未完成。商家可自行註冊並直接啟用，登入後再新增一間或多間門市。舊版客戶端在註冊時附帶首間門市的格式仍相容。
-初始化或升級請依部署文件核對結構，勿重匯 schema。學校現有環境已套用 migration `001` 至 `009`；部署本版前需再套用 `010_merchant_account_linking.sql`。通過 db:check 才啟動新版 API。
+初始化或升級請依部署文件核對結構，勿重匯 schema。學校現有環境已套用 migration `001` 至 `010`，不得重跑。通過 db:check 才啟動新版 API。
 
-部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)，日常查詢、備份與測試會員刪除見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
+部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)，網域寄件設定見 [Email 設定](../docs/email_delivery.md)，日常查詢、備份與測試會員刪除見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
 
 ## 啟動
 
@@ -45,7 +45,7 @@ PUT /api/me 接受完整的 name、phone、avatarKey、heightCm、weightKg、hea
 healthGoal 為 maintain、muscleGain 或 fatLoss；預算和距離可為 null（不限）。
 不接受透過 body 的 id 指定其他會員，Email 修改尚未開放。
 
-SMTP 由 `.env` 的 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM` 設定；Gmail 必須使用應用程式密碼，禁止提交實際密碼。Email 驗證完成後會寄歡迎信；綠界確認付款成功後才寄會員與商家訂單通知。
+SMTP 由 `.env` 的 `SMTP_HOST`、`SMTP_PORT`、`SMTP_SECURE`、`SMTP_USER`、`SMTP_PASSWORD`、`SMTP_FROM`、`SMTP_ALLOWED_FROM_DOMAIN` 設定。正式寄件者必須是已驗證的 `mealmind-app.online` 網域；舊 Gmail 寄件者會被停用。`APP_PUBLIC_URL` 會顯示在 Email 內容。密鑰禁止提交 Git。Email 驗證完成後會寄歡迎信；綠界確認付款成功後才寄會員與商家訂單通知。
 
 綠界由 `PUBLIC_BASE_URL`、`ECPAY_MERCHANT_ID`、`ECPAY_HASH_KEY`、`ECPAY_HASH_IV`、`ECPAY_GATEWAY_URL` 設定。測試環境使用綠界 Stage URL；正式上線必須換成正式商店資料及正式 Gateway。HashKey、HashIV 只存後端 `.env`。`PUBLIC_BASE_URL` 必須是綠界可連入的 HTTPS 網址，付款成立只採信 `/api/payments/ecpay/return` 的 CheckMacValue 驗證結果。
 
@@ -61,7 +61,7 @@ MySQL 收藏、瀏覽與訂單端點已提供，詳見 [會員活動 API 與遷�
 商家帳號與商品管理使用獨立驗證及 MySQL 寫入，需套用 003；刪除門市功能另需 004；商品軟刪除及會員／商家一對一綁定需套用 010，見 [商家管理與部署](MERCHANT_MANAGEMENT.md) 與 [門市刪除](STORE_DELETION.md)。商品分類是不跨商家的自訂文字，會從該商家現有商品彙整選項。
 其他尚未實作正式驗證的原型寫入與回饋端點仍回應 501；僅舊原型測試顯式開啟。
 App 預設保留展示商品；Cloud Catalog 版改讀 MySQL 目錄、雲端收藏、瀏覽、排行榜及訂單。綠界 Stage 成功回傳後訂單標記為 `paid`，App 顯示「模擬訂單，已付款」；這不等於正式金流或商家接單。購物車與部分搜尋狀態仍在裝置端。
-學校伺服器已透過 ngrok 固定 HTTPS 網址供手機測試，狀態追蹤見 [部署進度](../docs/deployment_status.md)。
+學校伺服器已透過 Cloudflare Named Tunnel 與固定網址 `https://api.mealmind-app.online` 供手機測試，狀態追蹤見 [部署進度](../docs/deployment_status.md)。
 
 ## 實作參考
 

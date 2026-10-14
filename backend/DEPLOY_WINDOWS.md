@@ -3,7 +3,7 @@
 ## 目前範圍
 
 會員註冊、Email 驗證、登入、登出、個人資料、頭像與飲食偏好已使用 MySQL。雲端模式已串接商品、收藏、瀏覽、排行榜、訂單、綠界 Stage 測試付款及獨立商家商品管理。
-學校現有資料庫已套用 migration `001` 至 `009`，不可重跑，也不可重新匯入 `schema.sql`。部署本版時必須先備份，再執行一次 `010_merchant_account_linking.sql`。
+學校現有資料庫已套用 migration `001` 至 `010`，不可重跑，也不可重新匯入 `schema.sql`。
 資料庫查詢、備份及刪除測試會員的完整步驟見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
 
 ## 學校伺服器更新
@@ -78,21 +78,39 @@ VS Code 選 Flutter Member API (Debug)，選已啟動的 Android 裝置，按 F5
 同一台開發電腦的 Android 模擬器連本機 API 使用 http://10.0.2.2:3000/api。
 這個位址不會指向學校雲端伺服器。
 
-學校 API 維持綁定 127.0.0.1:3000，MySQL 維持 127.0.0.1:3307；兩者都不直接對外開放。2026-10-07 已在同一台主機安裝 ngrok Windows 服務，固定 HTTPS 入口為 `https://estimator-flagman-fidgeting.ngrok-free.dev`，再轉送至本機 API。App 的 API_BASE_URL 須包含 `/api`。
+學校 API 維持綁定 `127.0.0.1:3000`，MySQL 維持 `127.0.0.1:3307`；兩者都不直接對外開放。固定 HTTPS 入口為 `https://api.mealmind-app.online`，由 Cloudflare Named Tunnel Windows 服務轉送至本機 API。App 的 `API_BASE_URL` 須包含 `/api`。
 
-`MySQLFoodApp`、`SchoolFoodAppApi` 與 `ngrok` 已驗證為 Automatic，且在整台主機重開後自行恢復 Running。PowerShell 5 測試 ngrok HTTPS 前需指定 TLS 1.2，並帶免費入口略過標頭：
+`MySQLFoodApp`、`SchoolFoodAppApi` 與 `cloudflared` 均設為 Automatic。PowerShell 驗證：
 
 ```powershell
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-Invoke-RestMethod "https://estimator-flagman-fidgeting.ngrok-free.dev/api/health" `
-  -Headers @{"ngrok-skip-browser-warning"="true"}
+Get-Service MySQLFoodApp, SchoolFoodAppApi, cloudflared
+Invoke-RestMethod "https://api.mealmind-app.online/api/health"
 ```
 
 命令列也可指定網址：
 
 ```powershell
-flutter run --dart-define=API_BASE_URL=https://YOUR_API_HOST/api
+flutter run --dart-define=CLOUD_CATALOG=true `
+  --dart-define=API_BASE_URL=https://api.mealmind-app.online/api
 ```
+
+## 正式 Email 與付款網址
+
+正式品牌寄件者使用 `noreply@mealmind-app.online`，不得再使用 Gmail 地址。先在交易郵件服務商驗證 `mealmind-app.online`，將服務商提供的 SPF、DKIM 等 DNS 紀錄加到 Cloudflare，驗證通過後才更新學校端 `.env`：
+
+```dotenv
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=resend
+SMTP_PASSWORD=由郵件服務商建立的API金鑰
+SMTP_FROM=MealMind 膳解人意 <noreply@mealmind-app.online>
+SMTP_ALLOWED_FROM_DOMAIN=mealmind-app.online
+APP_PUBLIC_URL=https://mealmind-app.online
+PUBLIC_BASE_URL=https://api.mealmind-app.online
+```
+
+`.env` 不可提交 Git。更新後先執行寄信測試，再重啟正式 API。舊通道停用及稽核方式見 [通道遷移紀錄](../docs/tunnel_migration_history.md)。
 
 新增安全儲存外掛後需停止 App 再完整編譯，Hot Reload 無法載入新原生外掛。
 Windows 桌面外掛的符號連結錯誤需在開發電腦處理；與伺服器 MySQL 無關。
@@ -109,6 +127,6 @@ Windows 桌面外掛的符號連結錯誤需在開發電腦處理；與伺服器
 
 ## 待完成項目
 
-外部 HTTPS、migration `001` 至 `009`、資料搬移、SMTP、綠界 Stage 與三項 Windows 服務均已部署；本版 `010` 尚待套用及真實 MySQL 回歸測試。App `1.0.0+26` 尚待手機安裝驗收。仍需完成正式金流申請及退款／對帳流程、真實商家接單流程、定期異機備份與還原演練。
+固定 HTTPS、migration `001` 至 `010`、資料搬移、綠界 Stage 與必要 Windows 服務均已部署。App `1.0.0+32` 尚待手機安裝驗收。網域交易郵件需完成 SPF／DKIM 驗證及 SMTP 切換；仍需完成正式金流申請及退款／對帳流程、真實商家接單流程、定期異機備份與還原演練。
 目前登入憑證有效七天，資料庫只存 SHA-256 摘要；每次請求查驗效期，登出即撤銷該憑證。
 App 安全儲存憑證，不保存會員密碼。密碼使用 Node.js scrypt 加上隨機 salt。
