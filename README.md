@@ -136,21 +136,15 @@ npm.cmd run db:check
 npm.cmd start
 ```
 
-PowerShell 視窗 2（HTTPS 通道）：
-
-```powershell
-ngrok http 3000
-```
-
-啟動後依序檢查 `http://127.0.0.1:3000/api/health` 與 ngrok 顯示的 `https://.../api/health`。兩者都回應 `status: ok` 才開啟 App。目前 APK 內建的測試網址是 `https://estimator-flagman-fidgeting.ngrok-free.dev/api`；若 ngrok 免費網址改變，必須用新網址重新打包 APK。
+學校伺服器的 HTTPS 通道由 `cloudflared` Windows 服務自動維持。啟動後依序檢查 `http://127.0.0.1:3000/api/health` 與 `https://api.mealmind-app.online/api/health`。兩者都回應 `status: ok` 才開啟 App。正式測試 APK 使用固定網址 `https://api.mealmind-app.online/api`。
 
 一般重開機不需要重跑 `npm ci`、資料庫遷移或 Flutter 打包。只有更新程式或依賴時才需要 `npm ci`；只有新版明確新增遷移時才能在備份後套用。不可重匯 `schema.sql`，也不要重跑已完成的 migration。
 
-本機測試時筆電需保持開機、聯網且不進入睡眠；關閉 API 或 ngrok 任一視窗，本機入口就會中斷。請勿讓筆電與學校伺服器同時占用相同 ngrok 固定網址。
+本機測試時筆電需保持開機、聯網且不進入睡眠。學校伺服器正式入口由 Cloudflare Tunnel Windows 服務維持，不需要保留互動式 PowerShell 視窗。
 
 ## 學校伺服器現況與用途
 
-以下是 2026-10-07 的部署驗收紀錄，不是即時監控。
+以下是 2026-10-15 的部署驗收紀錄，不是即時監控。
 
 | 項目 | 最後已知狀態 |
 | --- | --- |
@@ -159,18 +153,18 @@ ngrok http 3000
 | API | SchoolFoodAppApi，Running／Auto／LocalService，127.0.0.1:3000 |
 | 專案 MySQL | 3307、shan_jie_ren_yi、food_app 應用帳號 |
 | 原有服務 | AppServ MySQL 3306、Apache 80，與專案分開，勿任意變更 |
-| 遷移 | `001` 至 `009` 已套用；本版 `010` 尚待部署 |
+| 遷移 | `001` 至 `010` 已套用；`010` 不可重複執行 |
 | 資料 | 筆電完整測試資料已匯入學校 MySQL；匯入前已建立學校端備份 |
-| HTTPS | ngrok Windows 服務，固定網址 `https://estimator-flagman-fidgeting.ngrok-free.dev` |
-| 開機驗收 | MySQLFoodApp、SchoolFoodAppApi、ngrok 均為 Running／Automatic；整台主機重開後公開健康檢查通過 |
-| 測試 | 學校 MySQL 整合測試 24 項全數通過；公開 `/api/health` 回傳 `ok` |
+| HTTPS | Cloudflare Tunnel Windows 服務，固定網址 `https://api.mealmind-app.online` |
+| 開機驗收 | MySQLFoodApp、SchoolFoodAppApi、cloudflared 均為 Running／Automatic；固定網址公開健康檢查通過 |
+| 測試 | 學校 MySQL 整合測試 27 項全數通過；公開 `/api/health` 回傳 `ok` |
 
 目前已提供集中保存會員、偏好、收藏、瀏覽、模擬訂單、商家與餐點的基礎，也已在真實 MySQL 驗證帳號隔離、交易及庫存處理。
 API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已完成整台主機重開驗證，但 Windows 服務不會自動更新程式或手機安裝包。
 
 ### 使用學校資料測試
 
-目前原始碼 App 版本為 `1.0.0+29`，臨時測試建置使用 `https://nation-rebates-eye-campus.trycloudflare.com/api`。這是 Cloudflare Quick Tunnel 隨機網址，程序停止或重新建立 Tunnel 後可能失效，不能視為正式固定入口。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
+目前原始碼 App 版本為 `1.0.0+30`，正式測試建置使用 `https://api.mealmind-app.online/api`。Cloudflare Tunnel 已安裝成自動啟動的 Windows 服務。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
 
 ## 待完成與部署順序
 
