@@ -88,21 +88,24 @@ class MemoryUsers {
 }
 
 async function serve(t, repository) {
+  const deliveredCodes = repository.deliveredCodes || new Map();
   const mailer = {
     configured: true,
-    async sendVerification(email, code) { repository.deliveredCodes.set(`verify_email:${email}`, code); },
-    async sendPasswordReset(email, code) { repository.deliveredCodes.set(`reset_password:${email}`, code); },
+    async sendVerification(email, code) { deliveredCodes.set(`verify_email:${email}`, code); },
+    async sendPasswordReset(email, code) { deliveredCodes.set(`reset_password:${email}`, code); },
   };
   const server = createApp({ userRepository: repository, mailer }).listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   t.after(() => new Promise((resolve) => server.close(resolve)));
-  return async (path, method = 'GET', body, token) => {
+  const call = async (path, method = 'GET', body, token) => {
     const response = await fetch(`http://127.0.0.1:${server.address().port}/api${path}`, {
       method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     return { status: response.status, body: await response.json() };
   };
+  call.deliveredCodes = deliveredCodes;
+  return call;
 }
 
 async function memberFlow(t, repository, email) {
@@ -113,7 +116,7 @@ async function memberFlow(t, repository, email) {
   assert.equal(await repository.credentials(email), undefined);
   assert.equal((await call('/auth/register', 'POST', { ...registration, email: email.toUpperCase() })).status, 201);
   const verification = await call('/auth/verify-email', 'POST', {
-    email, code: repository.deliveredCodes.get(`verify_email:${email}`),
+    email, code: call.deliveredCodes.get(`verify_email:${email}`),
   });
   assert.equal(verification.status, 200);
   const record = await repository.credentials(email);

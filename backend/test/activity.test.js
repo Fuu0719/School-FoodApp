@@ -151,7 +151,7 @@ test('MySQL integration: member activity isolation, persistence, snapshots and c
   assert.deepEqual(parallel.map((r) => r.status).sort(), [200, 201]);
   const order = parallel[0].body.order;
   assert.equal(order.totalPrice, 200);
-  assert.equal(order.paymentStatus, 'not_processed');
+  assert.equal(order.paymentStatus, 'pending');
   assert.equal(parallel[1].body.order.id, order.id);
   let [stock] = await pool.execute('SELECT stock_count FROM foods WHERE id = ?', [foods[0]]);
   assert.equal(stock[0].stock_count, 8);
