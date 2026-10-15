@@ -1,41 +1,24 @@
-# Store deletion
+# 門市刪除
 
-## Upgrade
+## 現行狀態
 
-Back up the target database. Apply `database/migrations/004_store_deletion.sql`
-with an administrator connection, then run `npm run db:check` and restart the API.
-The application account needs no additional privileges. The migration can be rerun.
-Fresh databases created with the current schema already have `stores.deleted_at`.
+學校資料庫已套用 migration `001` 至 `010`，包含門市邏輯刪除所需的 `004_store_deletion.sql`。學校伺服器不得重新執行 `004` 或重匯 `schema.sql`。只有尚未套用此結構的舊環境，才可在完整備份後由管理員執行一次 migration，接著執行 `npm.cmd run db:check` 並重啟 API。
 
-## API
+## API 行為
 
-`DELETE /api/merchant/stores/:id` requires the owning merchant's bearer token.
-Returns the updated merchant account with its remaining stores. Invalid IDs return
-400; missing/foreign stores return 404; member tokens cannot perform this action.
-Repeating a successful deletion with the same owner and store ID returns 200.
+`DELETE /api/merchant/stores/:id` 需要門市所屬商家的 Bearer token。成功後回傳剩餘門市；格式錯誤回傳 400，不存在或不屬於登入商家的門市回傳 404，會員 token 無權執行。
 
-One transaction locks the active merchant and owned store, pauses every product
-regardless of its prior status, advances product revisions and marks the store deleted.
-Failure rolls back both changes. Existing product and order rows are retained for
-historical references. This is logical deletion, not physical database erasure.
-There is no restore endpoint. A newly created store can reuse the name/address but
-receives a new ID and does not inherit deleted products.
+刪除採資料庫交易與邏輯刪除：鎖定商家及門市、停止該門市全部商品、增加商品 revision，再標記門市已刪除。任一步失敗會整批回復。既有商品及訂單列仍保留作歷史參照，App 不提供復原功能；重新建立同名門市會取得新 ID，也不會繼承已刪除商品。
 
-Deleted stores/products are excluded from merchant management, public catalogues,
-favorites and browsing history. New draft creation, publication and checkout are
-rejected. Previously committed orders and idempotent retries of those orders remain
-readable. Concurrent checkout/deletion is transactional; a deadlock may require
-retrying the failed request, never dropping order history to force deletion.
+已刪除門市與商品不會出現在商家管理、公開目錄、收藏及瀏覽清單，也不可建立草稿、重新上架或結帳。既有訂單及其快照仍可讀取。其他裝置若仍有舊快取，重新整理後才會消失，但伺服器會拒絕使用舊購物車結帳。
 
-## App verification
+## 驗收
 
-Merchant products -> store management -> trash icon -> confirmation.
-Cancel sends no request. Failure retains the current store and products and shows
-an error. Success removes the store's cached products and pending draft. Refresh
-also synchronizes stores removed on another device. Other stores are preserved.
-Member catalogues cached on other devices need refreshing; the server always
-rejects new checkout against a deleted store, even with stale cart contents.
+使用專用測試門市建立草稿與上架商品，完成一張測試訂單後，在商家「門市管理」點擊刪除並確認：
 
-Test with a disposable store: add draft and active products, place a test order,
-delete the store, verify its products disappear and the old order still loads.
-Do not confuse this operation with an administrator's full test-database reset.
+1. 該門市及商品從商家頁與會員目錄消失。
+2. 舊訂單仍可讀取。
+3. 其他門市與商品不受影響。
+4. 舊購物車不可再次購買已刪除門市商品。
+
+此功能不是管理員清空測試資料。批次刪除會員、商家或重建測試資料前，必須依 [資料庫操作手冊](DATABASE_OPERATIONS.md) 備份並確認範圍。

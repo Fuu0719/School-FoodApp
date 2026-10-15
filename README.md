@@ -2,7 +2,7 @@
 
 ## 最新狀態（2026-10-15）
 
-- 原始碼 App 版本為 `1.0.0+32`。會員／商家切換會以交易撤銷來源 session，登出會清除裝置上的兩種登入狀態；新會員即使尚無惜食點數也能查看全體排行榜。正式測試 APK 使用 `https://api.mealmind-app.online/api`，由 Cloudflare Named Tunnel Windows 服務連到學校伺服器。
+- 原始碼 App 版本為 `1.0.0+34`。會員／商家切換會以交易撤銷來源 session，登出會清除裝置上的兩種登入狀態；新會員即使尚無惜食點數也能查看全體排行榜。正式測試 APK 使用 `https://api.mealmind-app.online/api`，由 Cloudflare Named Tunnel Windows 服務連到學校伺服器。
 - 新版註冊在 Email 驗證成功前只保存 10 分鐘有效的待驗證資料，不會建立正式 `users` 會員。忘記密碼改為「驗證 Email」與「設定新密碼」兩個完整頁面。
 - 會員資料可不選頭像直接儲存；支援上傳、移除自訂 JPG／PNG 頭像，未設定時使用系統預設圖示。編輯資料後不會再次跳回 Email 驗證。
 - 全體惜食排行榜由現有會員與已付款訂單計算，顯示會員自訂或預設頭像；刪除會員後不保留排行榜快取。
@@ -49,7 +49,7 @@
 - 一般會員真實註冊、登入、登出、個人資料與偏好保存
 - 雲端收藏、瀏覽及模擬訂單，依會員隔離
 - 下單使用資料庫價格、交易、庫存鎖定與識別碼防重複送單
-- 商家獨立註冊／登入、第一間門市、草稿新增／編輯／上架／下架
+- 商家獨立註冊／登入；登入後可新增多間門市及管理草稿、上架與下架
 - 商家可新增、編輯多間門市，刪除門市及其全部商品，並建立自訂食物分類
 - 商家可刪除未上架商品、編輯商家資料、修改密碼；會員與商家帳號可一對一綁定並互相切換
 - 會員、商家與門市電話的選填格式驗證
@@ -164,7 +164,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ### 使用學校資料測試
 
-目前原始碼 App 版本為 `1.0.0+32`，正式測試建置使用 `https://api.mealmind-app.online/api`。Cloudflare Named Tunnel 已安裝成自動啟動的 Windows 服務。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
+目前原始碼 App 版本為 `1.0.0+34`，正式測試建置使用 `https://api.mealmind-app.online/api`。Cloudflare Named Tunnel 已安裝成自動啟動的 Windows 服務。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
 
 ## 待完成與部署順序
 
@@ -185,6 +185,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 - [總審技術、報告檢查與答辯總整理](docs/final_review_master_guide.md)
 - [總審人工智慧與推薦問答](docs/final_review_qa.md)
+- [專案收尾稽核與文件索引](docs/project_closeout_audit.md)
 - [部署進度與未解決事項](docs/deployment_status.md)
 - [Windows 部署說明](backend/DEPLOY_WINDOWS.md)
 - [網域交易郵件設定](docs/email_delivery.md)

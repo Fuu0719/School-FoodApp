@@ -1,19 +1,16 @@
 # 商家帳號與商品管理
 
-## 本機驗證
+## 驗證基準
 
-2026-09-10：flutter analyze 無問題；完整 Flutter 測試 96 項通過、2 項僅雲端旗標測試跳過。
-以 CLOUD_CATALOG=true 執行雲端商品、會員活動與商家測試共 24 項，全數通過；Android debug APK 編譯成功。
-編譯檢查未指定正式 API_BASE_URL，不能直接當作學校正式安裝包。
-後端 npm test 34 項通過、3 項真實 MySQL 測試跳過；其中 3 項通過的 VPN 測試是原有工作目錄修改，未納入本次提交。
-帳號建立 PowerShell 已通過語法檢查，未在本機執行建立帳號。此電腦未提供 MySQL 執行環境，003 遷移、真實 SQL 整合與學校帳號建立仍待驗收。
+2026-10-15：Flutter tests 125 項通過、2 項跳過；後端 `npm.cmd test` 60 項通過、3 項需真實 MySQL 的整合測試跳過。學校伺服器的 migration `001` 至 `010` 及 MySQL 整合測試已完成。
+本次 `flutter analyze` 因 Windows Developer Mode 未啟用、插件無法建立 symlink 而未完成；修正環境後須重跑。APK 編譯與自動測試都不能取代正式 API 的手機實機驗收。
 
 ## 範圍與限制
 
 雲端模式的商家登入與一般會員分開。商家使用 scrypt 密碼雜湊、隨機 256-bit token、獨立 merchant_sessions；只保存 token 的 SHA-256 雜湊，有效期 8 小時。
 登入有限流；停用商家、過期或已撤銷 session 無法管理商品。一般會員 token 不可使用商家 API，商家 token 也不等於會員登入。
-2026-09-15 起採商家自行註冊，不需審核。App 雲端模式的商家登入頁可選「註冊商家帳號」，填寫帳號密碼、商家與第一間門市資料及營業日。註冊成功後返回登入頁，以新帳號登入。
-後端在同一交易建立 active 商家、新門市及營業日；失敗全部回復。一般會員與商家分別存放於 users、merchants，同一 Email 可各自註冊，但密碼及登入 session 不共用。客戶端不可指定既有門市所有權或管理員角色。
+2026-09-15 起採商家自行註冊，不需審核。現行 App 先填寫 Email、密碼、商家名稱及選填電話建立 active 商家帳號；登入後再從門市管理新增一間或多間門市。後端仍相容舊客戶端在註冊時附帶第一間門市的格式。
+一般會員與商家分別存放於 users、merchants，同一 Email 可各自註冊，但密碼及登入 session 不共用。客戶端不可指定既有門市所有權或管理員角色。
 此階段可新增草稿、列出／編輯自有商品、上架與下架；不是金流、商家訂單接單、圖片檔案上傳、Email 驗證或忘記密碼功能。
 
 商品包含名稱、分類、售價／原價、庫存、營養、食材、標籤、HTTPS 圖片網址與即期期限。
@@ -27,7 +24,7 @@ eco_priority_score 由後端暫定規則計算（即期品 0.8，其餘 0），�
 
 | Method | 路徑 | 用途 |
 | --- | --- | --- |
-| POST | /api/merchant/auth/register | email/password、businessName、storeName、address、businessHours、businessWeekdays（1–7）、contactPhone（選填）；成功 201，重複商家 Email 409 |
+| POST | /api/merchant/auth/register | 現行格式為 email/password、businessName、contactPhone（選填）；成功 201，重複商家 Email 409。舊版附帶門市欄位仍相容 |
 | POST | /api/merchant/auth/login | email/password；只有 active 商家可登入 |
 | POST | /api/merchant/auth/logout | 撤銷目前商家 token |
 | GET | /api/merchant/me | 商家資料及其可管理門市 ID，不回傳密碼 |
@@ -142,4 +139,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\provision_merchant
 使用 Flutter Cloud Catalog (Debug) 及獲核准的 HTTPS API 網址；展示模式仍只建立本機展示草稿。
 商家入口以剛建立的帳號登入，新增草稿後應可重新登入讀回。選擇上架後，重新載入公開目錄應可看到可售商品。
 下架後公開目錄不再顯示，修改後須重新上架。另一商家不應讀取或修改它。
-目前外部防火牆／HTTPS 仍未解決，不能宣稱真機上架、跨裝置或接單已驗收。
+固定 Cloudflare HTTPS 已完成；仍須依最新版 APK 執行商家註冊、門市與商品管理的實機回歸。真實商家接單流程尚未完成。
