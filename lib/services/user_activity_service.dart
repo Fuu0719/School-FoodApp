@@ -509,7 +509,12 @@ class UserActivityService extends ChangeNotifier {
   }
 
   Future<bool> refreshOrders() async {
-    if (!isCloud || _cloudApi == null || _busy) return false;
+    if (!isCloud || _cloudApi == null) return false;
+    final generation = _generation;
+    while (_busy) {
+      await _operationDone;
+      if (generation != _generation || _cloudApi == null) return false;
+    }
     final page = await _cloudOperation((api) => api.orders(), (page) {
       _purchaseRecords
         ..clear()

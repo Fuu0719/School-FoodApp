@@ -351,6 +351,47 @@ void main() {
   );
 
   test(
+    'order refresh waits for an active sync instead of being dropped',
+    () async {
+      final source = await catalog();
+      final pendingFavorite = Completer<http.Response>();
+      var exposeOrder = false;
+      final service = await connect(
+        source,
+        wire((request) async {
+          if (request.method == 'PUT') return pendingFavorite.future;
+          if (request.method == 'GET' && request.url.path.endsWith('/orders')) {
+            return response({
+              'items': exposeOrder
+                  ? [
+                      {'id': '77'},
+                    ]
+                  : [],
+              'nextCursor': null,
+            });
+          }
+          if (request.method == 'GET' &&
+              request.url.path.endsWith('/orders/77')) {
+            return response({...receipt(), 'paymentStatus': 'paid'});
+          }
+          return null;
+        }),
+      );
+
+      exposeOrder = true;
+      final favorite = service.toggleFavorite(source.allFoods.single);
+      final orders = service.refreshOrders();
+      await Future<void>.delayed(Duration.zero);
+      expect(service.completedPurchaseRecords, isEmpty);
+
+      pendingFavorite.complete(response({'message': 'ok'}));
+      expect(await favorite, true);
+      expect(await orders, true);
+      expect(service.completedPurchaseRecords.single.id, '77');
+    },
+  );
+
+  test(
     '401 clears actual profile and stored session without exposing another account',
     () async {
       final source = await catalog();
