@@ -1,192 +1,138 @@
-# 膳解人意後端與 API 規劃
+# 現行後端 API 與資料流
 
-## 目前階段
+更新日期：2026-10-15。
 
-目前我們先完成 Flutter 前端原型，包含首頁推薦、搜尋、轉盤、收藏紀錄與會員中心。因為學校雲端伺服器還沒有正式串接，所以現階段先用 mock data 測試功能流程，確認畫面與資料欄位是否符合初審文件需求。
+本文件原為早期 API 規劃稿，現已依實際程式更新。正式測試環境不是純前端 mock：Flutter App 透過 `https://api.mealmind-app.online/api` 呼叫部署在學校 Windows Server 的 Node.js REST API，會員、商家、商品與活動資料保存於 MySQL。展示模式及分類共用圖片仍保留給離線畫面測試。
 
-接下來會先用本機後端 API 與 mock data 驗證流程，資料庫則先完成 `backend/database/schema.sql` 規劃。正式資料庫建議直接建置在學校雲端伺服器，本機不必先架正式 MySQL；若需要離線除錯，再用同一份 schema 建一個臨時本機資料庫即可。
+## 系統邊界
 
-這份文件主要用來整理後端之後要提供哪些資料給 App。前端目前已經先做出可操作的流程，但資料仍是寫在本機端，因此下一步需要把餐點、會員、收藏、瀏覽紀錄與推薦結果整理成 API，讓系統架構逐漸接近初審文件中規劃的完整版本。
+```text
+Flutter Android App
+  -> HTTPS / JSON / Bearer token
+Cloudflare DNS + TLS + Named Tunnel
+  -> 127.0.0.1:3000
+Node.js + Express API
+  -> mysql2 prepared statements / transactions
+MySQL 127.0.0.1:3307
 
-## 本階段目的
-
-- 先確認 Flutter App 需要哪些資料欄位，避免後端資料表設計後才發現前端不夠用。
-- 先在本機完成 API 與 mock data 測試，降低一開始就依賴伺服器造成的除錯成本。
-- 資料庫以學校雲端 MySQL 為正式環境，避免本機資料庫設定與雲端環境不一致。
-- 讓推薦、搜尋、收藏、瀏覽紀錄這些功能未來可以從 mock data 平順改成資料庫資料。
-- 保留學校雲端伺服器作為展示與正式測試環境，而不是目前開發初期就直接依賴它。
-
-## 開發順序
-
-1. 前端先固定資料模型
-   - `FoodItem`
-   - `UserProfile`
-   - `UserPreference`
-   - 收藏與瀏覽紀錄
-
-2. 本機後端 API
-   - 先使用 mock data 與測試確認 API 格式
-   - API 回傳格式對齊 Flutter model
-   - App 逐步從 mock repository 改成 API repository
-
-3. 學校雲端伺服器
-   - 部署 API
-   - 依照 `backend/database/schema.sql` 部署 MySQL 或連接學校提供的資料庫
-   - App 改用正式伺服器網址
-
-## API 清單
-
-### Auth / Member
-
-| Method | Path | 用途 |
-| --- | --- | --- |
-| POST | `/api/auth/register` | 會員註冊 |
-| POST | `/api/auth/login` | 會員登入 |
-| POST | `/api/auth/logout` | 登出 |
-| GET | `/api/me` | 取得目前會員資料 |
-| PUT | `/api/me` | 更新會員基本資料 |
-| GET | `/api/me/preferences` | 取得飲食偏好 |
-| PUT | `/api/me/preferences` | 更新飲食偏好、預算、距離 |
-
-### Merchant / Admin
-
-| Method | Path | 用途 |
-| --- | --- | --- |
-| POST | `/api/merchant/auth/login` | 商家登入 |
-| GET | `/api/merchant/me` | 取得商家資料與可管理門市 |
-| GET | `/api/merchant/product-drafts` | 取得商家上架草稿 |
-| POST | `/api/merchant/product-drafts` | 建立商品上架草稿 |
-
-### Foods / Stores
-
-| Method | Path | 用途 |
-| --- | --- | --- |
-| GET | `/api/foods` | 取得餐點列表，可支援搜尋與篩選 |
-| GET | `/api/foods/{foodId}` | 取得餐點詳情 |
-| GET | `/api/stores/{storeId}` | 取得店家資訊 |
-
-`GET /api/foods` query 參數建議：
-
-| 參數 | 說明 |
-| --- | --- |
-| `keyword` | 搜尋餐點、店家、食材、標籤 |
-| `category` | 餐點類型 |
-| `tags` | 偏好標籤，可用逗號分隔 |
-| `maxPrice` | 預算上限 |
-| `maxDistanceMeters` | 距離上限 |
-| `expiringOnly` | 是否只看即期優惠 |
-
-### Recommendation
-
-| Method | Path | 用途 |
-| --- | --- | --- |
-| GET | `/api/recommendations` | 根據會員偏好取得推薦餐點 |
-| POST | `/api/recommendations/{foodId}/feedback` | 紀錄點擊、收藏、評分、購買等回饋 |
-
-推薦排序欄位需保留：
-
-- `preferenceScore`
-- `distanceScore`
-- `budgetScore`
-- `ecoPriorityScore`
-- `finalScore`
-- `recommendationReason`
-
-### Favorites / History
-
-| Method | Path | 用途 |
-| --- | --- | --- |
-| GET | `/api/me/favorites` | 取得收藏清單 |
-| POST | `/api/me/favorites/{foodId}` | 加入收藏 |
-| DELETE | `/api/me/favorites/{foodId}` | 取消收藏 |
-| GET | `/api/me/history` | 取得瀏覽紀錄 |
-| POST | `/api/me/history/{foodId}` | 新增瀏覽紀錄 |
-
-### Search Logs
-
-| Method | Path | 用途 |
-| --- | --- | --- |
-| POST | `/api/search-logs` | 紀錄搜尋關鍵字與篩選條件 |
-
-## Food Response 範例
-
-```json
-{
-  "id": "food-001",
-  "name": "舒肥雞胸餐盒",
-  "storeId": "store-001",
-  "storeName": "健康餐盒店",
-  "storeAddress": "台北市中山區健康路 12 號",
-  "businessHours": "10:30-20:30",
-  "businessWeekdays": [1, 2, 3, 4, 5],
-  "contactPhone": "02-2500-1200",
-  "price": 120,
-  "originalPrice": null,
-  "discountLabel": null,
-  "category": "便當",
-  "tags": ["高蛋白", "低脂"],
-  "ingredients": ["雞胸肉", "糙米", "花椰菜"],
-  "nutritionTags": ["高蛋白"],
-  "calories": 560,
-  "weightGrams": 420,
-  "proteinGrams": 38,
-  "fatGrams": 14,
-  "carbsGrams": 62,
-  "imageUrl": "https://example.com/images/food-001.jpg",
-  "distanceMeters": 450,
-  "stockCount": 8,
-  "expiresAt": null,
-  "isExpiringSoon": false,
-  "ecoPriorityScore": 0.42,
-  "recommendationReason": "符合你的高蛋白需求",
-  "isFavorite": false
-}
+Node.js API -> Resend SMTP：驗證信、歡迎信、重設密碼與訂單信
+Node.js API -> 綠界 Stage：模擬付款頁、回傳與結果通知
 ```
 
-## Flutter 串接調整方向
+Node.js 與 MySQL 不直接開放至 Internet。Cloudflare Tunnel 是唯一公開入口；舊 ngrok 與 Quick Tunnel 已停用。
 
-目前：
+## 實作狀態
 
-- `MockFoodRepository`
-- `UserActivityService`
-- `UserProfileService`
+### 已完成
 
-下一階段可新增：
+- 會員待驗證註冊、Email 驗證、登入、登出及兩階段忘記密碼。
+- 會員資料、偏好、自訂頭像、收藏、瀏覽、訂單與排行榜。
+- 商家註冊、登入、資料與密碼修改、多門市、商品草稿、上下架及刪除。
+- 會員與商家一對一綁定及雙向身分切換；切換時撤銷來源 session。
+- 公開商品與門市目錄、庫存與期限檢查。
+- 綠界 Stage App 內付款、訂單冪等、交易鎖定與付款後 Email。
 
-- `ApiClient`
-- `FoodRepository`
-- `AuthRepository`
-- `UserRepository`
-- `RecommendationRepository`
+### 尚未完成或僅供測試
 
-串接時會先保留目前的 mock repository，再另外建立 API repository。這樣做的原因是，如果後端還在調整，前端畫面仍然可以用 mock data 繼續測試；等 API 穩定後，再逐步把資料來源換成後端回傳資料。
+- `GET /api/recommendations` 固定回應 HTTP 501；推薦篩選、五項加權評分與排序目前在 Flutter App 端執行。
+- 綠界為 Stage 測試金流，沒有正式收款、退款與對帳流程。
+- 商家與餐點以模擬資料為主；分類圖片不是每項商品的實拍照。
+- 購物車、搜尋紀錄與推薦星級回饋目前仍保存在裝置端。
+- 舊的無 MySQL 原型路由只供測試注入，不是正式伺服器執行路徑。
 
-畫面層原則上不直接處理 HTTP 請求，而是交給 repository 或 service 統一管理。這樣未來如果要切換本機後端、學校伺服器，或調整 API 格式，會比較不需要大幅修改每個畫面。
+## 正式 API
 
-## 目前本機 API 原型
+所有路徑以下列 Base URL 為基準：
 
-目前已先建立 `backend/` 資料夾，使用 Node.js 與 Express 製作本機 API 原型。這個階段還沒有正式連接 MySQL，主要用途是先讓 API 路徑、回傳格式與 Flutter App 需要的資料欄位對齊。
+```text
+https://api.mealmind-app.online/api
+```
 
-已建立的內容：
+### 系統與公開目錄
 
-- `GET /api/health`
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/me`
-- `PUT /api/me`
-- `GET /api/me/preferences`
-- `PUT /api/me/preferences`
-- `GET /api/foods`
-- `GET /api/foods/{foodId}`
-- `GET /api/stores/{storeId}`
-- `GET /api/recommendations`
-- `POST /api/recommendations/{foodId}/feedback`
-- `GET /api/me/favorites`
-- `POST /api/me/favorites/{foodId}`
-- `DELETE /api/me/favorites/{foodId}`
-- `GET /api/me/history`
-- `POST /api/me/history/{foodId}`
-- `POST /api/search-logs`
+| Method | Path | 用途 |
+| --- | --- | --- |
+| GET | `/health` | API 健康檢查 |
+| GET | `/foods` | 取得可公開商品，支援搜尋與篩選 |
+| GET | `/foods/:id` | 取得商品詳情 |
+| GET | `/stores/:id` | 取得門市資料 |
+| GET | `/recommendations` | 尚未完成，回應 501 |
 
-下一步會把目前 mock data 的資料來源逐步改成 MySQL 查詢，並補上正式會員驗證。
+### 會員驗證與資料
+
+| Method | Path | 用途 |
+| --- | --- | --- |
+| POST | `/auth/register` | 建立 10 分鐘待驗證註冊，不建立正式會員 |
+| POST | `/auth/verify-email` | 驗證成功後建立會員並簽發 session |
+| POST | `/auth/resend-verification` | 重新寄送驗證碼 |
+| POST | `/auth/forgot-password` | 寄送密碼重設碼 |
+| POST | `/auth/verify-reset-code` | 驗證重設碼並簽發一次性 reset token |
+| POST | `/auth/reset-password` | 修改密碼並撤銷既有 session |
+| POST | `/auth/login` | 會員登入 |
+| POST | `/auth/logout` | 撤銷目前會員 session |
+| GET | `/me` | 取得目前會員、偏好及綁定狀態 |
+| PUT | `/me` | 更新會員資料、偏好與頭像 |
+
+### 會員活動與付款
+
+| Method | Path | 用途 |
+| --- | --- | --- |
+| GET | `/me/leaderboard` | 全體惜食排行榜及本人排名 |
+| GET | `/me/favorites` | 取得收藏清單 |
+| PUT/DELETE | `/me/favorites/:foodId` | 新增或刪除收藏 |
+| GET/POST/DELETE | `/me/history` | 查詢、新增或清除瀏覽紀錄 |
+| GET | `/me/orders` | 分頁取得訂單 |
+| GET | `/me/orders/:orderId` | 取得自己的訂單詳情 |
+| POST | `/me/orders` | 以交易及冪等鍵建立待付款訂單 |
+| GET | `/payments/ecpay/:token` | 開啟綠界 Stage 付款頁 |
+| POST | `/payments/ecpay/return` | 接收付款頁回傳並導回 App |
+| POST | `/payments/ecpay/result` | 驗證付款結果並更新訂單 |
+
+### 會員與商家連結
+
+| Method | Path | 用途 |
+| --- | --- | --- |
+| POST | `/me/merchant-link` | 驗證並綁定一個商家帳號 |
+| DELETE | `/me/merchant-link` | 解除綁定 |
+| POST | `/me/switch-to-merchant` | 撤銷會員 session，簽發商家 session |
+| POST | `/merchant/me/member-link` | 從商家端綁定會員 |
+| DELETE | `/merchant/me/member-link` | 從商家端解除綁定 |
+| POST | `/merchant/me/switch-to-member` | 撤銷商家 session，簽發會員 session |
+
+### 商家管理
+
+| Method | Path | 用途 |
+| --- | --- | --- |
+| POST | `/merchant/auth/register` | 建立商家帳號 |
+| POST | `/merchant/auth/login` | 商家登入 |
+| POST | `/merchant/auth/logout` | 商家登出 |
+| GET/PUT | `/merchant/me` | 取得商家、所屬門市與綁定狀態，或更新商家資料 |
+| POST | `/merchant/me/change-password` | 修改商家密碼並撤銷其他 session |
+| POST | `/merchant/stores` | 建立門市 |
+| PUT/DELETE | `/merchant/stores/:id` | 更新或邏輯刪除自有門市 |
+| GET | `/merchant/categories` | 取得商家自己的商品分類 |
+| GET/POST | `/merchant/products` | 取得或建立商品草稿 |
+| GET/PUT/DELETE | `/merchant/products/:id` | 取得、更新或刪除未上架商品 |
+| PUT | `/merchant/products/:id/status` | 上架或下架商品 |
+
+商家路由實際掛載在 `/api/merchant`，表格中的路徑已包含該前綴。
+
+## 驗證、資料一致性與安全控制
+
+- 會員與商家使用獨立 session 表及 Bearer token；資料庫只保存 token 雜湊。
+- 密碼以隨機 salt 與 scrypt 雜湊，登入比對使用 constant-time comparison。
+- SQL 使用 `mysql2` 參數化查詢；多表寫入使用 transaction，庫存結帳使用 row lock。
+- 註冊、登入、驗證碼及密碼重設套用 rate limit、有效期限與錯誤次數限制。
+- 所有會員活動依登入 session 的會員 ID 查詢，不接受前端指定其他會員 ID。
+- 商家寫入依 session 所屬商家與門市驗證 ownership，並以 revision 防止過期編輯覆蓋。
+- 建立訂單使用 `Idempotency-Key`，避免網路重送造成重複扣庫存或重複訂單。
+- App token 使用 `flutter_secure_storage`；一般顯示與偏好狀態可使用 `shared_preferences`。
+
+## Flutter 資料來源
+
+- 雲端模式：`MemberApi`、`CatalogApi`、會員活動及商家服務呼叫正式 API。
+- 展示模式：`MockFoodRepository` 提供離線展示商品，不代表學校資料庫內容。
+- 推薦：商品與會員偏好由雲端取得，星級與標籤回饋目前保存在裝置端；`RecommendationService` 在 App 端完成候選排除、加權評分、排序與理由顯示。
+- 網路請求使用 JSON、15 秒逾時及明確錯誤處理；401 會清除失效登入狀態。
+
+部署與驗收請依 [Windows 部署說明](../backend/DEPLOY_WINDOWS.md)；資料表與操作請依 [資料庫操作手冊](../backend/DATABASE_OPERATIONS.md)。

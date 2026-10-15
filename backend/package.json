@@ -1,7 +1,7 @@
 {
   "name": "shan-jie-ren-yi-backend",
   "version": "0.1.0",
-  "description": "Local API prototype for the 膳解人意 Flutter app.",
+  "description": "Node.js REST API for the MealMind Flutter app.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
