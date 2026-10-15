@@ -190,7 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildStatTile(
             icon: Icons.receipt_long_rounded,
             title: '點餐紀錄',
-            value: '${_activityService.purchaseRecords.length}',
+            value: '${_activityService.completedPurchaseRecords.length}',
             onTap: () => widget.onOpenCollectionTab?.call(3),
           ),
         ],
@@ -1585,7 +1585,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     var fatGrams = 0;
     var carbsGrams = 0;
 
-    for (final record in _activityService.purchaseRecords) {
+    for (final record in _activityService.completedPurchaseRecords) {
       if (!_isSameDate(record.purchasedAt, today)) {
         continue;
       }
@@ -1633,7 +1633,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     var totalAmount = 0;
     var savedAmount = 0;
 
-    for (final record in _activityService.purchaseRecords) {
+    for (final record in _activityService.completedPurchaseRecords) {
       if (!_isSameMonth(record.purchasedAt, now)) {
         continue;
       }

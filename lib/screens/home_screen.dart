@@ -280,6 +280,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _currentIndex = 4;
       });
     }
+    if (_profileService.isLoggedIn && _activityService.isCloud) {
+      await _activityService.refreshOrders();
+    }
   }
 
   Future<void> _goToCart() async {

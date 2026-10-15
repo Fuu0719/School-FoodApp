@@ -19,6 +19,8 @@ class PurchaseRecord {
   final String paymentStatus;
   final String? checkoutUrl;
   bool get isCloud => cloudEcoPoints != null;
+  bool get isCompleted =>
+      !isCloud || paymentStatus == 'paid' || paymentStatus == 'not_processed';
 
   int get totalQuantity {
     return items.fold(0, (sum, item) => sum + item.quantity);
