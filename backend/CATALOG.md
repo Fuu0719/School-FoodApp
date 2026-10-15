@@ -85,8 +85,6 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -A
 已擴充 test:mysql 驗證資料庫目錄、營養及星期欄位、草稿／過期／停用商家不可見，並沿用會員活動的真實 ID 測試。
 不要因為空目錄而重複匯入 schema.sql 或 002 遷移。
 
-## 待完成
+## 現況與待驗收
 
-學校真實 MySQL 目錄已由使用者截圖驗收；外部 HTTPS 連線與真機畫面驗收仍待執行。
-App 會員活動已實作並以本機測試驗證，學校伺服器更新及真機同步仍待驗收。
-商家管理已實作，仍待學校部署與實測上架。詳見 [部署狀態](../docs/deployment_status.md)。
+學校 MySQL 目錄、固定 Cloudflare HTTPS、會員活動及商家管理後端均已部署。收尾仍須使用 `1.0.0+34` APK，在 Wi-Fi 與行動網路驗證目錄同步、商家上下架、結帳後庫存更新及跨裝置會員紀錄。詳見 [部署狀態](../docs/deployment_status.md)與[雲端驗收清單](../docs/cloud_activity_verification.md)。

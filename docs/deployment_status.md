@@ -11,7 +11,7 @@
 | API | `SchoolFoodAppApi` Windows 服務，自動啟動，監聽 `127.0.0.1:3000` |
 | MySQL | `MySQLFoodApp` Windows 服務，`127.0.0.1:3307`，資料庫 `shan_jie_ren_yi` |
 | HTTPS | Cloudflare Named Tunnel Windows 服務，固定入口 `https://api.mealmind-app.online` |
-| App | 最新原始碼為 `1.0.0+32`；固定 API 網址及完整品牌識別 |
+| App | 最新原始碼為 `1.0.0+34`；固定 API 網址及完整品牌識別 |
 | Migration | 學校已套用 `001` 至 `010`，不得重跑 |
 | SMTP | Resend 已驗證 `mealmind-app.online`；寄件者為 `MealMind <noreply@mealmind-app.online>` |
 | 測試付款 | 綠界 Stage；App 內完成流程，成功訂單標記 `paid` |
@@ -36,7 +36,7 @@ Node.js 與 MySQL 僅監聽本機，不直接對外開放。手機流量由同�
 
 ## 尚未完成或不可宣稱
 
-- `1.0.0+32` APK 尚待手機安裝驗收；學校 API、固定網域與 migration `010` 已部署完成。
+- `1.0.0+34` APK 尚待重新建置及手機安裝驗收；學校 API、固定網域與 migration `010` 已部署完成。
 - 綠界目前是 Stage 測試環境，不是正式收款；尚未完成正式商店申請、退款及對帳流程。
 - Resend 網域已驗證並取得寄信金鑰；學校端只可由受控的 `.env` 保存金鑰，不得提交 Git。每次改動寄件設定後仍須驗證註冊、重設密碼及訂單信。
 - 商家資料目前仍以模擬資料為主，尚未導入真實商家接單狀態與營運通知流程。

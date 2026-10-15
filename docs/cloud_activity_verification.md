@@ -6,10 +6,10 @@
 
 ## 已知測試基準
 
-- App 原始碼版本：`1.0.0+32`。
-- `flutter analyze`：0 issues。
-- Flutter tests：123 passed、2 skipped。
-- Node.js tests：59 passed、3 skipped；跳過項目為需要真實 MySQL 的整合測試。
+- App 原始碼版本：`1.0.0+34`。
+- `flutter analyze`：本次 Windows 環境因未啟用 Developer Mode，無法建立插件 symlink，尚未取得新版靜態分析結果；這是開發環境阻擋，不可記為 0 issues。
+- Flutter tests：125 passed、2 skipped。
+- Node.js tests：60 passed、3 skipped；跳過項目為需要真實 MySQL 的整合測試。
 - 學校伺服器 `npm.cmd run test:mysql`：27 passed、0 failed、0 skipped。
 - 固定公開 API：`https://api.mealmind-app.online/api`。
 - 學校 MySQL migration：`001` 至 `010` 已完成，不得重跑。
