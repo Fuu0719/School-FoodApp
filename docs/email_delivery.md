@@ -2,7 +2,7 @@
 
 更新日期：2026-10-15。
 
-正式寄件者為 `MealMind 膳解人意 <noreply@mealmind-app.online>`。網址不能直接當 Email 寄件者；`From` 必須是信箱格式。`https://mealmind-app.online` 會顯示在信件內容，API 與付款回呼使用 `https://api.mealmind-app.online`。
+正式寄件者為 `MealMind <noreply@mealmind-app.online>`。寄件者顯示名稱僅使用 ASCII 英文，避免部分郵件系統或伺服器環境將中文名稱顯示為亂碼。網址不能直接當 Email 寄件者；`From` 必須是信箱格式。`https://mealmind-app.online` 會顯示在信件內容，API 與付款回呼使用 `https://api.mealmind-app.online`。
 
 ## 1. 驗證寄件網域
 
@@ -38,7 +38,7 @@ SMTP_PORT=465
 SMTP_SECURE=true
 SMTP_USER=resend
 SMTP_PASSWORD=Resend寄信API金鑰
-SMTP_FROM="MealMind 膳解人意 <noreply@mealmind-app.online>"
+SMTP_FROM="MealMind <noreply@mealmind-app.online>"
 SMTP_ALLOWED_FROM_DOMAIN=mealmind-app.online
 APP_PUBLIC_URL=https://mealmind-app.online
 PUBLIC_BASE_URL=https://api.mealmind-app.online

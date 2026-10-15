@@ -1,64 +1,116 @@
-# App 雲端活動驗證
+# App 雲端與實機驗收
 
-## 本機驗證紀錄
+更新日期：2026-10-15。
 
-2026-09-10：flutter analyze 無問題；flutter test 87 項通過、1 項僅雲端模式測試跳過。
-指定 CLOUD_CATALOG=true 執行 cloud_catalog_mode_test.dart 及 cloud_activity_test.dart，14 項全數通過。
-後端 npm test 28 項通過、2 項真實 MySQL 測試跳過；其中 3 項屬工作目錄原有、未納入本次提交的 VPN 測試。
-Android debug APK 可編譯；此編譯檢查未指定正式 API_BASE_URL，不是可直接交付使用者連到學校的正式安裝包。
-以上不能取代學校 MySQL、重開機或真機網路驗收。
+本文件是目前版本的驗收清單。歷史測試數量僅代表當次執行結果；GitHub 原始碼、學校部署、APK 建置及手機安裝必須分別確認。
 
-## 學校伺服器更新
+## 已知測試基準
 
-注意：以下是已完成的 d7156d8 活動更新步驟。最新版新增商家管理，未套用 003 的主機須改依 [商家部署](../backend/MERCHANT_MANAGEMENT.md) 備份、遷移，再啟動。
+- App 原始碼版本：`1.0.0+32`。
+- `flutter analyze`：0 issues。
+- Flutter tests：123 passed、2 skipped。
+- Node.js tests：59 passed、3 skipped；跳過項目為需要真實 MySQL 的整合測試。
+- 學校伺服器 `npm.cmd run test:mysql`：27 passed、0 failed、0 skipped。
+- 固定公開 API：`https://api.mealmind-app.online/api`。
+- 學校 MySQL migration：`001` 至 `010` 已完成，不得重跑。
 
-防火牆與 HTTPS 尚未完成，但可先在學校遠端桌面內更新服務。不要在專研筆電誤操作同名路徑。
-先確認已有專案外的資料庫備份，安排短暫維護。使用管理員 PowerShell，每一步成功才繼續。
+測試通過不能取代實機操作；Skipped 也不能寫成通過。
 
-先檢查工作目錄：
+## 學校伺服器更新前檢查
+
+使用系統管理員 PowerShell。先建立專案外的資料庫備份並確認檔案大小大於 0，再檢查工作目錄：
 
 ```powershell
 cd C:\School\my_app
 git status --short --branch
+git log -1 --oneline
 ```
 
-有修改時先保留並查核，不使用 reset 或覆寫。確認乾淨後：
+若有未知修改，先查明來源，不使用 `git reset --hard` 或 `git checkout --` 覆蓋。只有新版明確包含新 migration 時才執行資料庫升級；一般程式或文件更新不可重匯 `schema.sql`。
 
 ```powershell
-cd backend
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -Action Stop
-cd ..
-git pull --ff-only
-cd backend
+cd C:\School\my_app\backend
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\api_service.ps1 -Action Stop
+
+cd C:\School\my_app
+git pull --ff-only origin main
+
+cd C:\School\my_app\backend
 npm.cmd ci
 npm.cmd run db:check
 npm.cmd test
 npm.cmd run test:mysql
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -Action Start
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -Action Status
+
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\api_service.ps1 -Action Start
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\api_service.ps1 -Action Status
 ```
 
-若任何一步失敗，停止後續步驟並保留錯誤。服務此時可能仍停止，不能宣告部署成功。
-db:check 應確認 3307 與 food_app；test:mysql 不應跳過真實 MySQL 測試；Status 應顯示 Running、Auto、127.0.0.1:3000 及 API healthy。
-本次無新遷移，不執行 schema.sql、001 或 002。不要更動 AppServ 的 3306 或 Apache。
-整合測試會建立自己的臨時餐點再移除，因此 /api/foods 回傳空 items 仍可能正常。
+任一步失敗就停止後續部署。`db:check` 應確認資料庫 `shan_jie_ren_yi`、port 3307 與應用帳號；`test:mysql` 不應跳過；服務狀態須為 Running、Automatic、`127.0.0.1:3000` 且 API healthy。
 
-## App 驗收前提
+## 服務與公開入口驗收
 
-先完成學校核准的 HTTPS 入口，再以 Flutter Cloud Catalog (Debug) 指向該 API 網址。
-API_BASE_URL 必須含 /api；不能把伺服器的 127.0.0.1 當作手機能用的網址。
-需有授權建立的測試商品及兩個測試會員，不把 mock 商品或真實個資直接灌進資料庫。
-商家帳號與正式上架流程仍待開發。此處是驗收清單，不代表已在手機執行。
+```powershell
+Get-Service MySQLFoodApp, SchoolFoodAppApi, cloudflared
 
-## 手動驗收
+Invoke-RestMethod "http://127.0.0.1:3000/api/health"
+Invoke-RestMethod "https://api.mealmind-app.online/api/health"
 
-1. A 登入後收藏、瀏覽餐點；重新啟動 App 並登入同帳號，重新同步後仍可讀取。
-2. 在另一裝置登入 A，手動同步後比對紀錄；切換 B 不應看見 A 的收藏或訂單。
-3. 下單期間按鈕停用；只有 API 建立訂單成功才進入綠界 Stage 付款。付款成功後清空購物車，購買紀錄顯示「模擬訂單，已付款」。
-4. 模擬回應遺失後重開 App，使用「確認上次訂單」；檢查資料庫只產生一張訂單且只扣一次庫存。
-5. 測試售完、過期、庫存不足，確認沒有部分訂單或錯誤的成功提示。
-6. 修改商品售價後重新讀取舊訂單，仍顯示原快照價格；較早訂單可分頁讀取。
-7. 撤銷 session 後操作，App 提示登入失效並清除本機登入；不能讀取其他會員資料。
-8. 安排伺服器重開機後檢查 MySQLFoodApp 與 SchoolFoodAppApi 自動啟動。僅 Restart 服務不算此項通過。
+Resolve-DnsName api.mealmind-app.online
+```
 
-完成以上項目才更新部署狀態。這些訂單沒有金流，不代表付款、商家接單或真實減廢成果。
+三個服務都應為 Running，兩個 health request 都應回應 `status: ok`。`cloudflared` 應執行 Named Tunnel，不可另開 Quick Tunnel。Node.js 與 MySQL 只監聽本機，不對外開放 3000 或 3307。
+
+## App 實機驗收
+
+1. 新 Email 註冊時，驗證前 `users` 不應出現正式會員；錯誤或不存在的信箱不會因送出表單就建立會員。
+2. 正確驗證碼建立會員、登入並收到歡迎信；寄件者顯示 `MealMind <noreply@mealmind-app.online>`，不可顯示 Gmail 或中文亂碼名稱。
+3. 不選頭像可儲存會員資料；上傳、顯示與移除 JPG／PNG 頭像後皆正常，編輯完成不返回驗證頁。
+4. 收藏、瀏覽與購買紀錄在重開 App 或另一裝置登入後仍存在；另一會員不可讀取。
+5. 搜尋關鍵字、六類圖片與首頁「小確幸」皆有候選結果；過期、售罄、未上架或已刪除門市商品不可購買。
+6. 五個底部分頁在目前分頁重複點擊可回頂端。
+7. 新會員可立即查看全體排行榜；刪除會員後排行榜不顯示殘留姓名或頭像。
+8. 綠界 Stage 在 App 內完成付款；成功後訂單顯示「模擬訂單，已付款」，重送或重新確認不得重複扣庫存。
+9. 商家可新增及編輯門市、建立商品、上下架、刪除未上架商品、修改資料與密碼。
+10. 綁定會員與商家後可雙向切換；切換會撤銷來源 session，登出後不得利用另一身分快速繞過登入。
+11. 付款成功寄送會員訂單信；`.test` 模擬商家不寄信，也不產生 Gmail 退信。
+12. 手機使用 Wi-Fi 與行動網路各完成一次公開 API 連線，確認不依賴校內網路或電腦上的臨時通道。
+
+## 資料庫抽查
+
+進入 MySQL：
+
+```powershell
+$mysql = "C:\Program Files\MySQL\MySQL Server 26.7\bin\mysql.exe"
+& $mysql `
+  --protocol=TCP `
+  --host=127.0.0.1 `
+  --port=3307 `
+  --user=root `
+  --password `
+  --database=shan_jie_ren_yi
+```
+
+只讀抽查：
+
+```sql
+SELECT DATABASE(), NOW();
+SELECT COUNT(*) AS members FROM users;
+SELECT COUNT(*) AS merchants FROM merchants;
+SELECT id, name, email, email_verified_at, created_at FROM users ORDER BY id;
+SELECT id, business_name, email, status, created_at FROM merchants ORDER BY id;
+SELECT id, user_id, status, payment_status, total_amount, created_at
+FROM purchase_orders ORDER BY id DESC LIMIT 20;
+```
+
+刪除測試會員或重建資料前，依 [資料庫操作手冊](../backend/DATABASE_OPERATIONS.md) 先查關聯筆數、備份並使用 transaction；不可直接把正式帳號混在批次刪除條件中。
+
+## 不可宣稱
+
+- 綠界 Stage 不是正式收款。
+- 模擬商品與分類圖片不是真實便利商店即時庫存或逐筆實拍照。
+- 後端 `/api/recommendations` 尚未完成；推薦排序目前在 App 端執行。
+- 現有測試證明規則與流程依設計運作，不等於已完成大量使用者研究、負載測試或滲透測試。
+- APK 編譯成功不等於已完成所有 Android 裝置與 iOS 驗收。

@@ -174,13 +174,17 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 4. 將模擬商家改為真實商家前，補上接單狀態、商家通知信箱與營運管理流程。
 5. 學校借用期限依提供資料為 2026-12-31，需提前備份或申請續借。
 
-購物車與部分搜尋狀態仍保存在裝置；後端 `/api/recommendations` 暫回應 501，不能宣稱完整雲端 AI 推薦引擎已完成。模擬餐點圖片是分類共用圖，不是真實商品逐筆照片。
+購物車、搜尋紀錄與推薦星級回饋仍保存在裝置；後端 `/api/recommendations` 暫回應 501，不能宣稱完整雲端 AI 推薦引擎已完成。模擬餐點圖片是分類共用圖，不是真實商品逐筆照片。
 部分模擬器啟動設定會先更新 Git，但遇到未提交修改會停止；雲端啟動設定沒有掛同一更新作業，不能保證每次重開就是最新版。
 
 ## 驗證與文件
 
 2026-10-15 最新部署已使用固定 Cloudflare Named Tunnel，學校資料庫已套用 migration `010`。Email 寄件者改用經驗證的 `mealmind-app.online` 網域，禁止再以 Gmail 地址作為品牌寄件者。
 
+文件以「目前程式與部署狀態」為準，不再把早期規劃稿當成已實作規格。建議閱讀順序為：本 README 掌握範圍、部署狀態確認已完成與限制、現行 API 文件確認資料流，最後再依個別操作手冊執行。歷史通道只保留於遷移紀錄，不可重新用於 App 建置。
+
+- [總審技術、報告檢查與答辯總整理](docs/final_review_master_guide.md)
+- [總審人工智慧與推薦問答](docs/final_review_qa.md)
 - [部署進度與未解決事項](docs/deployment_status.md)
 - [Windows 部署說明](backend/DEPLOY_WINDOWS.md)
 - [網域交易郵件設定](docs/email_delivery.md)
@@ -189,9 +193,9 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 - [商家註冊與商品管理](backend/MERCHANT_MANAGEMENT.md)
 - [商品目錄](backend/CATALOG.md)
 - [會員活動](backend/MEMBER_ACTIVITY.md)
-- [雲端活動驗收](docs/cloud_activity_verification.md)
+- [雲端與實機驗收](docs/cloud_activity_verification.md)
 
-- API 規劃：[docs/backend_api_plan.md](docs/backend_api_plan.md)
+- [現行後端 API 與資料流](docs/backend_api_plan.md)
 - MySQL schema：[backend/database/schema.sql](backend/database/schema.sql)
 - 本機 API 原型：[backend/README.md](backend/README.md)
 
