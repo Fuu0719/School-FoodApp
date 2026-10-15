@@ -113,6 +113,12 @@ class UserActivityService extends ChangeNotifier {
     return List.unmodifiable(_purchaseRecords);
   }
 
+  List<PurchaseRecord> get completedPurchaseRecords {
+    return List.unmodifiable(
+      _purchaseRecords.where((record) => record.isCompleted),
+    );
+  }
+
   List<FoodFeedback> get feedbacks {
     return List.unmodifiable(_foodFeedback.values);
   }
@@ -126,7 +132,7 @@ class UserActivityService extends ChangeNotifier {
   }
 
   int get ecoPoints {
-    return purchaseRecords.fold(
+    return completedPurchaseRecords.fold(
       0,
       (sum, record) =>
           sum +
@@ -139,7 +145,7 @@ class UserActivityService extends ChangeNotifier {
   }
 
   int get savedFoodCount {
-    return purchaseRecords.fold(
+    return completedPurchaseRecords.fold(
       0,
       (sum, record) =>
           sum +
@@ -150,7 +156,7 @@ class UserActivityService extends ChangeNotifier {
   }
 
   int get savedAmount {
-    return purchaseRecords.fold(
+    return completedPurchaseRecords.fold(
       0,
       (sum, record) =>
           sum +
@@ -500,6 +506,39 @@ class UserActivityService extends ChangeNotifier {
       );
       _ordersCursor = page.nextCursor;
     });
+  }
+
+  Future<bool> refreshOrders() async {
+    if (!isCloud || _cloudApi == null || _busy) return false;
+    final page = await _cloudOperation((api) => api.orders(), (page) {
+      _purchaseRecords
+        ..clear()
+        ..addAll(page.records);
+      _ordersCursor = page.nextCursor;
+    });
+    return page != null;
+  }
+
+  Future<bool> waitForPaidOrder(
+    String orderId, {
+    int attempts = 5,
+    Duration retryDelay = const Duration(milliseconds: 400),
+  }) async {
+    if (!isCloud) {
+      return completedPurchaseRecords.any((record) => record.id == orderId);
+    }
+    for (var attempt = 0; attempt < attempts; attempt++) {
+      await refreshOrders();
+      if (completedPurchaseRecords.any((record) => record.id == orderId)) {
+        return true;
+      }
+      if (attempt + 1 < attempts) {
+        await Future<void>.delayed(
+          Duration(milliseconds: retryDelay.inMilliseconds * (attempt + 1)),
+        );
+      }
+    }
+    return false;
   }
 
   Future<void> clearHistory() async {

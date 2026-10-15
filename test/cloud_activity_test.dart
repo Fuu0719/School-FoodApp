@@ -308,6 +308,49 @@ void main() {
   );
 
   test(
+    'paid checkout retries order sync before updating health data',
+    () async {
+      final source = await catalog();
+      var orderLists = 0;
+      final service = await connect(
+        source,
+        wire((request) async {
+          if (request.method == 'GET' && request.url.path.endsWith('/orders')) {
+            orderLists++;
+            return response({
+              'items': orderLists == 1
+                  ? []
+                  : [
+                      {'id': '77'},
+                    ],
+              'nextCursor': null,
+            });
+          }
+          if (request.method == 'GET' &&
+              request.url.path.endsWith('/orders/77')) {
+            return response({...receipt(), 'paymentStatus': 'paid'});
+          }
+          return null;
+        }),
+      );
+
+      final confirmed = await service.waitForPaidOrder(
+        '77',
+        attempts: 3,
+        retryDelay: Duration.zero,
+      );
+
+      expect(confirmed, true);
+      expect(orderLists, 2);
+      expect(service.completedPurchaseRecords.single.id, '77');
+      expect(
+        service.completedPurchaseRecords.single.items.single.food.calories,
+        400,
+      );
+    },
+  );
+
+  test(
     '401 clears actual profile and stored session without exposing another account',
     () async {
       final source = await catalog();

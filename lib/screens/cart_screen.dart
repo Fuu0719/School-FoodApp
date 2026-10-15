@@ -303,13 +303,20 @@ class _CartScreenState extends State<CartScreen> {
       final paid =
           await _browser.invokeMethod<bool>('open', record.checkoutUrl!) ??
           false;
-      await _activityService.refreshCloud();
       if (!paid && mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('付款尚未完成，未列入點餐紀錄')));
         return;
       }
+      final confirmed = await _activityService.waitForPaidOrder(record.id);
+      if (!confirmed && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('付款結果仍在同步，請稍後至「我的」重新確認')));
+        return;
+      }
+      await _activityService.refreshCloud();
       if (!mounted) return;
       await showCheckoutSuccess(context, record);
       if (!mounted) return;
