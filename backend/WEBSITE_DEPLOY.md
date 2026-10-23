@@ -14,8 +14,14 @@ Generate the admin token once in PowerShell and store it in the backend `.env` f
 
 ```powershell
 $bytes = New-Object byte[] 32
-[Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
-[Convert]::ToHexString($bytes).ToLowerInvariant()
+$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+try {
+  $rng.GetBytes($bytes)
+} finally {
+  $rng.Dispose()
+}
+$adminToken = -join ($bytes | ForEach-Object { $_.ToString('x2') })
+$adminToken
 ```
 
 Cloudflare Tunnel public hostnames:
