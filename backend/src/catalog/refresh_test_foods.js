@@ -4,11 +4,11 @@ async function refreshRecurringTestFoods(pool) {
   const [result] = await pool.execute(
     `UPDATE foods f
        JOIN food_tags t ON t.food_id = f.id AND t.tag = ?
-     SET f.expires_at = DATE_ADD(UTC_TIMESTAMP(), INTERVAL (4 + MOD(f.id, 20)) HOUR),
+     SET f.expires_at = DATE_ADD(NOW(), INTERVAL (4 + MOD(f.id, 20)) HOUR),
          f.is_expiring_soon = 1,
          f.stock_count = IF(f.stock_count = 0, 8 + MOD(f.id, 8), f.stock_count)
      WHERE f.status = 'active'
-       AND (f.expires_at IS NULL OR f.expires_at <= UTC_TIMESTAMP())`,
+       AND (f.expires_at IS NULL OR f.expires_at <= NOW())`,
     [recurringTag],
   );
   return result.affectedRows;

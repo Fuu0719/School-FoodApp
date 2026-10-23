@@ -14,7 +14,7 @@ test('recurring test refresh only targets explicitly tagged expired active foods
   assert.deepEqual(calls[0].values, [recurringTag]);
   assert.match(calls[0].sql, /t\.tag = \?/);
   assert.match(calls[0].sql, /f\.status = 'active'/);
-  assert.match(calls[0].sql, /f\.expires_at <= UTC_TIMESTAMP\(\)/);
+  assert.match(calls[0].sql, /f\.expires_at <= NOW\(\)/);
 });
 
 test('automatic refresh is disabled unless explicitly enabled', async () => {

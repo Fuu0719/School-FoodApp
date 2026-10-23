@@ -24,6 +24,7 @@ class _CartScreenState extends State<CartScreen> {
   @override
   void initState() {
     super.initState();
+    _activityService.removeExpiredCartItems();
     _activityService.addListener(_refresh);
   }
 

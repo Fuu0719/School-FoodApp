@@ -93,7 +93,7 @@ class MerchantRepository {
         businessWeekdays: weekdays.filter((day) => String(day.store_id) === String(store.id)).map((day) => day.weekday) })) };
   }
   async createSession(id, hash, expiresAt) {
-    await this.pool.execute('DELETE FROM merchant_sessions WHERE merchant_id = ? AND expires_at <= UTC_TIMESTAMP()', [id]);
+    await this.pool.execute('DELETE FROM merchant_sessions WHERE merchant_id = ? AND expires_at <= NOW()', [id]);
     await this.pool.execute('INSERT INTO merchant_sessions (merchant_id, token_hash, expires_at) VALUES (?, ?, ?)', [id, hash, expiresAt]);
   }
   async issueSession(id) {
@@ -151,7 +151,7 @@ class MerchantRepository {
   }
   async session(hash) {
     const [rows] = await this.pool.execute(`SELECT merchant_id FROM merchant_sessions
-      WHERE token_hash = ? AND expires_at > UTC_TIMESTAMP()`, [hash]);
+      WHERE token_hash = ? AND expires_at > NOW()`, [hash]);
     return rows[0] ? this.account(rows[0].merchant_id) : null;
   }
   async revoke(hash) { await this.pool.execute('DELETE FROM merchant_sessions WHERE token_hash = ?', [hash]); }

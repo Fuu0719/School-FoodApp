@@ -145,6 +145,9 @@ class FoodItem {
     return '剩 $minutes 分鐘';
   }
 
+  bool get isExpired =>
+      expiresAt != null && !expiresAt!.isAfter(DateTime.now());
+
   FoodItem copyWith({
     String? id,
     String? name,

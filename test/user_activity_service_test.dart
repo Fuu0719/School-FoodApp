@@ -150,6 +150,16 @@ void main() {
     expect(service.cartQuantity(food.id), 1);
   });
 
+  test('expired foods cannot be added to the cart', () {
+    final expired = MockFoodRepository.allFoods.first.copyWith(
+      expiresAt: DateTime.now().subtract(const Duration(minutes: 1)),
+      isExpiringSoon: true,
+    );
+
+    expect(service.addToCart(expired), isFalse);
+    expect(service.cartItems, isEmpty);
+  });
+
   test('checkout stores purchase record and clears cart', () {
     final firstFood = MockFoodRepository.allFoods.first;
     final secondFood = MockFoodRepository.allFoods[1];

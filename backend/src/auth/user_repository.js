@@ -60,7 +60,7 @@ class UserRepository {
   }
 
   async savePendingRegistration({ name, email, passwordHash, codeHash, expiresAt }) {
-    await this.pool.execute('DELETE FROM pending_member_registrations WHERE expires_at <= UTC_TIMESTAMP()');
+    await this.pool.execute('DELETE FROM pending_member_registrations WHERE expires_at <= NOW()');
     await this.pool.execute(`INSERT INTO pending_member_registrations
       (email, name, password_hash, code_hash, expires_at, attempts)
       VALUES (?, ?, ?, ?, ?, 0)
@@ -164,7 +164,7 @@ class UserRepository {
   async resetPasswordWithToken(resetTokenHash, passwordHash) {
     return this.transaction(async (connection) => {
       const [rows] = await connection.execute(`SELECT user_id FROM member_password_reset_tokens
-        WHERE token_hash = ? AND expires_at > UTC_TIMESTAMP() FOR UPDATE`, [resetTokenHash]);
+        WHERE token_hash = ? AND expires_at > NOW() FOR UPDATE`, [resetTokenHash]);
       if (!rows.length) return false;
       const userId = rows[0].user_id;
       await connection.execute('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, userId]);
@@ -195,13 +195,13 @@ class UserRepository {
   }
 
   async createSession(id, hash, expiresAt) {
-    await this.pool.execute('DELETE FROM user_sessions WHERE user_id = ? AND expires_at <= UTC_TIMESTAMP()', [id]);
+    await this.pool.execute('DELETE FROM user_sessions WHERE user_id = ? AND expires_at <= NOW()', [id]);
     await this.pool.execute('INSERT INTO user_sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)', [hash, id, expiresAt]);
   }
 
   async session(hash) {
     const [rows] = await this.pool.execute(
-      'SELECT user_id FROM user_sessions WHERE token_hash = ? AND expires_at > UTC_TIMESTAMP()', [hash]);
+      'SELECT user_id FROM user_sessions WHERE token_hash = ? AND expires_at > NOW()', [hash]);
     return rows[0] ? this.get(rows[0].user_id) : null;
   }
 
