@@ -39,6 +39,9 @@ function createApp({ userRepository, mailer, enablePrototypeRoutes = false,
   }
 
   app.use(cors());
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'site', 'home.html'));
+  });
   app.use(express.static(path.join(__dirname, '..', 'public', 'site'), {
     extensions: ['html'],
     maxAge: '5m',
