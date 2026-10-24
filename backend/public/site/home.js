@@ -4,7 +4,7 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
 }[char]));
 const money = (value) => `NT$ ${Number(value || 0).toLocaleString('zh-TW')}`;
 const foods = new Map();
-const cart = new Map(JSON.parse(sessionStorage.getItem('webCart') || '[]'));
+const cart = new Map();
 const accountLink = $('#account-link');
 const cartLink = $('#cart-link');
 const cartCount = $('#cart-count');
@@ -13,12 +13,33 @@ function cartQuantity() {
   return [...cart.values()].reduce((sum, quantity) => sum + Number(quantity || 0), 0);
 }
 
+function readStoredCart() {
+  cart.clear();
+  try {
+    for (const [id, quantity] of JSON.parse(sessionStorage.getItem('webCart') || '[]')) {
+      const count = Number(quantity);
+      if (count > 0) cart.set(String(id), count);
+    }
+  } catch {
+    sessionStorage.removeItem('webCart');
+  }
+}
+
+function syncFoodButtons() {
+  document.querySelectorAll('.add-cart').forEach((button) => {
+    const quantity = cart.get(String(button.dataset.id)) || 0;
+    button.textContent = quantity ? `已加入 ${quantity}` : '加入';
+  });
+}
+
 function syncCartLink() {
+  readStoredCart();
   const quantity = cartQuantity();
   const signedIn = Boolean(sessionStorage.getItem('memberToken'));
   cartLink.hidden = !signedIn;
   cartCount.textContent = String(quantity);
   cartLink.setAttribute('aria-label', `購物車，目前 ${quantity} 件`);
+  syncFoodButtons();
 }
 
 function syncAccountLink() {
@@ -75,6 +96,7 @@ async function loadFoods() {
     const result = await api(`/foods?${query}`);
     result.items.forEach((food) => foods.set(String(food.id), food));
     $('#food-list').innerHTML = result.items.map((food) => `<article class="food-row"><img class="food-thumb" src="${escapeHtml(food.imageUrl)}" alt="${escapeHtml(food.name)}"><div class="food-main"><h3 title="${escapeHtml(food.name)}">${escapeHtml(food.name)}</h3><p class="food-store">${escapeHtml(food.storeName)} · ${Number(food.distanceMeters || 0).toLocaleString()} 公尺</p>${food.isExpiringSoon ? '<span class="badge offer">即期優惠</span>' : `<span class="badge">${escapeHtml(food.category)}</span>`}</div><div class="food-buy"><div><span class="price">${money(food.price)}</span><div class="stock">庫存 ${food.stockCount}</div></div><div class="row-actions"><button class="small-button add-cart" data-id="${food.id}">加入</button><button class="small-button add-favorite" data-id="${food.id}">收藏</button></div></div></article>`).join('') || '<p class="empty">目前沒有符合條件的餐點</p>';
+    syncFoodButtons();
     $('#food-status').textContent = `共顯示 ${result.items.length} 項餐點`;
   } catch (error) {
     $('#food-status').textContent = error.message;

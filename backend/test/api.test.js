@@ -43,12 +43,18 @@ test('website navigation does not revoke signed-in browser sessions', async () =
     fetch(`${baseUrl}/admin.js`),
     fetch(`${baseUrl}/`),
   ]);
-  const homeScriptResponse = await fetch(`${baseUrl}/home.js`);
-  const [loginScript, adminScript, homePage, homeScript] = await Promise.all([
+  const [homeScriptResponse, cartPageResponse, cartScriptResponse] = await Promise.all([
+    fetch(`${baseUrl}/home.js`),
+    fetch(`${baseUrl}/cart.html`),
+    fetch(`${baseUrl}/cart.js`),
+  ]);
+  const [loginScript, adminScript, homePage, homeScript, cartPage, cartScript] = await Promise.all([
     loginResponse.text(),
     adminResponse.text(),
     homeResponse.text(),
     homeScriptResponse.text(),
+    cartPageResponse.text(),
+    cartScriptResponse.text(),
   ]);
 
   assert.equal(loginResponse.status, 200);
@@ -56,17 +62,23 @@ test('website navigation does not revoke signed-in browser sessions', async () =
   assert.doesNotMatch(loginScript, /addEventListener\(['"]pagehide['"]/);
   assert.doesNotMatch(adminScript, /addEventListener\(['"]pagehide['"]/);
   assert.match(homePage, /id="account-link"/);
-  assert.match(homePage, /home\.js\?v=7/);
+  assert.match(homePage, /home\.js\?v=8/);
   assert.match(loginScript, /sessionStorage\.setItem\('activePortal','member'\)/);
   assert.match(homeScript, /addEventListener\(['"]pageshow['"],\s*syncAccountLink\)/);
   assert.match(homeScript, /activePortal/);
   assert.match(homeScript, /可前往購物車結帳/);
-  assert.match(homePage, /id="cart-link"/);
+  assert.match(homePage, /id="cart-link"[^>]+href="\/cart\.html"/);
+  assert.match(homeScript, /function readStoredCart\(\)/);
   assert.match(homeScript, /api\(`\/me\/favorites\/\$\{favorite\.dataset\.id\}`/);
-  assert.match(loginScript, /memberNeedsProfileCompletion/);
-  assert.match(loginScript, /location\.replace\('\/'\)/);
+  assert.match(loginScript, /params\.get\('intent'\)===\s*'cart'\?'\/cart\.html':'\/'/);
+  assert.match(loginScript, /state\.memberOnboarding=true/);
   assert.match(loginScript, /loadFoods\(\)\.finally\(restoreMember\)/);
   assert.match(loginScript, /error\.status === 401 \|\| error\.status === 403/);
+  assert.match(cartPage, /id="cart-items"/);
+  assert.match(cartPage, /\/cart\.js\?v=1/);
+  assert.match(cartScript, /api\(`\/foods\/\$\{id\}`\)/);
+  assert.match(cartScript, /sessionStorage\.setItem\('webCart'/);
+  assert.match(cartScript, /Idempotency-Key/);
 });
 
 test('admin console is a separate non-cacheable page', async () => {

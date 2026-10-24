@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#173426">
+  <title>購物車｜MealMind 膳解人意</title>
+  <link rel="stylesheet" href="/site-v3.css?v=3">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><img src="/brand-assets/mealmind_logo.png" alt="MealMind"><span><strong>MealMind</strong><small>膳解人意</small></span></a>
+    <a class="back-link" href="/#foods">繼續選購</a>
+    <a class="workspace-link" href="/login.html?tab=member">會員中心 <span aria-hidden="true">→</span></a>
+  </header>
+  <main class="cart-page">
+    <header class="cart-heading"><div><p class="eyebrow">Your order</p><h1>購物車</h1></div><p id="cart-status" class="status" role="status">同步商品資料中…</p></header>
+    <div class="cart-layout">
+      <section id="cart-items" class="cart-items" aria-label="購物車商品"></section>
+      <aside class="cart-summary">
+        <h2>訂單摘要</h2>
+        <div><span>商品數量</span><strong id="summary-quantity">0 項</strong></div>
+        <div><span>總金額</span><strong id="summary-total">NT$ 0</strong></div>
+        <button id="checkout-cart" class="button full" type="button" disabled>確認下單</button>
+        <small>結帳前會再次由伺服器確認價格、庫存與供應狀態。</small>
+      </aside>
+    </div>
+  </main>
+  <script src="/cart.js?v=1" defer></script>
+</body>
+</html>
