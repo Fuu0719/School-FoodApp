@@ -5,6 +5,7 @@ const { verifyPassword } = require('../auth/passwords');
 
 const run = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 const tokenHash = (value) => createHash('sha256').update(value).digest('hex');
+const reportPeriod = (value) => ['day', 'week', 'month'].includes(value) ? value : 'day';
 
 function adminRoutes(repository, options = {}) {
   const router = express.Router();
@@ -48,11 +49,11 @@ function adminRoutes(repository, options = {}) {
     res.json({ message: '管理員已登出' });
   });
   router.use('/admin', requireAdmin);
-  router.get('/admin/dashboard', run(async (req, res) => res.json(await repository.dashboard())));
+  router.get('/admin/dashboard', run(async (req, res) => res.json(await repository.dashboard(reportPeriod(req.query.period)))));
   router.get('/admin/users', run(async (req, res) => res.json({ items: await repository.users() })));
   router.get('/admin/merchants', run(async (req, res) => res.json({ items: await repository.merchants() })));
-  router.get('/admin/foods', run(async (req, res) => res.json({ items: await repository.foods() })));
-  router.get('/admin/orders', run(async (req, res) => res.json({ items: await repository.orders() })));
+  router.get('/admin/foods', run(async (req, res) => res.json({ items: await repository.foods(reportPeriod(req.query.period)) })));
+  router.get('/admin/orders', run(async (req, res) => res.json({ items: await repository.orders(reportPeriod(req.query.period)) })));
   router.put('/admin/merchants/:id/status', run(async (req, res) => {
     if (!/^[1-9][0-9]{0,19}$/.test(req.params.id) || !['active', 'suspended'].includes(req.body?.status)) {
       return res.status(400).json({ message: '管理資料格式不正確' });
@@ -60,7 +61,7 @@ function adminRoutes(repository, options = {}) {
     if (!await repository.setMerchantStatus(req.params.id, req.body.status)) {
       return res.status(404).json({ message: '找不到商家' });
     }
-    res.json({ message: '商家狀態已更新' });
+    res.json({ message: '商家狀態已更新', status: req.body.status });
   }));
   return router;
 }

@@ -70,3 +70,18 @@ test('admin merchant status only permits active and suspended', async () => {
   assert.equal(valid.status, 200);
   assert.deepEqual(update, { id: '1', status: 'suspended' });
 });
+
+test('admin reports accept only supported periods', async () => {
+  const received = [];
+  const app = await fixture({
+    dashboard: async (period) => { received.push(['dashboard', period]); return { period }; },
+    foods: async (period) => { received.push(['foods', period]); return []; },
+    orders: async (period) => { received.push(['orders', period]); return []; },
+  });
+  const { token } = await (await login(app)).json();
+  const headers = { Authorization: `Bearer ${token}` };
+  await request(app, '/api/admin/dashboard?period=week', { headers });
+  await request(app, '/api/admin/foods?period=month', { headers });
+  await request(app, '/api/admin/orders?period=DROP%20TABLE', { headers });
+  assert.deepEqual(received, [['dashboard', 'week'], ['foods', 'month'], ['orders', 'day']]);
+});
