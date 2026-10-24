@@ -9,6 +9,17 @@ const reportPeriod = (value) => ['day', 'week', 'month'].includes(value) ? value
 const adminCookie = 'mealmind_admin';
 const readCookie = (header, name) => String(header || '').split(';').map((part) => part.trim())
   .find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1);
+const listFilters = (query) => {
+  const page = /^\d+$/.test(query.page || '') ? Number(query.page) : 1;
+  const pageSize = /^\d+$/.test(query.pageSize || '') ? Number(query.pageSize) : 25;
+  const search = String(query.search || '').trim().slice(0, 100);
+  const from = query.from ? String(query.from) : null;
+  const to = query.to ? String(query.to) : null;
+  if (page < 1 || pageSize < 1 || pageSize > 100 ||
+      (from && !/^\d{4}-\d{2}-\d{2}$/.test(from)) || (to && !/^\d{4}-\d{2}-\d{2}$/.test(to)) ||
+      (from && to && from > to)) return null;
+  return { page, pageSize, search, from, to };
+};
 
 function adminRoutes(repository, options = {}) {
   const router = express.Router();
@@ -57,10 +68,13 @@ function adminRoutes(repository, options = {}) {
   });
   router.use('/admin', requireAdmin);
   router.get('/admin/dashboard', run(async (req, res) => res.json(await repository.dashboard(reportPeriod(req.query.period)))));
-  router.get('/admin/users', run(async (req, res) => res.json({ items: await repository.users() })));
-  router.get('/admin/merchants', run(async (req, res) => res.json({ items: await repository.merchants() })));
-  router.get('/admin/foods', run(async (req, res) => res.json({ items: await repository.foods(reportPeriod(req.query.period)) })));
-  router.get('/admin/orders', run(async (req, res) => res.json({ items: await repository.orders(reportPeriod(req.query.period)) })));
+  for (const resource of ['users', 'merchants', 'foods', 'orders']) {
+    router.get(`/admin/${resource}`, run(async (req, res) => {
+      const filters = listFilters(req.query);
+      if (!filters) return res.status(400).json({ message: '查詢條件格式不正確' });
+      res.json(await repository[resource](filters));
+    }));
+  }
   router.put('/admin/merchants/:id/status', run(async (req, res) => {
     if (!/^[1-9][0-9]{0,19}$/.test(req.params.id) || !['active', 'suspended'].includes(req.body?.status)) {
       return res.status(400).json({ message: '管理資料格式不正確' });

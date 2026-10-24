@@ -11,7 +11,7 @@ const viewMeta = {
   foods: ['餐點報表', '比較期間銷量、營收、庫存與有效期限'],
   orders: ['訂單報表', '追蹤付款結果、訂單金額與減廢效益'],
 };
-const state = { view:'dashboard', period:'day', items:[], dashboard:null };
+const state = { view:'dashboard', period:'day', page:1, pageSize:25, search:'', from:'', to:'', items:[], pagination:null, dashboard:null };
 
 async function api(path, options = {}) {
   const response = await fetch(`/api${path}`, {
@@ -77,13 +77,14 @@ function dataTable(view, items) {
   return `<div class="admin-table-wrap"><table><thead><tr>${heads.map((head) => `<th>${head}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
-function filteredItems() {
-  const keyword = $('#admin-search').value.trim().toLowerCase();
-  if (!keyword) return state.items;
-  return state.items.filter((item) => Object.values(item).some((value) => String(value ?? '').toLowerCase().includes(keyword)));
-}
+function renderItems() { $('#admin-content').innerHTML = dataTable(state.view, state.items); }
 
-function renderItems() { $('#admin-content').innerHTML = dataTable(state.view, filteredItems()); }
+function renderPagination() {
+  const node = $('#admin-pagination'), paging = state.pagination;
+  if (!paging) { node.hidden = true; return; }
+  node.hidden = false;
+  node.innerHTML = `<span>共 ${paging.total.toLocaleString()} 筆・第 ${paging.page} / ${paging.totalPages} 頁</span><div><button type="button" data-page="${paging.page - 1}" ${paging.page <= 1 ? 'disabled' : ''}>上一頁</button><button type="button" data-page="${paging.page + 1}" ${paging.page >= paging.totalPages ? 'disabled' : ''}>下一頁</button></div>`;
+}
 
 async function loadView(view = state.view) {
   state.view = view;
@@ -91,16 +92,29 @@ async function loadView(view = state.view) {
   $('#admin-title').textContent = title;
   $('#admin-subtitle').textContent = subtitle;
   $$('[data-admin-view]').forEach((button) => button.classList.toggle('active', button.dataset.adminView === view));
-  const reports = ['dashboard', 'foods', 'orders'].includes(view);
-  $('.period-switch').hidden = !reports;
+  const dashboard = view === 'dashboard';
+  $('.period-switch').hidden = !dashboard;
+  $('#admin-date-range').hidden = dashboard;
   $('#admin-search').closest('label').hidden = view === 'dashboard';
+  $('#admin-page-size').closest('label').hidden = dashboard;
   $('#admin-export').hidden = view === 'dashboard';
+  $('#admin-pagination').hidden = true;
+  const placeholders = { users:'搜尋會員姓名或 Email', merchants:'搜尋商家、Email 或電話', foods:'搜尋餐點、商家或門市', orders:'搜尋訂單編號、會員或 Email' };
+  $('#admin-search').placeholder = placeholders[view] || '';
   $('#admin-content').innerHTML = '<p class="admin-loading">正在載入資料…</p>';
   setAlert();
   try {
-    const result = await api(`/admin/${view}${reports ? `?period=${state.period}` : ''}`);
-    if (view === 'dashboard') { state.dashboard = result; $('#admin-content').innerHTML = dashboardView(result); }
-    else { state.items = result.items || []; $('#admin-search').value = ''; renderItems(); }
+    const query = new URLSearchParams();
+    if (dashboard) query.set('period', state.period);
+    else {
+      query.set('page', state.page); query.set('pageSize', state.pageSize);
+      if (state.search) query.set('search', state.search);
+      if (state.from) query.set('from', state.from);
+      if (state.to) query.set('to', state.to);
+    }
+    const result = await api(`/admin/${view}?${query}`);
+    if (dashboard) { state.dashboard = result; state.pagination = null; $('#admin-content').innerHTML = dashboardView(result); }
+    else { state.items = result.items || []; state.pagination = result.pagination; renderItems(); renderPagination(); }
     $('#admin-updated').textContent = `更新於 ${new Intl.DateTimeFormat('zh-TW', { hour:'2-digit', minute:'2-digit', second:'2-digit' }).format(new Date())}`;
   } catch (error) {
     $('#admin-content').innerHTML = '<p class="empty">資料載入失敗</p>';
@@ -110,7 +124,7 @@ async function loadView(view = state.view) {
 
 function csvCell(value) { return `"${String(value ?? '').replaceAll('"', '""')}"`; }
 function exportCsv() {
-  const items = filteredItems();
+  const items = state.items;
   if (!items.length) return setAlert('目前沒有可匯出的資料', true);
   const keys = Object.keys(items[0]);
   const csv = '\ufeff' + [keys.join(','), ...items.map((item) => keys.map((key) => csvCell(item[key])).join(','))].join('\r\n');
@@ -123,9 +137,11 @@ function exportCsv() {
 
 document.addEventListener('click', async (event) => {
   const nav = event.target.closest('[data-admin-view], [data-jump-view]');
-  if (nav) return loadView(nav.dataset.adminView || nav.dataset.jumpView);
+  if (nav) { state.page = 1; state.search = ''; $('#admin-search').value = ''; return loadView(nav.dataset.adminView || nav.dataset.jumpView); }
   const period = event.target.closest('[data-admin-period]');
   if (period) { state.period = period.dataset.adminPeriod; $$('[data-admin-period]').forEach((button) => button.classList.toggle('active', button === period)); return loadView(); }
+  const page = event.target.closest('[data-page]');
+  if (page && !page.disabled) { state.page = Number(page.dataset.page); return loadView(); }
   const save = event.target.closest('.admin-merchant-save');
   if (save) {
     const select = document.querySelector(`[data-merchant-status="${save.dataset.id}"]`);
@@ -135,7 +151,11 @@ document.addEventListener('click', async (event) => {
   }
 });
 
-$('#admin-search').addEventListener('input', renderItems);
+let searchTimer;
+$('#admin-search').addEventListener('input', (event) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.search = event.target.value.trim(); state.page = 1; loadView(); }, 350); });
+$('#admin-from').addEventListener('change', (event) => { state.from = event.target.value; state.page = 1; loadView(); });
+$('#admin-to').addEventListener('change', (event) => { state.to = event.target.value; state.page = 1; loadView(); });
+$('#admin-page-size').addEventListener('change', (event) => { state.pageSize = Number(event.target.value); state.page = 1; loadView(); });
 $('#admin-reload').addEventListener('click', () => loadView());
 $('#admin-export').addEventListener('click', exportCsv);
 $('#admin-logout').addEventListener('click', async () => { try { await api('/admin/auth/logout', { method:'POST' }); } catch {} location.replace('/login.html?tab=admin'); });

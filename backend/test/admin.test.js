@@ -32,7 +32,7 @@ async function login(app, password = 'correct-horse-battery-staple') {
 test('admin uses account login, short-lived session and exposes no password data', async () => {
   const repository = {
     dashboard: async () => ({ users: { total: 1 } }),
-    users: async () => [{ id: '1', name: '測試會員', email: 'member@example.com' }],
+    users: async () => ({ items: [{ id: '1', name: '測試會員', email: 'member@example.com' }] }),
   };
   const app = await fixture(repository);
   assert.equal((await request(app, '/api/admin/dashboard')).status, 401);
@@ -77,17 +77,26 @@ test('admin merchant status only permits active and suspended', async () => {
   assert.deepEqual(update, { id: '1', status: 'suspended' });
 });
 
-test('admin reports accept only supported periods', async () => {
+test('admin dashboard accepts only supported summary periods', async () => {
   const received = [];
   const app = await fixture({
     dashboard: async (period) => { received.push(['dashboard', period]); return { period }; },
-    foods: async (period) => { received.push(['foods', period]); return []; },
-    orders: async (period) => { received.push(['orders', period]); return []; },
   });
   const { token } = await (await login(app)).json();
   const headers = { Authorization: `Bearer ${token}` };
   await request(app, '/api/admin/dashboard?period=week', { headers });
-  await request(app, '/api/admin/foods?period=month', { headers });
-  await request(app, '/api/admin/orders?period=DROP%20TABLE', { headers });
-  assert.deepEqual(received, [['dashboard', 'week'], ['foods', 'month'], ['orders', 'day']]);
+  await request(app, '/api/admin/dashboard?period=DROP%20TABLE', { headers });
+  assert.deepEqual(received, [['dashboard', 'week'], ['dashboard', 'day']]);
+});
+
+test('admin lists validate and pass pagination, search and dates', async () => {
+  let received;
+  const app = await fixture({ users: async (filters) => { received = filters; return { items: [], pagination: {} }; } });
+  const { token } = await (await login(app)).json();
+  const headers = { Authorization: `Bearer ${token}` };
+  const valid = await request(app, '/api/admin/users?page=2&pageSize=50&search=test&from=2026-10-01&to=2026-10-24', { headers });
+  assert.equal(valid.status, 200);
+  assert.deepEqual(received, { page: 2, pageSize: 50, search: 'test', from: '2026-10-01', to: '2026-10-24' });
+  assert.equal((await request(app, '/api/admin/users?pageSize=500', { headers })).status, 400);
+  assert.equal((await request(app, '/api/admin/users?from=2026-11-01&to=2026-10-01', { headers })).status, 400);
 });

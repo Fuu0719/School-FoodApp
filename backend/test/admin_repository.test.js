@@ -40,8 +40,9 @@ test('MySQL integration: admin dashboard, food and order reports execute', {
     const dashboard = await repository.dashboard('day');
     assert.equal(dashboard.period, 'day');
     assert.ok(dashboard.users && dashboard.orders && Array.isArray(dashboard.topFoods));
-    assert.ok(Array.isArray(await repository.foods('week')));
-    assert.ok(Array.isArray(await repository.orders('month')));
+    const filters = { page: 1, pageSize: 25, search: '', from: '2026-01-01', to: '2026-12-31' };
+    assert.ok(Array.isArray((await repository.foods(filters)).items));
+    assert.ok(Array.isArray((await repository.orders(filters)).items));
   } finally {
     await pool.end();
   }
