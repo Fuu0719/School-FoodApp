@@ -42,7 +42,7 @@ function adminRoutes(repository, options = {}) {
     const token = randomBytes(32).toString('hex');
     const expiresAt = now() + 2 * 60 * 60 * 1000;
     sessions.set(tokenHash(token), expiresAt);
-    res.append('Set-Cookie', `${adminCookie}=${token}; Path=/api/admin; Max-Age=7200; HttpOnly; Secure; SameSite=Strict`);
+    res.append('Set-Cookie', `${adminCookie}=${token}; Path=/api/admin; HttpOnly; Secure; SameSite=Strict`);
     res.set('Cache-Control', 'no-store').json({ token, expiresAt: new Date(expiresAt).toISOString() });
   }));
 

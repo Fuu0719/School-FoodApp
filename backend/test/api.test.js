@@ -37,6 +37,25 @@ test('health endpoint returns ok', async () => {
   assert.equal(body.status, 'ok');
 });
 
+test('website navigation does not revoke signed-in browser sessions', async () => {
+  const [loginResponse, adminResponse, homeResponse] = await Promise.all([
+    fetch(`${baseUrl}/app.js`),
+    fetch(`${baseUrl}/admin.js`),
+    fetch(`${baseUrl}/`),
+  ]);
+  const [loginScript, adminScript, homePage] = await Promise.all([
+    loginResponse.text(),
+    adminResponse.text(),
+    homeResponse.text(),
+  ]);
+
+  assert.equal(loginResponse.status, 200);
+  assert.equal(adminResponse.status, 200);
+  assert.doesNotMatch(loginScript, /addEventListener\(['"]pagehide['"]/);
+  assert.doesNotMatch(adminScript, /addEventListener\(['"]pagehide['"]/);
+  assert.match(homePage, /id="account-link"/);
+});
+
 test('admin console is a separate non-cacheable page', async () => {
   const response = await fetch(`${baseUrl}/admin.html`);
   const html = await response.text();

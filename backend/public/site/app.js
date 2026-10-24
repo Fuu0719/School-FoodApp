@@ -122,8 +122,6 @@ document.addEventListener('click',async(event)=>{
   }
 });
 
-function revokeOnLeave(){const requests=[];if(state.memberToken)requests.push(['/api/auth/logout',state.memberToken]);if(state.merchantToken)requests.push(['/api/merchant/auth/logout',state.merchantToken]);for(const [url,token] of requests)fetch(url,{method:'POST',headers:{Authorization:`Bearer ${token}`},keepalive:true}).catch(()=>{});sessionStorage.removeItem('memberToken');sessionStorage.removeItem('merchantToken');sessionStorage.removeItem('adminToken');}
-window.addEventListener('pagehide',revokeOnLeave);
 window.addEventListener('pageshow',(event)=>{if(event.persisted)location.reload();});
 const requestedTab=new URLSearchParams(location.search).get('tab');if(['member','merchant','admin'].includes(requestedTab))switchTab(requestedTab);
 const paymentStatus=new URLSearchParams(location.search).get('payment');if(paymentStatus==='paid')status('付款成功，訂單通知信已寄出');else if(paymentStatus==='failed')status('付款未完成，請至點餐紀錄確認訂單狀態',true);

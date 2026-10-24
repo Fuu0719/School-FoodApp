@@ -159,8 +159,4 @@ $('#admin-page-size').addEventListener('change', (event) => { state.pageSize = N
 $('#admin-reload').addEventListener('click', () => loadView());
 $('#admin-export').addEventListener('click', exportCsv);
 $('#admin-logout').addEventListener('click', async () => { try { await api('/admin/auth/logout', { method:'POST' }); } catch {} location.replace('/login.html?tab=admin'); });
-window.addEventListener('pagehide', () => {
-  fetch('/api/admin/auth/logout', { method:'POST', keepalive:true }).catch(() => {});
-});
-
 loadView();

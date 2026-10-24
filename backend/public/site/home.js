@@ -5,6 +5,15 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
 const money = (value) => `NT$ ${Number(value || 0).toLocaleString('zh-TW')}`;
 const foods = new Map();
 const cart = new Map(JSON.parse(sessionStorage.getItem('webCart') || '[]'));
+const accountLink = $('#account-link');
+
+if (sessionStorage.getItem('memberToken')) {
+  accountLink.href = '/login.html?tab=member';
+  accountLink.firstChild.textContent = '會員中心 ';
+} else if (sessionStorage.getItem('merchantToken')) {
+  accountLink.href = '/login.html?tab=merchant';
+  accountLink.firstChild.textContent = '商家後台 ';
+}
 
 function notify(message, error = false) {
   const toast = $('#site-status');
