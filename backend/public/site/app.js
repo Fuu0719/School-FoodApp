@@ -3,11 +3,11 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 const state = {
   memberToken: sessionStorage.getItem('memberToken'), member: null,
   merchantToken: sessionStorage.getItem('merchantToken'), merchant: null,
-  adminToken: sessionStorage.getItem('adminToken'), adminView: 'dashboard', adminPeriod: 'day',
+  adminToken: null, adminView: 'dashboard', adminPeriod: 'day',
   foods: new Map(),
   cart: new Map(JSON.parse(sessionStorage.getItem('webCart') || '[]').map(([id, quantity]) => [String(id), quantity])),
 };
-let navigatingToAdmin = false;
+sessionStorage.removeItem('adminToken');
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const money = (value) => `NT$ ${Number(value || 0).toLocaleString('zh-TW')}`;
 const date = (value) => value ? new Intl.DateTimeFormat('zh-TW', {dateStyle:'medium', timeStyle:'short'}).format(new Date(value)) : '—';
@@ -85,7 +85,7 @@ function productForm(){const stores=state.merchant.stores||[];return `<form id="
 document.addEventListener('submit',async(event)=>{const form=event.target;if(form.id==='merchant-account-form'){event.preventDefault();try{state.merchant=await api('/merchant/me',{method:'PUT',body:Object.fromEntries(new FormData(form)),token:state.merchantToken});showMerchant();status('商家資料已更新');}catch(error){status(error.message,true);}}if(form.id==='product-form'){event.preventDefault();const f=new FormData(form),num=n=>Number(f.get(n)||0),split=n=>String(f.get(n)||'').split(',').map(x=>x.trim()).filter(Boolean);const body={storeId:f.get('storeId'),name:f.get('name'),category:f.get('category'),price:num('price'),originalPrice:null,stockCount:num('stockCount'),imageUrl:f.get('imageUrl'),calories:num('calories'),weightGrams:0,proteinGrams:num('proteinGrams'),fatGrams:num('fatGrams'),carbsGrams:0,tags:split('tags'),ingredients:split('ingredients'),isExpiringSoon:f.get('isExpiringSoon')==='on',expiresAt:f.get('expiresAt')?new Date(f.get('expiresAt')).toISOString():null};try{await api('/merchant/products',{method:'POST',body,token:state.merchantToken,headers:{'Idempotency-Key':crypto.randomUUID()}});merchantView('products');status('商品已新增');}catch(error){status(error.message,true);}}});
 document.addEventListener('click',async(event)=>{const b=event.target.closest('.product-status,.product-delete');if(!b)return;try{if(b.classList.contains('product-status'))await api(`/merchant/products/${b.dataset.id}/status`,{method:'PUT',body:{revision:Number(b.dataset.revision),status:b.dataset.status},token:state.merchantToken});else if(confirm('確定刪除此商品？'))await api(`/merchant/products/${b.dataset.id}`,{method:'DELETE',body:{revision:Number(b.dataset.revision)},token:state.merchantToken});merchantView('products');status('商品狀態已更新');}catch(error){status(error.message,true);}});
 
-$('#admin-login').addEventListener('submit',async(event)=>{event.preventDefault();try{const result=await api('/admin/auth/login',{method:'POST',body:Object.fromEntries(new FormData(event.currentTarget))});sessionStorage.setItem('adminToken',result.token);state.adminToken=null;navigatingToAdmin=true;clearForm('#admin-login');location.replace('/admin.html');}catch(error){status(error.message,true);}});$('#admin-logout')?.addEventListener('click',()=>adminLogout());$$('[data-admin-view]').forEach(b=>b.addEventListener('click',()=>adminView(b.dataset.adminView)));
+$('#admin-login').addEventListener('submit',async(event)=>{event.preventDefault();try{await api('/admin/auth/login',{method:'POST',body:Object.fromEntries(new FormData(event.currentTarget))});clearForm('#admin-login');location.replace('/admin.html');}catch(error){status(error.message,true);}});$('#admin-logout')?.addEventListener('click',()=>adminLogout());$$('[data-admin-view]').forEach(b=>b.addEventListener('click',()=>adminView(b.dataset.adminView)));
 function adminLogout(remote=true){if(remote&&state.adminToken)api('/admin/auth/logout',{method:'POST',token:state.adminToken}).catch(()=>{});state.adminToken=null;sessionStorage.removeItem('adminToken');clearForm('#admin-login');$('#admin-auth').hidden=false;$('#admin-app').hidden=true;status('管理員已登出');}
 function showAdmin(){location.replace('/admin.html');}
 const periodNames={day:'今日',week:'本週',month:'本月'};
@@ -122,9 +122,9 @@ document.addEventListener('click',async(event)=>{
   }
 });
 
-function revokeOnLeave(){const requests=[];if(state.memberToken)requests.push(['/api/auth/logout',state.memberToken]);if(state.merchantToken)requests.push(['/api/merchant/auth/logout',state.merchantToken]);if(state.adminToken&&!navigatingToAdmin)requests.push(['/api/admin/auth/logout',state.adminToken]);for(const [url,token] of requests)fetch(url,{method:'POST',headers:{Authorization:`Bearer ${token}`},keepalive:true}).catch(()=>{});sessionStorage.removeItem('memberToken');sessionStorage.removeItem('merchantToken');if(!navigatingToAdmin)sessionStorage.removeItem('adminToken');}
+function revokeOnLeave(){const requests=[];if(state.memberToken)requests.push(['/api/auth/logout',state.memberToken]);if(state.merchantToken)requests.push(['/api/merchant/auth/logout',state.merchantToken]);for(const [url,token] of requests)fetch(url,{method:'POST',headers:{Authorization:`Bearer ${token}`},keepalive:true}).catch(()=>{});sessionStorage.removeItem('memberToken');sessionStorage.removeItem('merchantToken');sessionStorage.removeItem('adminToken');}
 window.addEventListener('pagehide',revokeOnLeave);
 window.addEventListener('pageshow',(event)=>{if(event.persisted)location.reload();});
 const requestedTab=new URLSearchParams(location.search).get('tab');if(['member','merchant','admin'].includes(requestedTab))switchTab(requestedTab);
 const paymentStatus=new URLSearchParams(location.search).get('payment');if(paymentStatus==='paid')status('付款成功，訂單通知信已寄出');else if(paymentStatus==='failed')status('付款未完成，請至點餐紀錄確認訂單狀態',true);
-loadFoods(); restoreMember(); restoreMerchant(); if(state.adminToken)showAdmin();
+loadFoods(); restoreMember(); restoreMerchant();

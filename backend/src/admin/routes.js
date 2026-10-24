@@ -6,6 +6,9 @@ const { verifyPassword } = require('../auth/passwords');
 const run = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 const tokenHash = (value) => createHash('sha256').update(value).digest('hex');
 const reportPeriod = (value) => ['day', 'week', 'month'].includes(value) ? value : 'day';
+const adminCookie = 'mealmind_admin';
+const readCookie = (header, name) => String(header || '').split(';').map((part) => part.trim())
+  .find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1);
 
 function adminRoutes(repository, options = {}) {
   const router = express.Router();
@@ -28,11 +31,14 @@ function adminRoutes(repository, options = {}) {
     const token = randomBytes(32).toString('hex');
     const expiresAt = now() + 2 * 60 * 60 * 1000;
     sessions.set(tokenHash(token), expiresAt);
+    res.append('Set-Cookie', `${adminCookie}=${token}; Path=/api/admin; Max-Age=7200; HttpOnly; Secure; SameSite=Strict`);
     res.set('Cache-Control', 'no-store').json({ token, expiresAt: new Date(expiresAt).toISOString() });
   }));
 
   const requireAdmin = (req, res, next) => {
-    const supplied = /^Bearer ([a-f0-9]{64})$/.exec(req.get('Authorization') || '')?.[1];
+    const bearer = /^Bearer ([a-f0-9]{64})$/.exec(req.get('Authorization') || '')?.[1];
+    const cookie = readCookie(req.get('Cookie'), adminCookie);
+    const supplied = bearer || (/^[a-f0-9]{64}$/.test(cookie || '') ? cookie : '');
     const hash = supplied ? tokenHash(supplied) : '';
     const expiresAt = hash ? sessions.get(hash) : null;
     if (!expiresAt || expiresAt <= now()) {
@@ -46,6 +52,7 @@ function adminRoutes(repository, options = {}) {
 
   router.post('/admin/auth/logout', requireAdmin, (req, res) => {
     sessions.delete(req.adminSessionHash);
+    res.append('Set-Cookie', `${adminCookie}=; Path=/api/admin; Max-Age=0; HttpOnly; Secure; SameSite=Strict`);
     res.json({ message: '管理員已登出' });
   });
   router.use('/admin', requireAdmin);

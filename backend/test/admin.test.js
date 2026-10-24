@@ -40,6 +40,8 @@ test('admin uses account login, short-lived session and exposes no password data
   const signedIn = await login(app);
   assert.equal(signedIn.status, 200);
   assert.equal(signedIn.headers.get('cache-control'), 'no-store');
+  assert.match(signedIn.headers.get('set-cookie') || '', /mealmind_admin=[a-f0-9]{64}/);
+  assert.match(signedIn.headers.get('set-cookie') || '', /HttpOnly; Secure; SameSite=Strict/);
   const { token } = await signedIn.json();
   assert.match(token, /^[a-f0-9]{64}$/);
   const allowed = await request(app, '/api/admin/users', { headers: { Authorization: `Bearer ${token}` } });
@@ -47,6 +49,10 @@ test('admin uses account login, short-lived session and exposes no password data
   const body = await allowed.json();
   assert.equal(body.items[0].email, 'member@example.com');
   assert.equal('passwordHash' in body.items[0], false);
+  const cookieAllowed = await request(app, '/api/admin/users', {
+    headers: { Cookie: `mealmind_admin=${token}` },
+  });
+  assert.equal(cookieAllowed.status, 200);
   assert.equal((await request(app, '/api/admin/auth/logout', {
     method: 'POST', headers: { Authorization: `Bearer ${token}` },
   })).status, 200);

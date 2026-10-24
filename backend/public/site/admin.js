@@ -11,16 +11,16 @@ const viewMeta = {
   foods: ['餐點報表', '比較期間銷量、營收、庫存與有效期限'],
   orders: ['訂單報表', '追蹤付款結果、訂單金額與減廢效益'],
 };
-const state = { token:sessionStorage.getItem('adminToken'), view:'dashboard', period:'day', items:[], dashboard:null };
+const state = { view:'dashboard', period:'day', items:[], dashboard:null };
 
 async function api(path, options = {}) {
   const response = await fetch(`/api${path}`, {
     method: options.method || 'GET',
-    headers: { Accept:'application/json', Authorization:`Bearer ${state.token}`, ...(options.body ? {'Content-Type':'application/json'} : {}) },
+    headers: { Accept:'application/json', ...(options.body ? {'Content-Type':'application/json'} : {}) },
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   const data = await response.json().catch(() => ({}));
-  if (response.status === 401) { sessionStorage.removeItem('adminToken'); location.replace('/login.html?tab=admin'); throw new Error('登入已失效'); }
+  if (response.status === 401) { location.replace('/login.html?tab=admin'); throw new Error('登入已失效'); }
   if (!response.ok) throw new Error(data.message || '服務暫時無法處理');
   return data;
 }
@@ -138,12 +138,9 @@ document.addEventListener('click', async (event) => {
 $('#admin-search').addEventListener('input', renderItems);
 $('#admin-reload').addEventListener('click', () => loadView());
 $('#admin-export').addEventListener('click', exportCsv);
-$('#admin-logout').addEventListener('click', async () => { try { await api('/admin/auth/logout', { method:'POST' }); } catch {} sessionStorage.removeItem('adminToken'); location.replace('/login.html?tab=admin'); });
+$('#admin-logout').addEventListener('click', async () => { try { await api('/admin/auth/logout', { method:'POST' }); } catch {} location.replace('/login.html?tab=admin'); });
 window.addEventListener('pagehide', () => {
-  if (!state.token) return;
-  fetch('/api/admin/auth/logout', { method:'POST', headers:{ Authorization:`Bearer ${state.token}` }, keepalive:true }).catch(() => {});
-  sessionStorage.removeItem('adminToken');
+  fetch('/api/admin/auth/logout', { method:'POST', keepalive:true }).catch(() => {});
 });
 
-if (!state.token) location.replace('/login.html?tab=admin');
-else loadView();
+loadView();
