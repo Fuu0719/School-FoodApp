@@ -15,10 +15,11 @@ Generate a password hash on the school server and store only the hash in `.env`:
 
 ```powershell
 cd C:\School\my_app\backend
-npm.cmd run admin:hash-password -- "use-a-unique-password-of-at-least-12-characters"
+npm.cmd run admin:hash-password -- --generate
 ```
 
-Never save the plain-text password in `.env`, source control, screenshots, or chat.
+Save the generated `ADMIN_PASSWORD` in a password manager, then discard it from the terminal. Put only
+`ADMIN_PASSWORD_HASH` in `.env`. Never save the plain-text password in `.env`, source control, screenshots, or chat.
 
 Cloudflare Tunnel public hostnames:
 
