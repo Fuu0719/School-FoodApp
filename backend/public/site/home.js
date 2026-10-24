@@ -7,13 +7,24 @@ const foods = new Map();
 const cart = new Map(JSON.parse(sessionStorage.getItem('webCart') || '[]'));
 const accountLink = $('#account-link');
 
-if (sessionStorage.getItem('memberToken')) {
-  accountLink.href = '/login.html?tab=member';
-  accountLink.firstChild.textContent = '會員中心 ';
-} else if (sessionStorage.getItem('merchantToken')) {
-  accountLink.href = '/login.html?tab=merchant';
-  accountLink.firstChild.textContent = '商家後台 ';
+function syncAccountLink() {
+  const activePortal = sessionStorage.getItem('activePortal');
+  const hasMember = Boolean(sessionStorage.getItem('memberToken'));
+  const hasMerchant = Boolean(sessionStorage.getItem('merchantToken'));
+  if (hasMerchant && (activePortal === 'merchant' || !hasMember)) {
+    accountLink.href = '/login.html?tab=merchant';
+    accountLink.firstChild.textContent = '商家後台 ';
+  } else if (hasMember) {
+    accountLink.href = '/login.html?tab=member';
+    accountLink.firstChild.textContent = '會員中心 ';
+  } else {
+    accountLink.href = '/login.html';
+    accountLink.firstChild.textContent = '登入 ';
+  }
 }
+
+syncAccountLink();
+window.addEventListener('pageshow', syncAccountLink);
 
 function notify(message, error = false) {
   const toast = $('#site-status');
@@ -95,7 +106,7 @@ window.addEventListener('resize', () => {
 
 $('#food-search').addEventListener('submit', (event) => { event.preventDefault(); loadFoods(); });
 $('#reload-foods').addEventListener('click', loadFoods);
-document.addEventListener('click', (event) => {
+document.addEventListener('click', async (event) => {
   const add = event.target.closest('.add-cart');
   const favorite = event.target.closest('.add-favorite');
   if (add) {
@@ -109,6 +120,19 @@ document.addEventListener('click', (event) => {
     notify(`${food.name} 已加入購物車，登入後即可結帳`);
   }
   if (favorite) {
+    const memberToken = sessionStorage.getItem('memberToken');
+    if (memberToken) {
+      favorite.disabled = true;
+      try {
+        await api(`/me/favorites/${favorite.dataset.id}`, { method: 'PUT', token: memberToken });
+        favorite.textContent = '已收藏';
+        notify('已加入收藏');
+      } catch (error) {
+        favorite.disabled = false;
+        notify(error.message, true);
+      }
+      return;
+    }
     const params = new URLSearchParams({ tab: 'member', intent: 'favorite', id: favorite.dataset.id });
     location.assign(`/login.html?${params}`);
   }

@@ -43,10 +43,12 @@ test('website navigation does not revoke signed-in browser sessions', async () =
     fetch(`${baseUrl}/admin.js`),
     fetch(`${baseUrl}/`),
   ]);
-  const [loginScript, adminScript, homePage] = await Promise.all([
+  const homeScriptResponse = await fetch(`${baseUrl}/home.js`);
+  const [loginScript, adminScript, homePage, homeScript] = await Promise.all([
     loginResponse.text(),
     adminResponse.text(),
     homeResponse.text(),
+    homeScriptResponse.text(),
   ]);
 
   assert.equal(loginResponse.status, 200);
@@ -54,6 +56,12 @@ test('website navigation does not revoke signed-in browser sessions', async () =
   assert.doesNotMatch(loginScript, /addEventListener\(['"]pagehide['"]/);
   assert.doesNotMatch(adminScript, /addEventListener\(['"]pagehide['"]/);
   assert.match(homePage, /id="account-link"/);
+  assert.match(homePage, /home\.js\?v=6/);
+  assert.match(loginScript, /sessionStorage\.setItem\('activePortal','member'\)/);
+  assert.match(homeScript, /addEventListener\(['"]pageshow['"],\s*syncAccountLink\)/);
+  assert.match(homeScript, /activePortal/);
+  assert.match(homeScript, /api\(`\/me\/favorites\/\$\{favorite\.dataset\.id\}`/);
+  assert.match(loginScript, /error\.status === 401 \|\| error\.status === 403/);
 });
 
 test('admin console is a separate non-cacheable page', async () => {
