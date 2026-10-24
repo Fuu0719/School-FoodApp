@@ -6,23 +6,19 @@ Required production environment variables:
 
 ```dotenv
 PUBLIC_BASE_URL=https://api.mealmind-app.online
-ADMIN_ACCESS_TOKEN=replace-with-at-least-32-random-characters
+ADMIN_EMAIL=admin@mealmind-app.online
+ADMIN_PASSWORD_HASH=scrypt-v1$generated-value
 APP_APK_PATH=C:\School\my_app\MealMind-latest.apk
 ```
 
-Generate the admin token once in PowerShell and store it in the backend `.env` file:
+Generate a password hash on the school server and store only the hash in `.env`:
 
 ```powershell
-$bytes = New-Object byte[] 32
-$rng = [Security.Cryptography.RandomNumberGenerator]::Create()
-try {
-  $rng.GetBytes($bytes)
-} finally {
-  $rng.Dispose()
-}
-$adminToken = -join ($bytes | ForEach-Object { $_.ToString('x2') })
-$adminToken
+cd C:\School\my_app\backend
+npm.cmd run admin:hash-password -- "use-a-unique-password-of-at-least-12-characters"
 ```
+
+Never save the plain-text password in `.env`, source control, screenshots, or chat.
 
 Cloudflare Tunnel public hostnames:
 
@@ -30,4 +26,4 @@ Cloudflare Tunnel public hostnames:
 - `mealmind-app.online` -> `http://127.0.0.1:3000`
 - `www.mealmind-app.online` -> redirect to `https://mealmind-app.online`
 
-After pulling a release, run `npm.cmd ci`, test, restart `SchoolFoodAppApi`, and verify `/`, `/api/health`, and `/api/admin/dashboard`.
+After pulling a release, run `npm.cmd ci`, test, restart `SchoolFoodAppApi`, and verify `/`, `/login.html`, and `/api/health`.

@@ -20,6 +20,8 @@ function createApp({ userRepository, mailer, enablePrototypeRoutes = false,
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
       'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
     });
     next();
   });
@@ -38,9 +40,17 @@ function createApp({ userRepository, mailer, enablePrototypeRoutes = false,
     });
   }
 
-  app.use(cors());
+  const browserOrigins = new Set(['https://mealmind-app.online', 'https://www.mealmind-app.online']);
+  app.use(cors({ origin(origin, callback) {
+    if (!origin || browserOrigins.has(origin)) return callback(null, true);
+    return callback(null, false);
+  } }));
   app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'site', 'home.html'));
+  });
+  app.get('/login.html', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '..', 'public', 'site', 'login.html'));
   });
   app.use(express.static(path.join(__dirname, '..', 'public', 'site'), {
     extensions: ['html'],

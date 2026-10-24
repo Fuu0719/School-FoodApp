@@ -47,7 +47,7 @@ function createEcpay() {
     gatewayUrl,
     newToken: () => randomBytes(32).toString('hex'),
     tokenHash: (token) => createHash('sha256').update(token).digest('hex'),
-    fields(order) {
+    fields(order, { resultUrl } = {}) {
       if (!enabled) return null;
       const fields = {
         MerchantID: merchantId,
@@ -58,7 +58,7 @@ function createEcpay() {
         TradeDesc: 'MealMind food rescue order',
         ItemName: `MealMind惜食餐點 x${order.totalQuantity}`,
         ReturnURL: `${publicBaseUrl}/api/payments/ecpay/return`,
-        OrderResultURL: `${publicBaseUrl}/api/payments/ecpay/result`,
+        OrderResultURL: resultUrl || `${publicBaseUrl}/api/payments/ecpay/result`,
         ChoosePayment: 'ALL',
         EncryptType: '1',
       };

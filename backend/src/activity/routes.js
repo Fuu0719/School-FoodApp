@@ -1,5 +1,6 @@
 const express = require('express');
 const { createEcpay } = require('../payments/ecpay');
+const { randomBytes } = require('node:crypto');
 const run = (handler) => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
 const invalid = () => Object.assign(new Error('請求資料格式不正確'), { statusCode: 400 });
 const maxId = '18446744073709551615';
@@ -35,12 +36,16 @@ function activityRoutes(repository, requireMember, mailer = null, ecpay = create
     if (!ecpay.enabled || !/^[0-9a-f]{64}$/.test(req.params.token)) return res.status(404).send('Payment not found');
     const order = await repository.paymentByToken(ecpay.tokenHash(req.params.token));
     if (!order) return res.status(404).send('Payment not found or expired');
-    const fields = ecpay.fields(order);
+    const webResultUrl = `${String(process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '')}/api/payments/ecpay/web-result`;
+    const fields = ecpay.fields(order, req.query.client === 'web' ? { resultUrl: webResultUrl } : undefined);
+    const nonce = randomBytes(18).toString('base64');
     const inputs = Object.entries(fields).map(([key, value]) =>
       `<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}">`).join('');
+    res.set('Content-Security-Policy', `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; form-action ${ecpay.gatewayUrl}; base-uri 'none'; frame-ancestors 'none'`);
+    res.set('Cache-Control', 'no-store');
     res.type('html').send(`<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>前往綠界付款</title>
       <body><p>正在連接綠界安全付款頁面...</p><form id="pay" method="post" action="${escapeHtml(ecpay.gatewayUrl)}">${inputs}</form>
-      <script>document.getElementById('pay').submit()</script></body></html>`);
+      <script nonce="${nonce}">document.getElementById('pay').submit()</script></body></html>`);
   }));
   router.post('/payments/ecpay/return', run(async (req, res) => {
     if (!ecpay.verify(req.body)) return res.status(400).send('0|CheckMacValue Error');
@@ -57,6 +62,17 @@ function activityRoutes(repository, requireMember, mailer = null, ecpay = create
         .catch((error) => console.error('Order email delivery failed:', error.message));
     }
     res.redirect(`mealmind://payment?status=${ok ? 'paid' : 'failed'}`);
+  }));
+  router.post('/payments/ecpay/web-result', run(async (req, res) => {
+    const verified = ecpay.verify(req.body);
+    const ok = verified && req.body.RtnCode === '1';
+    if (verified) {
+      const outcome = await repository.recordPayment(req.body.MerchantTradeNo, ok);
+      if (outcome?.paid) sendOrderEmails(outcome.userId, outcome.orderId)
+        .catch((error) => console.error('Order email delivery failed:', error.message));
+    }
+    const website = String(process.env.APP_PUBLIC_URL || 'https://mealmind-app.online').replace(/\/$/, '');
+    res.redirect(303, `${website}/login.html?tab=member&payment=${ok ? 'paid' : 'failed'}`);
   }));
   router.use(['/me/favorites', '/me/history', '/me/orders', '/me/leaderboard'], requireMember);
   router.get('/me/leaderboard', run(async (req, res) => {
