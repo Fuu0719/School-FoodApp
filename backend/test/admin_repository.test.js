@@ -30,3 +30,19 @@ test('merchant status reports a genuinely missing merchant', async () => {
   });
   assert.equal(await repository.setMerchantStatus('999', 'suspended'), false);
 });
+
+test('MySQL integration: admin dashboard, food and order reports execute', {
+  skip: process.env.MYSQL_INTEGRATION !== '1',
+}, async () => {
+  const pool = require('../src/config/database').createDatabasePool();
+  const repository = new AdminRepository(pool);
+  try {
+    const dashboard = await repository.dashboard('day');
+    assert.equal(dashboard.period, 'day');
+    assert.ok(dashboard.users && dashboard.orders && Array.isArray(dashboard.topFoods));
+    assert.ok(Array.isArray(await repository.foods('week')));
+    assert.ok(Array.isArray(await repository.orders('month')));
+  } finally {
+    await pool.end();
+  }
+});

@@ -37,6 +37,15 @@ test('health endpoint returns ok', async () => {
   assert.equal(body.status, 'ok');
 });
 
+test('admin console is a separate non-cacheable page', async () => {
+  const response = await fetch(`${baseUrl}/admin.html`);
+  const html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('cache-control') || '', /no-store/);
+  assert.match(html, /營運主控板/);
+  assert.match(html, /\/admin\.js/);
+});
+
 test('backend-owned food images are publicly cacheable', async () => {
   const response = await fetch(`${baseUrl}/food-images/bento.jpg`);
   assert.equal(response.status, 200);

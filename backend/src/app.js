@@ -52,6 +52,10 @@ function createApp({ userRepository, mailer, enablePrototypeRoutes = false,
     res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, '..', 'public', 'site', 'login.html'));
   });
+  app.get('/admin.html', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.sendFile(path.join(__dirname, '..', 'public', 'site', 'admin.html'));
+  });
   app.use(express.static(path.join(__dirname, '..', 'public', 'site'), {
     extensions: ['html'],
     maxAge: '5m',
@@ -106,6 +110,7 @@ function createApp({ userRepository, mailer, enablePrototypeRoutes = false,
     }
 
     const status = err.statusCode || err.status || 500;
+    if (status >= 500) console.error('Request failed:', req.method, req.path, err.code || err.message);
     return res.status(status).json({
       message: status >= 500 ? '伺服器暫時無法處理，請稍後再試' :
         (err.type === 'entity.parse.failed' ? 'JSON 格式不正確' : err.message),

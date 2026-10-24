@@ -31,12 +31,12 @@ class AdminRepository {
         COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN saved_amount ELSE 0 END), 0) AS savedAmount,
         COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN eco_points ELSE 0 END), 0) AS ecoPoints
         FROM purchase_orders WHERE purchased_at >= ${start}`),
-      this.pool.execute(`SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(i.food_snapshot, '$.name')), f.name) AS name,
+      this.pool.execute(`SELECT f.name,
         SUM(i.quantity) AS quantity, SUM(i.quantity * i.unit_price) AS revenue
         FROM purchase_order_items i JOIN purchase_orders o ON o.id = i.purchase_order_id
         JOIN foods f ON f.id = i.food_id
         WHERE o.payment_status = 'paid' AND o.purchased_at >= ${start}
-        GROUP BY i.food_id, name ORDER BY quantity DESC, revenue DESC LIMIT 5`),
+        GROUP BY f.id, f.name ORDER BY quantity DESC, revenue DESC LIMIT 5`),
     ]);
     return { period, users: users[0], merchants: merchants[0], foods: foods[0], orders: orders[0], topFoods };
   }
