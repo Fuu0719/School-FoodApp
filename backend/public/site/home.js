@@ -6,6 +6,20 @@ const money = (value) => `NT$ ${Number(value || 0).toLocaleString('zh-TW')}`;
 const foods = new Map();
 const cart = new Map(JSON.parse(sessionStorage.getItem('webCart') || '[]'));
 const accountLink = $('#account-link');
+const cartLink = $('#cart-link');
+const cartCount = $('#cart-count');
+
+function cartQuantity() {
+  return [...cart.values()].reduce((sum, quantity) => sum + Number(quantity || 0), 0);
+}
+
+function syncCartLink() {
+  const quantity = cartQuantity();
+  const signedIn = Boolean(sessionStorage.getItem('memberToken'));
+  cartLink.hidden = !signedIn;
+  cartCount.textContent = String(quantity);
+  cartLink.setAttribute('aria-label', `購物車，目前 ${quantity} 件`);
+}
 
 function syncAccountLink() {
   const activePortal = sessionStorage.getItem('activePortal');
@@ -21,6 +35,7 @@ function syncAccountLink() {
     accountLink.href = '/login.html';
     accountLink.firstChild.textContent = '登入 ';
   }
+  syncCartLink();
 }
 
 syncAccountLink();
@@ -116,8 +131,11 @@ document.addEventListener('click', async (event) => {
     if (quantity >= food.stockCount) return notify('已達目前庫存上限', true);
     cart.set(add.dataset.id, quantity + 1);
     sessionStorage.setItem('webCart', JSON.stringify([...cart]));
+    syncCartLink();
     add.textContent = `已加入 ${quantity + 1}`;
-    notify(`${food.name} 已加入購物車，登入後即可結帳`);
+    notify(sessionStorage.getItem('memberToken')
+      ? `${food.name} 已加入購物車，可前往購物車結帳`
+      : `${food.name} 已加入購物車，登入後即可結帳`);
   }
   if (favorite) {
     const memberToken = sessionStorage.getItem('memberToken');

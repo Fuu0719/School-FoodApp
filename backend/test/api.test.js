@@ -56,11 +56,16 @@ test('website navigation does not revoke signed-in browser sessions', async () =
   assert.doesNotMatch(loginScript, /addEventListener\(['"]pagehide['"]/);
   assert.doesNotMatch(adminScript, /addEventListener\(['"]pagehide['"]/);
   assert.match(homePage, /id="account-link"/);
-  assert.match(homePage, /home\.js\?v=6/);
+  assert.match(homePage, /home\.js\?v=7/);
   assert.match(loginScript, /sessionStorage\.setItem\('activePortal','member'\)/);
   assert.match(homeScript, /addEventListener\(['"]pageshow['"],\s*syncAccountLink\)/);
   assert.match(homeScript, /activePortal/);
+  assert.match(homeScript, /可前往購物車結帳/);
+  assert.match(homePage, /id="cart-link"/);
   assert.match(homeScript, /api\(`\/me\/favorites\/\$\{favorite\.dataset\.id\}`/);
+  assert.match(loginScript, /memberNeedsProfileCompletion/);
+  assert.match(loginScript, /location\.replace\('\/'\)/);
+  assert.match(loginScript, /loadFoods\(\)\.finally\(restoreMember\)/);
   assert.match(loginScript, /error\.status === 401 \|\| error\.status === 403/);
 });
 
