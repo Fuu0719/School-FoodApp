@@ -18,6 +18,12 @@ function checkoutItems(body) {
   return items;
 }
 
+function callbackAmount(body) {
+  if (!/^\d{1,10}$/.test(body?.TradeAmt || '')) return null;
+  const amount = Number(body.TradeAmt);
+  return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
+}
+
 function activityRoutes(repository, requireMember, mailer = null, ecpay = createEcpay()) {
   const router = express.Router();
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
@@ -48,26 +54,33 @@ function activityRoutes(repository, requireMember, mailer = null, ecpay = create
       <script nonce="${nonce}">document.getElementById('pay').submit()</script></body></html>`);
   }));
   router.post('/payments/ecpay/return', run(async (req, res) => {
-    if (!ecpay.verify(req.body)) return res.status(400).send('0|CheckMacValue Error');
-    const outcome = await repository.recordPayment(req.body.MerchantTradeNo, req.body.RtnCode === '1');
+    const amount = callbackAmount(req.body);
+    if (!ecpay.verify(req.body) || amount === null) return res.status(400).send('0|CheckMacValue Error');
+    const outcome = await repository.recordPayment(req.body.MerchantTradeNo, req.body.RtnCode === '1', amount);
+    if (outcome?.rejected) return res.status(400).send('0|Order Error');
     if (outcome?.paid) sendOrderEmails(outcome.userId, outcome.orderId)
       .catch((error) => console.error('Order email delivery failed:', error.message));
     res.type('text').send('1|OK');
   }));
   router.post('/payments/ecpay/result', run(async (req, res) => {
-    const ok = ecpay.verify(req.body) && req.body.RtnCode === '1';
-    if (ecpay.verify(req.body)) {
-      const outcome = await repository.recordPayment(req.body.MerchantTradeNo, ok);
+    const amount = callbackAmount(req.body);
+    const verified = amount !== null && ecpay.verify(req.body);
+    let ok = verified && req.body.RtnCode === '1';
+    if (verified) {
+      const outcome = await repository.recordPayment(req.body.MerchantTradeNo, ok, amount);
+      if (outcome?.rejected) ok = false;
       if (outcome?.paid) sendOrderEmails(outcome.userId, outcome.orderId)
         .catch((error) => console.error('Order email delivery failed:', error.message));
     }
     res.redirect(`mealmind://payment?status=${ok ? 'paid' : 'failed'}`);
   }));
   router.post('/payments/ecpay/web-result', run(async (req, res) => {
-    const verified = ecpay.verify(req.body);
-    const ok = verified && req.body.RtnCode === '1';
+    const amount = callbackAmount(req.body);
+    const verified = amount !== null && ecpay.verify(req.body);
+    let ok = verified && req.body.RtnCode === '1';
     if (verified) {
-      const outcome = await repository.recordPayment(req.body.MerchantTradeNo, ok);
+      const outcome = await repository.recordPayment(req.body.MerchantTradeNo, ok, amount);
+      if (outcome?.rejected) ok = false;
       if (outcome?.paid) sendOrderEmails(outcome.userId, outcome.orderId)
         .catch((error) => console.error('Order email delivery failed:', error.message));
     }

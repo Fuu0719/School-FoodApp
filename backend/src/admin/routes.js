@@ -43,7 +43,7 @@ function adminRoutes(repository, options = {}) {
     const expiresAt = now() + 2 * 60 * 60 * 1000;
     sessions.set(tokenHash(token), expiresAt);
     res.append('Set-Cookie', `${adminCookie}=${token}; Path=/api/admin; HttpOnly; Secure; SameSite=Strict`);
-    res.set('Cache-Control', 'no-store').json({ token, expiresAt: new Date(expiresAt).toISOString() });
+    res.set('Cache-Control', 'no-store').json({ expiresAt: new Date(expiresAt).toISOString() });
   }));
 
   const requireAdmin = (req, res, next) => {
@@ -76,7 +76,7 @@ function adminRoutes(repository, options = {}) {
     }));
   }
   router.put('/admin/merchants/:id/status', run(async (req, res) => {
-    if (!/^[1-9][0-9]{0,19}$/.test(req.params.id) || !['active', 'suspended'].includes(req.body?.status)) {
+    if (!/^[1-9][0-9]{0,19}$/.test(req.params.id) || !['active', 'paused'].includes(req.body?.status)) {
       return res.status(400).json({ message: '管理資料格式不正確' });
     }
     if (!await repository.setMerchantStatus(req.params.id, req.body.status)) {

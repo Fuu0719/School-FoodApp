@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class MemberApiException implements Exception {
@@ -26,9 +27,14 @@ class MemberApi {
     String? idempotencyKey,
   }) async {
     final base = Uri.tryParse(baseUrl);
+    final localDebugHost =
+        base != null &&
+        !kReleaseMode &&
+        {'localhost', '127.0.0.1', '10.0.2.2'}.contains(base.host);
     if (base == null ||
         !base.hasAuthority ||
-        !['http', 'https'].contains(base.scheme)) {
+        (base.scheme != 'https' &&
+            !(base.scheme == 'http' && localDebugHost))) {
       throw const MemberApiException('尚未設定會員服務網址');
     }
     final request = http.Request(method, Uri.parse('$baseUrl$path'));

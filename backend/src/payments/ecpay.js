@@ -65,7 +65,7 @@ function createEcpay() {
       return { ...fields, CheckMacValue: checkMacValue(fields, hashKey, hashIv) };
     },
     verify(fields) {
-      if (!enabled || typeof fields.CheckMacValue !== 'string') return false;
+      if (!enabled || fields.MerchantID !== merchantId || typeof fields.CheckMacValue !== 'string') return false;
       return checkMacValue(fields, hashKey, hashIv) === fields.CheckMacValue.toUpperCase();
     },
   };

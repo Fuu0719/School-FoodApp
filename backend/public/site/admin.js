@@ -67,7 +67,7 @@ function dashboardView(report) {
     { value:report.foods.expired || 0, label:'逾期餐點', note:'應立即確認下架', tone:'danger', view:'foods' },
     { value:report.foods.lowStock || 0, label:'低庫存餐點', note:'庫存 5 份以下', tone:'warning', view:'foods' },
     { value:orders.pending || 0, label:'待付款訂單', note:'尚未完成付款', tone:'warning', view:'orders' },
-    { value:report.merchants.suspended || 0, label:'停權商家', note:'目前無法使用後台', tone:'neutral', view:'merchants' },
+    { value:report.merchants.paused || 0, label:'停權商家', note:'目前無法使用後台', tone:'neutral', view:'merchants' },
   ];
   const topFoods = report.topFoods || [];
   const maxQuantity = Math.max(1, ...topFoods.map((item) => Number(item.quantity)));
@@ -95,7 +95,7 @@ function dataTable(view, items) {
   }[view];
   const rows = items.map((item) => {
     if (view === 'users') return `<tr><td><strong>${escapeHtml(item.name)}</strong><br><small>#${item.id}</small></td><td>${escapeHtml(item.email)}</td><td>${item.emailVerifiedAt ? '已驗證' : '未驗證'}<br><small>${item.linkedMerchantId ? `綁定商家 #${item.linkedMerchantId}` : '未綁定商家'}</small></td><td>${date(item.createdAt)}</td></tr>`;
-    if (view === 'merchants') return `<tr><td><strong>${escapeHtml(item.businessName)}</strong><br><small>#${item.id}・${date(item.createdAt)}</small></td><td>${escapeHtml(item.email)}<br><small>${escapeHtml(item.contactPhone || '未填電話')}</small></td><td>${item.storeCount} 間門市<br><small>${item.productCount} 項餐點</small></td><td><div class="status-editor"><select data-merchant-status="${item.id}" aria-label="${escapeHtml(item.businessName)}狀態"><option value="active" ${item.status === 'active' ? 'selected' : ''}>active</option><option value="suspended" ${item.status === 'suspended' ? 'selected' : ''}>suspended</option></select><button class="small-button admin-merchant-save" data-id="${item.id}">儲存</button></div></td></tr>`;
+    if (view === 'merchants') return `<tr><td><strong>${escapeHtml(item.businessName)}</strong><br><small>#${item.id}・${date(item.createdAt)}</small></td><td>${escapeHtml(item.email)}<br><small>${escapeHtml(item.contactPhone || '未填電話')}</small></td><td>${item.storeCount} 間門市<br><small>${item.productCount} 項餐點</small></td><td><div class="status-editor"><select data-merchant-status="${item.id}" aria-label="${escapeHtml(item.businessName)}狀態"><option value="active" ${item.status === 'active' ? 'selected' : ''}>啟用</option><option value="paused" ${item.status === 'paused' ? 'selected' : ''}>停權</option></select><button class="small-button admin-merchant-save" data-id="${item.id}">儲存</button></div></td></tr>`;
     if (view === 'foods') return `<tr><td><strong>${escapeHtml(item.name)}</strong><br><small>#${item.id}・${date(item.createdAt)}</small></td><td>${escapeHtml(item.merchantName)}<br><small>${escapeHtml(item.storeName)}</small></td><td>${money(item.price)}<br><small>庫存 ${item.stockCount}</small></td><td>${statusBadge(item.status)}<br><small>${item.expiresAt ? `期限 ${date(item.expiresAt)}` : '無期限'}</small></td><td><strong>${item.soldQuantity || 0} 份</strong><br><small>${money(item.revenue)}</small></td></tr>`;
     return `<tr><td><strong>#${item.id}</strong><br>${escapeHtml(item.userName || '會員')}<br><small>${escapeHtml(item.email)}</small></td><td>${item.totalQuantity} 份<br><strong>${money(item.totalPrice)}</strong></td><td>${statusBadge(item.paymentStatus)}</td><td>${date(item.purchasedAt)}<br><small>付款 ${date(item.paidAt)}</small></td><td>節省 ${money(item.savedAmount)}<br><small>點數 ${item.ecoPoints || 0}</small></td></tr>`;
   }).join('');
@@ -148,7 +148,7 @@ async function loadView(view = state.view) {
   }
 }
 
-function csvCell(value) { return `"${String(value ?? '').replaceAll('"', '""')}"`; }
+const csvCell = (value) => MealMindAdminCsv.csvCell(value);
 function exportCsv() {
   const items = state.items;
   if (!items.length) return setAlert('目前沒有可匯出的資料', true);

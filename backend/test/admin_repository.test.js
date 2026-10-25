@@ -10,25 +10,41 @@ test('admin report periods map to fixed server-side SQL expressions', () => {
   assert.equal(repository.periodStart('untrusted input'), 'CURRENT_DATE');
 });
 
-test('merchant status treats an unchanged existing merchant as success', async () => {
-  const calls = [];
-  const repository = new AdminRepository({
+function statusFixture(row = { id: 7, status: 'active' }) {
+  const events = [];
+  const connection = {
+    beginTransaction: async () => events.push('begin'),
+    commit: async () => events.push('commit'),
+    rollback: async () => events.push('rollback'),
+    release: () => events.push('release'),
     execute: async (sql, args) => {
-      calls.push({ sql, args });
-      if (sql.startsWith('UPDATE merchants')) return [{ affectedRows: 0 }];
-      return [[{ id: 7 }]];
+      events.push({ sql, args });
+      if (sql.startsWith('SELECT id, status')) return [row ? [row] : []];
+      return [{ affectedRows: 1 }];
     },
-  });
-  assert.equal(await repository.setMerchantStatus('7', 'active'), true);
-  assert.equal(calls.length, 2);
-  assert.deepEqual(calls[0].args, ['active', '7']);
+  };
+  return { repository: new AdminRepository({ getConnection: async () => connection }), events };
+}
+
+test('merchant pause updates status and revokes every existing session atomically', async () => {
+  const { repository, events } = statusFixture();
+  assert.equal(await repository.setMerchantStatus('7', 'paused'), true);
+  assert.ok(events.some((event) => event.sql?.startsWith('UPDATE merchants') && event.args[0] === 'paused'));
+  assert.ok(events.some((event) => event.sql?.startsWith('DELETE FROM merchant_sessions')));
+  assert.deepEqual(events.slice(-2), ['commit', 'release']);
 });
 
-test('merchant status reports a genuinely missing merchant', async () => {
-  const repository = new AdminRepository({
-    execute: async (sql) => sql.startsWith('UPDATE merchants') ? [{ affectedRows: 0 }] : [[]],
-  });
-  assert.equal(await repository.setMerchantStatus('999', 'suspended'), false);
+test('unchanged active merchant succeeds without revoking sessions', async () => {
+  const { repository, events } = statusFixture({ id: 7, status: 'active' });
+  assert.equal(await repository.setMerchantStatus('7', 'active'), true);
+  assert.equal(events.some((event) => event.sql?.startsWith('UPDATE merchants')), false);
+  assert.equal(events.some((event) => event.sql?.startsWith('DELETE FROM merchant_sessions')), false);
+});
+
+test('missing merchant rolls back without attempting an update', async () => {
+  const { repository, events } = statusFixture(null);
+  assert.equal(await repository.setMerchantStatus('999', 'paused'), false);
+  assert.deepEqual(events.slice(-2), ['rollback', 'release']);
 });
 
 test('MySQL integration: admin dashboard, food and order reports execute', {

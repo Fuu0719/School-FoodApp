@@ -77,7 +77,8 @@ test('admin console is a separate non-cacheable page', async () => {
   assert.equal(response.status, 200);
   assert.match(response.headers.get('cache-control') || '', /no-store/);
   assert.match(html, /營運主控板/);
-  assert.match(html, /\/admin\.js\?v=5/);
+  assert.match(html, /\/admin-csv\.js\?v=1/);
+  assert.match(html, /\/admin\.js\?v=6/);
   assert.match(html, /id="admin-date-range"[\s\S]+class="period-switch"/);
   assert.match(script, /view === 'orders'/);
   assert.match(script, /function applyOrderPeriod\(period\)/);

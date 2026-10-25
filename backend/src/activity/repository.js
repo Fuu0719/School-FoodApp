@@ -138,15 +138,19 @@ class ActivityRepository {
     return rows[0] ? { ...rows[0], id: String(rows[0].id) } : null;
   }
 
-  async recordPayment(merchantTradeNo, paid) {
+  async recordPayment(merchantTradeNo, paid, totalAmount) {
     const connection = await this.pool.getConnection();
     try {
       await connection.beginTransaction();
-      const [rows] = await connection.execute(`SELECT id, user_id AS userId, payment_status
+      const [rows] = await connection.execute(`SELECT id, user_id AS userId, payment_status, total_price AS totalPrice
         FROM purchase_orders WHERE merchant_trade_no = ? FOR UPDATE`, [merchantTradeNo]);
       if (!rows.length || rows[0].payment_status !== 'pending') {
         await connection.commit();
         return null;
+      }
+      if (Number(rows[0].totalPrice) !== totalAmount) {
+        await connection.commit();
+        return { rejected: true };
       }
       const order = rows[0];
       await connection.execute(`UPDATE purchase_orders SET payment_status = ?,

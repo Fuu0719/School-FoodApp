@@ -14,7 +14,7 @@ class AdminRepository {
     const [[users], [merchants], [foods], [orders], [topFoods]] = await Promise.all([
       this.pool.execute(`SELECT COUNT(*) AS total, COALESCE(SUM(created_at >= ${start}), 0) AS newCount FROM users`),
       this.pool.execute(`SELECT COUNT(*) AS total, COALESCE(SUM(status = 'active'), 0) AS active,
-        COALESCE(SUM(status = 'suspended'), 0) AS suspended,
+        COALESCE(SUM(status = 'paused'), 0) AS paused,
         COALESCE(SUM(created_at >= ${start}), 0) AS newCount FROM merchants`),
       this.pool.execute(`SELECT COUNT(*) AS total,
         COALESCE(SUM(status = 'active' AND deleted_at IS NULL), 0) AS active,
@@ -127,10 +127,28 @@ class AdminRepository {
   }
 
   async setMerchantStatus(id, status) {
-    const [result] = await this.pool.execute('UPDATE merchants SET status = ? WHERE id = ?', [status, id]);
-    if (result.affectedRows > 0) return true;
-    const [rows] = await this.pool.execute('SELECT id FROM merchants WHERE id = ? LIMIT 1', [id]);
-    return rows.length > 0;
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [rows] = await connection.execute('SELECT id, status FROM merchants WHERE id = ? FOR UPDATE', [id]);
+      if (!rows.length) {
+        await connection.rollback();
+        return false;
+      }
+      if (rows[0].status !== status) {
+        await connection.execute('UPDATE merchants SET status = ? WHERE id = ?', [status, id]);
+      }
+      if (status === 'paused') {
+        await connection.execute('DELETE FROM merchant_sessions WHERE merchant_id = ?', [id]);
+      }
+      await connection.commit();
+      return true;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   }
 }
 
