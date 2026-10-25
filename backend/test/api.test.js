@@ -37,48 +37,36 @@ test('health endpoint returns ok', async () => {
   assert.equal(body.status, 'ok');
 });
 
-test('website navigation does not revoke signed-in browser sessions', async () => {
-  const [loginResponse, adminResponse, homeResponse] = await Promise.all([
-    fetch(`${baseUrl}/app.js`),
-    fetch(`${baseUrl}/admin.js`),
+test('public website is project-only and exposes only the admin login', async () => {
+  const [homeResponse, loginResponse, loginScriptResponse, homeScriptResponse,
+    cartPageResponse] = await Promise.all([
     fetch(`${baseUrl}/`),
-  ]);
-  const [homeScriptResponse, cartPageResponse, cartScriptResponse] = await Promise.all([
+    fetch(`${baseUrl}/login.html`),
+    fetch(`${baseUrl}/admin-login.js`),
     fetch(`${baseUrl}/home.js`),
-    fetch(`${baseUrl}/cart.html`),
-    fetch(`${baseUrl}/cart.js`),
+    fetch(`${baseUrl}/cart.html`, { redirect: 'manual' }),
   ]);
-  const [loginScript, adminScript, homePage, homeScript, cartPage, cartScript] = await Promise.all([
-    loginResponse.text(),
-    adminResponse.text(),
+  const [homePage, loginPage, loginScript, homeScript] = await Promise.all([
     homeResponse.text(),
+    loginResponse.text(),
+    loginScriptResponse.text(),
     homeScriptResponse.text(),
-    cartPageResponse.text(),
-    cartScriptResponse.text(),
   ]);
 
+  assert.equal(homeResponse.status, 200);
   assert.equal(loginResponse.status, 200);
-  assert.equal(adminResponse.status, 200);
-  assert.doesNotMatch(loginScript, /addEventListener\(['"]pagehide['"]/);
-  assert.doesNotMatch(adminScript, /addEventListener\(['"]pagehide['"]/);
-  assert.match(homePage, /id="account-link"/);
-  assert.match(homePage, /home\.js\?v=8/);
-  assert.match(loginScript, /sessionStorage\.setItem\('activePortal','member'\)/);
-  assert.match(homeScript, /addEventListener\(['"]pageshow['"],\s*syncAccountLink\)/);
-  assert.match(homeScript, /activePortal/);
-  assert.match(homeScript, /可前往購物車結帳/);
-  assert.match(homePage, /id="cart-link"[^>]+href="\/cart\.html"/);
-  assert.match(homeScript, /function readStoredCart\(\)/);
-  assert.match(homeScript, /api\(`\/me\/favorites\/\$\{favorite\.dataset\.id\}`/);
-  assert.match(loginScript, /params\.get\('intent'\)===\s*'cart'\?'\/cart\.html':'\/'/);
-  assert.match(loginScript, /state\.memberOnboarding=true/);
-  assert.match(loginScript, /loadFoods\(\)\.finally\(restoreMember\)/);
-  assert.match(loginScript, /error\.status === 401 \|\| error\.status === 403/);
-  assert.match(cartPage, /id="cart-items"/);
-  assert.match(cartPage, /\/cart\.js\?v=1/);
-  assert.match(cartScript, /api\(`\/foods\/\$\{id\}`\)/);
-  assert.match(cartScript, /sessionStorage\.setItem\('webCart'/);
-  assert.match(cartScript, /Idempotency-Key/);
+  assert.match(homePage, /App 核心功能/);
+  assert.match(homePage, /管理員登入/);
+  assert.match(homePage, /\/download\/android/);
+  assert.doesNotMatch(homePage, /id="food-list"|id="cart-link"|會員中心|商家登入/);
+  assert.match(loginResponse.headers.get('cache-control') || '', /no-store/);
+  assert.match(loginPage, /id="admin-login"/);
+  assert.doesNotMatch(loginPage, /id="member-login"|id="merchant-login"|建立會員帳號/);
+  assert.match(loginScript, /\/api\/admin\/auth\/login/);
+  assert.match(loginScript, /location\.replace\('\/admin\.html'\)/);
+  assert.match(homeScript, /history\.replaceState/);
+  assert.equal(cartPageResponse.status, 302);
+  assert.equal(cartPageResponse.headers.get('location'), '/');
 });
 
 test('admin console is a separate non-cacheable page', async () => {

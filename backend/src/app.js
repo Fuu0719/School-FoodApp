@@ -52,6 +52,9 @@ function createApp({ userRepository, mailer, enablePrototypeRoutes = false,
     res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, '..', 'public', 'site', 'login.html'));
   });
+  app.get(['/cart.html', '/index.html'], (req, res) => {
+    res.redirect(302, '/');
+  });
   app.get('/admin.html', (req, res) => {
     res.set('Cache-Control', 'no-store');
     res.sendFile(path.join(__dirname, '..', 'public', 'site', 'admin.html'));
