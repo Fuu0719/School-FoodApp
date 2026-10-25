@@ -70,12 +70,17 @@ test('public website is project-only and exposes only the admin login', async ()
 });
 
 test('admin console is a separate non-cacheable page', async () => {
-  const response = await fetch(`${baseUrl}/admin.html`);
-  const html = await response.text();
+  const [response, scriptResponse] = await Promise.all([
+    fetch(`${baseUrl}/admin.html`), fetch(`${baseUrl}/admin.js`),
+  ]);
+  const [html, script] = await Promise.all([response.text(), scriptResponse.text()]);
   assert.equal(response.status, 200);
   assert.match(response.headers.get('cache-control') || '', /no-store/);
   assert.match(html, /營運主控板/);
-  assert.match(html, /\/admin\.js/);
+  assert.match(html, /\/admin\.js\?v=5/);
+  assert.match(html, /id="admin-date-range"[\s\S]+class="period-switch"/);
+  assert.match(script, /view === 'orders'/);
+  assert.match(script, /function applyOrderPeriod\(period\)/);
 });
 
 test('backend-owned food images are publicly cacheable', async () => {

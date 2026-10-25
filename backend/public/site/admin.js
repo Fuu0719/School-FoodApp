@@ -13,6 +13,31 @@ const viewMeta = {
 };
 const state = { view:'dashboard', period:'day', page:1, pageSize:25, search:'', from:'', to:'', items:[], pagination:null, dashboard:null };
 
+function localDate(value) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function periodRange(period) {
+  const end = new Date();
+  const start = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  if (period === 'week') start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  if (period === 'month') start.setDate(1);
+  return { from: localDate(start), to: localDate(end) };
+}
+
+function applyOrderPeriod(period) {
+  const range = periodRange(period);
+  state.period = period;
+  state.from = range.from;
+  state.to = range.to;
+  state.page = 1;
+  $('#admin-from').value = range.from;
+  $('#admin-to').value = range.to;
+}
+
 async function api(path, options = {}) {
   const response = await fetch(`/api${path}`, {
     method: options.method || 'GET',
@@ -88,12 +113,13 @@ function renderPagination() {
 
 async function loadView(view = state.view) {
   state.view = view;
+  if (view === 'orders' && !state.from && !state.to) applyOrderPeriod(state.period);
   const [title, subtitle] = viewMeta[view];
   $('#admin-title').textContent = title;
   $('#admin-subtitle').textContent = subtitle;
   $$('[data-admin-view]').forEach((button) => button.classList.toggle('active', button.dataset.adminView === view));
   const dashboard = view === 'dashboard';
-  $('.period-switch').hidden = !dashboard;
+  $('.period-switch').hidden = !(dashboard || view === 'orders');
   $('#admin-date-range').hidden = dashboard;
   $('#admin-search').closest('label').hidden = view === 'dashboard';
   $('#admin-page-size').closest('label').hidden = dashboard;
@@ -139,7 +165,12 @@ document.addEventListener('click', async (event) => {
   const nav = event.target.closest('[data-admin-view], [data-jump-view]');
   if (nav) { state.page = 1; state.search = ''; $('#admin-search').value = ''; return loadView(nav.dataset.adminView || nav.dataset.jumpView); }
   const period = event.target.closest('[data-admin-period]');
-  if (period) { state.period = period.dataset.adminPeriod; $$('[data-admin-period]').forEach((button) => button.classList.toggle('active', button === period)); return loadView(); }
+  if (period) {
+    state.period = period.dataset.adminPeriod;
+    if (state.view === 'orders') applyOrderPeriod(state.period);
+    $$('[data-admin-period]').forEach((button) => button.classList.toggle('active', button === period));
+    return loadView();
+  }
   const page = event.target.closest('[data-page]');
   if (page && !page.disabled) { state.page = Number(page.dataset.page); return loadView(); }
   const save = event.target.closest('.admin-merchant-save');
@@ -153,8 +184,13 @@ document.addEventListener('click', async (event) => {
 
 let searchTimer;
 $('#admin-search').addEventListener('input', (event) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { state.search = event.target.value.trim(); state.page = 1; loadView(); }, 350); });
-$('#admin-from').addEventListener('change', (event) => { state.from = event.target.value; state.page = 1; loadView(); });
-$('#admin-to').addEventListener('change', (event) => { state.to = event.target.value; state.page = 1; loadView(); });
+function customDateChanged() {
+  if (state.view === 'orders') $$('[data-admin-period]').forEach((button) => button.classList.remove('active'));
+  state.page = 1;
+  loadView();
+}
+$('#admin-from').addEventListener('change', (event) => { state.from = event.target.value; customDateChanged(); });
+$('#admin-to').addEventListener('change', (event) => { state.to = event.target.value; customDateChanged(); });
 $('#admin-page-size').addEventListener('change', (event) => { state.pageSize = Number(event.target.value); state.page = 1; loadView(); });
 $('#admin-reload').addEventListener('click', () => loadView());
 $('#admin-export').addEventListener('click', exportCsv);
