@@ -81,8 +81,11 @@ test('member to merchant switch creates only the destination session in one tran
     beginTransaction: async () => events.push('begin'), commit: async () => events.push('commit'),
     rollback: async () => events.push('rollback'), release: () => events.push('release'),
     execute: async (sql, args) => {
+      if (sql.startsWith('SELECT merchant_id FROM member_merchant_links')) {
+        assert.deepEqual(args, ['42', '9']); events.push('link locked'); return [[{ merchant_id: '9' }]];
+      }
       if (sql.startsWith('INSERT INTO merchant_sessions')) {
-        assert.deepEqual(args, ['9', 'merchant-hash', 'expiry']); events.push('merchant session'); return [{}];
+        assert.deepEqual(args, ['9', '42', 'merchant-hash', 'expiry']); events.push('merchant session'); return [{}];
       }
       if (sql.startsWith('DELETE FROM user_sessions')) {
         assert.deepEqual(args, ['42', 'member-hash']); events.push('member revoked'); return [{}];
@@ -92,5 +95,5 @@ test('member to merchant switch creates only the destination session in one tran
   };
   const repository = new UserRepository({ getConnection: async () => connection });
   await repository.switchToMerchant('42', '9', 'member-hash', 'merchant-hash', 'expiry');
-  assert.deepEqual(events, ['begin', 'merchant session', 'member revoked', 'commit', 'release']);
+  assert.deepEqual(events, ['begin', 'link locked', 'merchant session', 'member revoked', 'commit', 'release']);
 });

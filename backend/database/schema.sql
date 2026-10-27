@@ -88,6 +88,19 @@ CREATE TABLE merchants (
   UNIQUE KEY merchants_email_unique (email)
 );
 
+CREATE TABLE user_sessions (
+  token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  user_id BIGINT UNSIGNED NOT NULL,
+  switched_from_merchant_id BIGINT UNSIGNED NULL,
+  expires_at DATETIME NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (token_hash),
+  KEY user_sessions_expiry (expires_at),
+  KEY user_sessions_switch_source (switched_from_merchant_id),
+  CONSTRAINT user_sessions_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT user_sessions_switch_merchant_fk FOREIGN KEY (switched_from_merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
+);
+
 CREATE TABLE stores (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   merchant_id BIGINT UNSIGNED NOT NULL,
@@ -157,10 +170,13 @@ CREATE TABLE foods (
 CREATE TABLE merchant_sessions (
   token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   merchant_id BIGINT UNSIGNED NOT NULL,
+  switched_from_user_id BIGINT UNSIGNED NULL,
   expires_at DATETIME NOT NULL,
   PRIMARY KEY (token_hash),
   KEY merchant_sessions_expiry (merchant_id, expires_at),
-  CONSTRAINT merchant_sessions_merchant_fk FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE
+  KEY merchant_sessions_switch_source (switched_from_user_id),
+  CONSTRAINT merchant_sessions_merchant_fk FOREIGN KEY (merchant_id) REFERENCES merchants(id) ON DELETE CASCADE,
+  CONSTRAINT merchant_sessions_switch_user_fk FOREIGN KEY (switched_from_user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE member_merchant_links (
@@ -252,7 +268,9 @@ CREATE TABLE purchase_orders (
   payment_status ENUM('pending', 'paid', 'failed', 'cancelled') NOT NULL DEFAULT 'pending',
   merchant_trade_no VARCHAR(20) CHARACTER SET ascii COLLATE ascii_bin NULL,
   payment_token_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  payment_expires_at DATETIME NULL,
   paid_at DATETIME NULL,
+  released_at DATETIME NULL,
   client_request_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NULL,
   request_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NULL,
   purchased_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -261,6 +279,7 @@ CREATE TABLE purchase_orders (
   UNIQUE KEY purchase_orders_request_unique (user_id, client_request_id),
   UNIQUE KEY purchase_orders_trade_no_unique (merchant_trade_no),
   UNIQUE KEY purchase_orders_payment_token_unique (payment_token_hash),
+  KEY purchase_orders_payment_expiry (payment_status, payment_expires_at),
   CONSTRAINT purchase_orders_user_fk
     FOREIGN KEY (user_id) REFERENCES users(id)
     ON DELETE CASCADE

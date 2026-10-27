@@ -129,19 +129,43 @@ class MerchantRepository {
   async switchToMember(merchantId, userId, merchantSessionHash, memberSessionHash, expiresAt, { link = false } = {}) {
     return this.transaction(merchantId, async (connection) => {
       if (link) {
+        const [oldLinks] = await connection.execute(
+          'SELECT user_id FROM member_merchant_links WHERE merchant_id = ? FOR UPDATE', [merchantId]);
+        if (oldLinks.length) {
+          const oldUserId = oldLinks[0].user_id;
+          await connection.execute(`DELETE FROM merchant_sessions
+            WHERE merchant_id = ? AND switched_from_user_id = ?`, [merchantId, oldUserId]);
+          await connection.execute(`DELETE FROM user_sessions
+            WHERE user_id = ? AND switched_from_merchant_id = ?`, [oldUserId, merchantId]);
+        }
         await connection.execute('DELETE FROM member_merchant_links WHERE merchant_id = ?', [merchantId]);
         await connection.execute('INSERT INTO member_merchant_links (user_id, merchant_id) VALUES (?, ?)',
           [userId, merchantId]);
+      } else {
+        const [links] = await connection.execute(`SELECT user_id FROM member_merchant_links
+          WHERE merchant_id = ? AND user_id = ? FOR UPDATE`, [merchantId, userId]);
+        if (!links.length) throw fail(404, '尚未綁定會員帳號');
       }
       await connection.execute(
-        'INSERT INTO user_sessions (user_id, token_hash, expires_at) VALUES (?, ?, ?)',
-        [userId, memberSessionHash, expiresAt]);
+        `INSERT INTO user_sessions
+          (user_id, switched_from_merchant_id, token_hash, expires_at) VALUES (?, ?, ?, ?)`,
+        [userId, merchantId, memberSessionHash, expiresAt]);
       await connection.execute('DELETE FROM merchant_sessions WHERE merchant_id = ? AND token_hash = ?',
         [merchantId, merchantSessionHash]);
     });
   }
   async unlinkMember(merchantId) {
-    await this.pool.execute('DELETE FROM member_merchant_links WHERE merchant_id = ?', [merchantId]);
+    await this.transaction(merchantId, async (connection) => {
+      const [links] = await connection.execute(
+        'SELECT user_id FROM member_merchant_links WHERE merchant_id = ? FOR UPDATE', [merchantId]);
+      if (!links.length) return;
+      const userId = links[0].user_id;
+      await connection.execute(`DELETE FROM merchant_sessions
+        WHERE merchant_id = ? AND switched_from_user_id = ?`, [merchantId, userId]);
+      await connection.execute(`DELETE FROM user_sessions
+        WHERE user_id = ? AND switched_from_merchant_id = ?`, [userId, merchantId]);
+      await connection.execute('DELETE FROM member_merchant_links WHERE merchant_id = ?', [merchantId]);
+    });
     return this.account(merchantId);
   }
   async linkedMember(merchantId) {

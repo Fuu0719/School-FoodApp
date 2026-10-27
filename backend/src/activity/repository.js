@@ -7,7 +7,10 @@ const foodColumns = `SELECT f.*, s.name AS store_name, s.business_hours, s.delet
 const asJson = (value) => typeof value === 'string' ? JSON.parse(value) : value;
 
 class ActivityRepository {
-  constructor(pool) { this.pool = pool; }
+  constructor(pool, { reservationMinutes = 15 } = {}) {
+    this.pool = pool;
+    this.reservationMinutes = reservationMinutes;
+  }
 
   async transaction(userId, work) {
     const connection = await this.pool.getConnection();
@@ -127,14 +130,15 @@ class ActivityRepository {
   }
 
   async completeWithoutPayment(userId, orderId) {
-    await this.pool.execute(`UPDATE purchase_orders SET payment_status = 'paid', paid_at = NOW()
+    await this.pool.execute(`UPDATE purchase_orders SET payment_status = 'paid', paid_at = NOW(), payment_expires_at = NULL
       WHERE id = ? AND user_id = ? AND payment_status = 'pending'`, [orderId, userId]);
   }
 
   async paymentByToken(tokenHash) {
     const [rows] = await this.pool.execute(`SELECT id, total_quantity AS totalQuantity,
       total_price AS totalPrice, merchant_trade_no AS merchantTradeNo
-      FROM purchase_orders WHERE payment_token_hash = ? AND payment_status = 'pending'`, [tokenHash]);
+      FROM purchase_orders WHERE payment_token_hash = ? AND payment_status = 'pending'
+        AND payment_expires_at > NOW()`, [tokenHash]);
     return rows[0] ? { ...rows[0], id: String(rows[0].id) } : null;
   }
 
@@ -142,7 +146,8 @@ class ActivityRepository {
     const connection = await this.pool.getConnection();
     try {
       await connection.beginTransaction();
-      const [rows] = await connection.execute(`SELECT id, user_id AS userId, payment_status, total_price AS totalPrice
+      const [rows] = await connection.execute(`SELECT id, user_id AS userId, payment_status, total_price AS totalPrice,
+        payment_expires_at AS paymentExpiresAt
         FROM purchase_orders WHERE merchant_trade_no = ? FOR UPDATE`, [merchantTradeNo]);
       if (!rows.length || rows[0].payment_status !== 'pending') {
         await connection.commit();
@@ -153,9 +158,23 @@ class ActivityRepository {
         return { rejected: true };
       }
       const order = rows[0];
+      if (order.paymentExpiresAt && new Date(order.paymentExpiresAt) <= new Date()) {
+        await connection.execute(`UPDATE purchase_orders SET payment_status = 'cancelled', payment_token_hash = NULL,
+          payment_expires_at = NULL, released_at = NOW() WHERE id = ?`, [order.id]);
+        const [items] = await connection.execute(
+          'SELECT food_id AS foodId, quantity FROM purchase_order_items WHERE purchase_order_id = ?', [order.id]);
+        for (const item of items) {
+          await connection.execute(`UPDATE foods SET stock_count = stock_count + ?,
+            status = CASE WHEN status = 'sold_out' AND deleted_at IS NULL THEN 'active' ELSE status END WHERE id = ?`,
+          [item.quantity, item.foodId]);
+        }
+        await connection.commit();
+        return { rejected: true, expired: true };
+      }
       await connection.execute(`UPDATE purchase_orders SET payment_status = ?,
-        paid_at = CASE WHEN ? THEN NOW() ELSE paid_at END, payment_token_hash = NULL WHERE id = ?`,
-      [paid ? 'paid' : 'failed', paid, order.id]);
+        paid_at = CASE WHEN ? THEN NOW() ELSE paid_at END, payment_token_hash = NULL,
+        payment_expires_at = NULL, released_at = CASE WHEN ? THEN released_at ELSE NOW() END WHERE id = ?`,
+      [paid ? 'paid' : 'failed', paid, paid, order.id]);
       if (!paid) {
         const [items] = await connection.execute(
           'SELECT food_id AS foodId, quantity FROM purchase_order_items WHERE purchase_order_id = ?', [order.id]);
@@ -173,6 +192,32 @@ class ActivityRepository {
     } finally {
       connection.release();
     }
+  }
+
+  async releaseExpiredReservations(limit = 100) {
+    const connection = await this.pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [orders] = await connection.execute(`SELECT id FROM purchase_orders
+        WHERE payment_status = 'pending' AND payment_expires_at <= NOW()
+        ORDER BY payment_expires_at, id LIMIT ${Math.max(1, Math.min(500, Number(limit) || 100))} FOR UPDATE`);
+      for (const order of orders) {
+        await connection.execute(`UPDATE purchase_orders SET payment_status = 'cancelled',
+          payment_token_hash = NULL, payment_expires_at = NULL, released_at = NOW() WHERE id = ?`, [order.id]);
+        const [items] = await connection.execute(
+          'SELECT food_id AS foodId, quantity FROM purchase_order_items WHERE purchase_order_id = ?', [order.id]);
+        for (const item of items) {
+          await connection.execute(`UPDATE foods SET stock_count = stock_count + ?,
+            status = CASE WHEN status = 'sold_out' AND deleted_at IS NULL THEN 'active' ELSE status END WHERE id = ?`,
+          [item.quantity, item.foodId]);
+        }
+      }
+      await connection.commit();
+      return orders.length;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally { connection.release(); }
   }
 
   async checkout(userId, requestId, items) {
@@ -211,8 +256,9 @@ class ActivityRepository {
         ? Math.max(0, (line.food.original_price ?? line.food.price) - line.food.price) * line.quantity : 0), 0);
       if (savedAmount > 4294967295) throw fail(400, '訂單折扣金額超過上限');
       const [result] = await connection.execute(`INSERT INTO purchase_orders
-        (user_id, total_quantity, total_price, eco_points, saved_amount, client_request_id, request_hash)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`, [userId, totalQuantity, totalPrice, ecoPoints, savedAmount, requestId, hash]);
+        (user_id, total_quantity, total_price, eco_points, saved_amount, client_request_id, request_hash, payment_expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [userId, totalQuantity, totalPrice, ecoPoints, savedAmount, requestId, hash,
+        new Date(Date.now() + this.reservationMinutes * 60 * 1000)]);
       for (const line of lines) {
         const f = line.food;
         const snapshot = { name: f.name, storeName: f.store_name, category: f.category,

@@ -87,8 +87,11 @@ test('merchant to member switch creates only the destination session in one tran
     rollback: async () => events.push('rollback'), release: () => events.push('release'),
     execute: async (sql, args) => {
       if (sql.startsWith('SELECT status FROM merchants')) return [[{ status: 'active' }]];
+      if (sql.startsWith('SELECT user_id FROM member_merchant_links')) {
+        assert.deepEqual(args, ['9', '4']); events.push('link locked'); return [[{ user_id: '4' }]];
+      }
       if (sql.startsWith('INSERT INTO user_sessions')) {
-        assert.deepEqual(args, ['4', 'member-hash', 'expiry']); events.push('member session'); return [{}];
+        assert.deepEqual(args, ['4', '9', 'member-hash', 'expiry']); events.push('member session'); return [{}];
       }
       if (sql.startsWith('DELETE FROM merchant_sessions')) {
         assert.deepEqual(args, ['9', 'merchant-hash']); events.push('merchant revoked'); return [{}];
@@ -98,7 +101,7 @@ test('merchant to member switch creates only the destination session in one tran
   };
   const repository = new MerchantRepository({ getConnection: async () => connection });
   await repository.switchToMember('9', '4', 'merchant-hash', 'member-hash', 'expiry');
-  assert.deepEqual(events, ['begin', 'member session', 'merchant revoked', 'commit', 'release']);
+  assert.deepEqual(events, ['begin', 'link locked', 'member session', 'merchant revoked', 'commit', 'release']);
 });
 
 test('merchant self-registration validates fields and cannot assign existing stores or elevated roles', async (t) => {
