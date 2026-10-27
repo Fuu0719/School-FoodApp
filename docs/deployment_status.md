@@ -6,15 +6,15 @@
 
 | 項目 | GitHub 最新版 | 學校端最後已驗證狀態 |
 | --- | --- | --- |
-| App | `1.0.0+36`、`MealMind-latest.apk` | 舊紀錄為 `+34`；`+36` 尚待安裝回歸 |
-| Database | schema 與 migration `001–011` | 已確認至 `010`；`011` 尚待套用與查核 |
+| App | `1.0.0+36`、`MealMind-latest.apk` | 網站已提供最新版 APK；App 連接正式 API |
+| Database | schema 與 migration `001–011` | `001–011` 已套用 |
 | API | Node.js／Express、`127.0.0.1:3000` | `SchoolFoodAppApi` Windows 服務 |
 | MySQL | `shan_jie_ren_yi`、`127.0.0.1:3307` | `MySQLFoodApp` Windows 服務 |
-| 網域 | `mealmind-app.online` 與 `api.mealmind-app.online` | Cloudflare Named Tunnel 已建立；網站新版待驗收 |
-| 郵件 | Resend、`MealMind <noreply@mealmind-app.online>` | 網域與寄件金鑰已設定，改動後須重驗三類郵件 |
+| 網域 | `mealmind-app.online` 與 `api.mealmind-app.online` | Cloudflare Named Tunnel、網站與 API 已部署 |
+| 郵件 | Resend、`MealMind <noreply@mealmind-app.online>` | 網域與寄件金鑰已設定 |
 | 付款 | 綠界 Stage、付款金額與 MerchantID 驗證 | 僅測試付款，不是正式收款 |
 
-最後已知的學校狀態不是即時監控。GitHub 更新、伺服器拉取、migration、服務重啟、APK 安裝與實機驗收是不同步驟，不得只依版本庫推定已部署。
+以上為 2026-10-27 完成的部署紀錄，不是即時監控。GitHub 更新、伺服器拉取、migration、服務重啟、APK 發布與實機驗收仍是不同步驟；後續更新不得只依版本庫推定已部署。
 
 ## GitHub 最新版已完成
 
@@ -26,14 +26,15 @@
 - 管理員 scrypt 密碼雜湊、短效 HttpOnly Cookie、登入限流、CSP、限制 CORS 與安全標頭。
 - 綠界回呼檢查 MerchantID、簽章、訂單金額與嚴格數值格式。
 
-## 部署前必做
+## 本次已完成的部署驗收
 
-1. 在專案外建立 MySQL 完整備份，確認檔案存在且大小合理。
-2. 停止 API、執行 `git pull --ff-only origin main` 與 `npm.cmd ci`。
-3. 查詢 `purchase_orders.payment_expires_at`；不存在時才執行 migration `011` 一次。`011` 會清除既有會員與商家 session，所有帳號需要重新登入。
-4. 執行 `db:check`、一般測試及 `test:mysql`，必須零失敗且 MySQL 測試零略過。
-5. 設定管理員帳號雜湊與 APK 路徑，啟動 API 後驗證網站、管理後台、API、付款及郵件。
-6. 安裝 `+36` APK，以 Wi-Fi 與行動網路跑完會員、商家、切換、購物車與付款流程。
+1. 學校伺服器已更新專案、安裝後端依賴並啟動 API。
+2. MySQL 已套用 migration `001–011`；既有 migration 不得重跑。
+3. `MySQLFoodApp`、`SchoolFoodAppApi` 與 `cloudflared` 均以 Windows 服務自動啟動。
+4. 公開網站、固定 API、APK 下載與 `/api/health` 已完成部署驗證。
+5. App `1.0.0+36` 已設定使用 `https://api.mealmind-app.online/api`。
+
+App 是安裝在 Android 裝置並連線到學校 API；伺服器部署的是網站、API、MySQL 與 APK 下載檔。部署完成不等同即時監控，展示前仍要重新檢查服務、網站與健康端點。
 
 ## 仍屬限制或未完成
 

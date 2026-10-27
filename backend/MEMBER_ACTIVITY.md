@@ -56,7 +56,7 @@ App 會在內部付款頁開啟綠界 Stage，成功後重新同步訂單並顯�
 
 ## 最新升級
 
-GitHub 最新版需要 `011_order_reservations_and_linked_sessions.sql`，加入訂單付款到期、庫存釋放與身分切換 session 來源欄位。學校端最後已確認至 `010`；部署前須先備份、停止 API、確認欄位不存在，再依 [Windows 部署說明](DEPLOY_WINDOWS.md) 執行一次。操作及待驗收項目見 [雲端活動驗證](../docs/cloud_activity_verification.md)。
+`011_order_reservations_and_linked_sessions.sql` 已加入訂單付款到期、庫存釋放與身分切換 session 來源欄位，並已套用至學校資料庫。既有 migration 不得重跑；後續更新與驗收方式見 [Windows 部署說明](DEPLOY_WINDOWS.md)及[雲端活動驗證](../docs/cloud_activity_verification.md)。
 
 ## 初次安裝會員活動後端
 

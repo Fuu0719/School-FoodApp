@@ -12,7 +12,7 @@
 - Node.js tests：77 passed、4 skipped；跳過項目為需要真實 MySQL 的整合測試。
 - 學校伺服器 `npm.cmd run test:mysql`：27 passed、0 failed、0 skipped。
 - 固定公開 API：`https://api.mealmind-app.online/api`。
-- GitHub 最新版需要 migration `001` 至 `011`；學校最後已確認至 `010`，部署前須備份並套用 `011` 一次。
+- 學校資料庫已套用 migration `001` 至 `011`；既有 migration 不得重複執行。
 
 測試通過不能取代實機操作；Skipped 也不能寫成通過。
 
