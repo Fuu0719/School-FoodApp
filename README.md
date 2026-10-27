@@ -11,7 +11,7 @@
 - 底部五個分頁重複點擊目前分頁時會回到頁面頂端。
 - 綠界 Stage 測試付款留在 App 內進行；成功後購買紀錄顯示「模擬訂單，已付款」。這是測試金流，不代表正式收款。
 - 付款成功後寄送會員訂單確認信。模擬商家的 `.test` 信箱不寄信，避免 Gmail 退信；尚未導入真實商家接單流程。
-- GitHub 最新版需要 migration `011_order_reservations_and_linked_sessions.sql`；學校資料庫最後已驗證狀態仍為 `001` 至 `010`。部署 `+36` 前必須先備份並確認 `011` 尚未套用，再執行一次；不可重匯 `schema.sql` 或重跑既有 migration。
+- 學校伺服器已更新至目前專案版本，資料庫已套用 migration `001` 至 `011`，網站、API 與最新版 APK 下載皆已部署。後續不得重匯 `schema.sql` 或重跑既有 migration。
 - 商家商品可在編輯與上下架區直接刪除未上架商品；商家可編輯帳號資料及變更密碼。會員與商家帳號支援一對一綁定及雙向切換，未設定時維持未綁定狀態。
 - Windows Server 2016 沒有 `winget`，且不在目前 MySQL Workbench 官方支援範圍；資料庫日常管理使用 MySQL CLI，操作步驟見 [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)。
 
@@ -159,27 +159,27 @@ npm.cmd start
 
 ## 學校伺服器現況與用途
 
-以下是 2026-10-15 的部署驗收紀錄，不是即時監控。
+以下是截至 2026-10-27 完成的部署狀態；服務是否仍在線仍須以當下健康檢查為準。
 
 | 項目 | 最後已知狀態 |
 | --- | --- |
 | 主機 | 120.125.83.17，Windows Server 2016 x64，遠端桌面管理 |
-| 專案 | C:\School\my_app；2026-10-15 曾完成部署驗收，但是否已更新至目前 GitHub `main` 須以 `git log -1` 確認 |
+| 專案 | C:\School\my_app；已更新並部署目前專案版本 |
 | API | SchoolFoodAppApi，Running／Auto／LocalService，127.0.0.1:3000 |
 | 專案 MySQL | 3307、shan_jie_ren_yi、food_app 應用帳號 |
 | 原有服務 | AppServ MySQL 3306、Apache 80，與專案分開，勿任意變更 |
-| 遷移 | `001` 至 `010` 已套用；`010` 不可重複執行 |
+| 遷移 | `001` 至 `011` 已套用；既有 migration 不可重複執行 |
 | 資料 | 筆電完整測試資料已匯入學校 MySQL；匯入前已建立學校端備份 |
-| HTTPS | Cloudflare Tunnel Windows 服務，固定網址 `https://api.mealmind-app.online` |
+| HTTPS | Cloudflare Tunnel Windows 服務；網站 `https://mealmind-app.online`、API `https://api.mealmind-app.online` |
 | 開機驗收 | MySQLFoodApp、SchoolFoodAppApi、cloudflared 均為 Running／Automatic；固定網址公開健康檢查通過 |
-| 測試 | 學校 MySQL 整合測試 27 項全數通過；公開 `/api/health` 回傳 `ok` |
+| 測試 | 學校 MySQL 整合測試歷史驗收 27 項全數通過；部署後公開 `/api/health` 回傳 `ok` |
 
 目前已提供集中保存會員、偏好、收藏、瀏覽、模擬訂單、商家與餐點的基礎，也已在真實 MySQL 驗證帳號隔離、交易及庫存處理。
 API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已完成整台主機重開驗證，但 Windows 服務不會自動更新程式或手機安裝包。
 
 ### 使用學校資料測試
 
-目前 GitHub 原始碼 App 版本為 `1.0.0+36`，使用 `https://api.mealmind-app.online/api`。學校端是否已安裝 `+36` 必須另行查核；Cloudflare Named Tunnel 已安裝成自動啟動的 Windows 服務，Node 與 MySQL 都只監聽本機。
+目前 GitHub 原始碼及網站提供的 App 版本為 `1.0.0+36`，使用 `https://api.mealmind-app.online/api`。Cloudflare Named Tunnel 已安裝成自動啟動的 Windows 服務，Node 與 MySQL 都只監聽本機。App 是安裝在 Android 裝置並連線至學校 API；伺服器部署的是網站、API、資料庫與 APK 下載檔。
 
 ## 待完成與部署順序
 
@@ -194,7 +194,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ## 驗證與文件
 
-學校端最後已驗證部署使用固定 Cloudflare Named Tunnel，資料庫已套用至 migration `010`。GitHub `main` 已新增 `011`，必須完成學校端備份、套用與驗收後，才能把部署紀錄改成已完成。Email 寄件者使用經驗證的 `mealmind-app.online` 網域，禁止再以 Gmail 地址作為品牌寄件者。
+學校端已使用固定 Cloudflare Named Tunnel，資料庫已套用至 migration `011`，網站、API 與 APK 下載已部署。Email 寄件者使用經驗證的 `mealmind-app.online` 網域，禁止再以 Gmail 地址作為品牌寄件者。這是已完成的部署紀錄，不等同即時監控；展示前仍應重新確認三個 Windows 服務與公開健康檢查。
 
 文件以「目前程式與部署狀態」為準，不再把早期規劃稿當成已實作規格。建議閱讀順序為：本 README 掌握範圍、部署狀態確認已完成與限制、現行 API 文件確認資料流，最後再依個別操作手冊執行。歷史通道只保留於遷移紀錄，不可重新用於 App 建置。
 

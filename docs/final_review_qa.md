@@ -179,9 +179,43 @@
 
 ### 22. 最新測試結果是什麼？
 
-> 2026-10-27 本機 `flutter analyze` 為 0 issues，Flutter 128 項通過、2 項跳過；Node 77 項通過、4 項需要真實 MySQL 的整合測試跳過。正式部署仍要在學校端執行 `test:mysql`，不能把本機略過項目算成通過。
+> 2026-10-27 本機 `flutter analyze` 為 0 issues，Flutter 128 項通過、2 項跳過；Node 77 項通過、4 項需要真實 MySQL 的整合測試在本機跳過。學校端另有 27 項 MySQL 整合測試歷史驗收通過；兩組結果須分開說明，不能把本機略過項目算成通過。
 
-## 四、仍需持續準備的主題
+## 四、部署與第 24 頁測試成果問答
+
+### 23. 系統目前是否真的完成部署？
+
+> 是。專題網站、Node.js／Express API、MySQL 資料庫與 APK 下載檔已部署在學校 Windows Server。公開網站為 `https://mealmind-app.online`，API 為 `https://api.mealmind-app.online`，Android App 已設定連接該 API。
+
+### 24. App 也部署在學校伺服器嗎？
+
+> 嚴格來說不是。App 的 APK 放在網站提供下載，但 App 程式是安裝並執行在 Android 裝置上。學校伺服器執行的是網站、後端 API、MySQL 資料庫及 APK 下載服務，App 再透過 HTTPS 呼叫 API。
+
+### 25. 如何證明部署成功？
+
+> 部署後會確認 `MySQLFoodApp`、`SchoolFoodAppApi` 與 `cloudflared` 三個 Windows 服務為 Running／Automatic，接著驗證伺服器本機及公開 `/api/health`、網站首頁、APK 下載與 App 實際連線。GitHub 有最新 commit 只能證明程式已推送，不能取代伺服器端驗收。
+
+### 26. Cloudflare Named Tunnel 在架構中做什麼？
+
+> 它由學校伺服器主動連線至 Cloudflare，將固定 HTTPS 網域轉送到只監聽 `127.0.0.1:3000` 的 Node.js 服務。這樣不必直接公開 API 或 MySQL Port，也不會像 Quick Tunnel 每次重開就更換網址。
+
+### 27. 為什麼自動化測試仍有跳過項目？
+
+> 本機一般測試刻意跳過需要真實 MySQL 的整合測試，避免誤連正式資料庫或受環境差異影響。這些項目必須在有專用 MySQL 測試環境時執行 `test:mysql`；因此簡報要分別列出本機測試與學校端整合測試結果。
+
+### 28. 學校伺服器重新開機後系統會恢復嗎？
+
+> MySQL、Node.js API 與 Cloudflare Tunnel 都設為 Windows 自動啟動服務，正常重開後會自行啟動。但仍須做健康檢查，因為自動啟動不代表程式、資料庫與外部網路一定都正常。
+
+### 29. 網站、App 與 API 的功能如何區分？
+
+> 網站負責專題介紹、APK 下載、隱私權與服務條款及管理後台；Flutter App 提供會員與商家的完整操作；API 負責身分驗證、權限、資料存取、交易、付款回呼及郵件。網站與 App 都不能直接連 MySQL。
+
+### 30. 已部署是否代表可以正式營運？
+
+> 不代表。目前已完成可展示與驗收的部署，但付款仍使用綠界 Stage，便利商店餐點是模擬資料，Android 仍需正式 applicationId 與 release signing，也尚未完成負載測試、第三方滲透測試、正式備份還原及真實商家接單流程。
+
+## 五、仍需持續準備的主題
 
 - 真實使用者研究與推薦成效指標。
 - 正式金流、退款、對帳與商家接單。

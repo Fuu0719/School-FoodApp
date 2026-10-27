@@ -243,7 +243,8 @@ Node.js 是後端 JavaScript 執行環境，Express 負責路由與 middleware�
 - `cloudflared`：Cloudflare Tunnel 服務。
 - 三項服務皆設定 Automatic，但 Git 程式碼不會自動更新。
 - 更新流程仍需人工備份、停止 API、`git pull`、安裝依賴、檢查資料庫、測試及重啟。
-- GitHub 最新版需要 Migration `001` 至 `011`；學校最後已確認至 `010`。`011` 只能在備份、停 API 且確認欄位不存在後執行一次。
+- 學校資料庫已套用 Migration `001` 至 `011`；既有 migration 不得重複執行。後續更新仍須先備份、停止 API、確認新 migration 尚未套用，再逐版執行。
+- 專題網站、Node.js API、MySQL 與 APK 下載檔已部署在學校伺服器；Android App 安裝在使用者裝置，透過固定 HTTPS API 連線，不能說成 App 本體執行在伺服器。
 
 ### 14. Git、GitHub 與版本控制
 
@@ -258,6 +259,7 @@ Node.js 是後端 JavaScript 執行環境，Express 負責路由與 middleware�
 - Node `node:test`：77 項通過、4 項真實 MySQL 測試跳過。
 - 學校伺服器歷史驗收：27 項 MySQL 整合測試通過。
 - 測試涵蓋表單、畫面導向、推薦分數、權限、交易回滾、帳號隔離、冪等、庫存鎖及商家所有權。
+- 部署驗證包含三個 Windows 服務、自機 API health、公開 API health、網站首頁與 APK 下載；完成部署不代表已完成負載或滲透測試。
 - 尚未完成正式負載測試、滲透測試、完整裝置矩陣及推薦準確率研究。
 
 ## 五、重要資料流程
@@ -485,21 +487,27 @@ Resend 是交易郵件服務，使用已驗證自有網域、SPF/DKIM 與 API Ke
 ### H. 測試、限制與未來
 
 **Q35：你們做了哪些測試？**
-包含 Flutter Widget/Service 測試、Node API 單元測試、MySQL 整合測試、交易回滾、帳號隔離及部署健康檢查。
+包含 Flutter Widget/Service 測試、Node API 單元測試、MySQL 整合測試、交易回滾、帳號隔離及部署健康檢查。2026-10-27 本機 `flutter analyze` 為 0 issues，Flutter 128 項通過、2 項跳過，Node 77 項通過、4 項需真實 MySQL 的測試於本機跳過；學校端另有 27 項 MySQL 整合測試歷史驗收通過。
 
-**Q36：最大限制是什麼？**
+**Q36：系統目前是否真的完成部署？**
+是。專題網站、Node.js／Express API、MySQL 與 APK 下載檔已部署至學校 Windows Server，外部透過 Cloudflare Named Tunnel 與固定 HTTPS 網域存取。`mealmind-app.online` 是網站，`api.mealmind-app.online` 是 API。App 安裝在 Android 裝置並呼叫 API，不是把 App 程式本體放在伺服器執行。
+
+**Q37：如何證明部署成功？**
+部署後會確認 `MySQLFoodApp`、`SchoolFoodAppApi` 與 `cloudflared` 三個 Windows 服務為 Running／Automatic，再檢查本機與公開 `/api/health`、網站首頁、APK 下載及 App 實際連線。Git push 只能證明程式已上傳版本庫，不能單獨證明伺服器已部署。
+
+**Q38：最大限制是什麼？**
 真實使用者與商家資料不足、推薦仍在 App 端、付款為 Stage、備份與正式營運流程尚未完整。
 
-**Q37：若正式上線，第一步做什麼？**
+**Q39：若正式上線，第一步做什麼？**
 改正式 applicationId 與簽章、完成隱私政策、備份與還原、正式金流、商家接單流程、安全檢測及推薦成效研究。
 
-**Q38：系統能承受多少人？**
+**Q40：系統能承受多少人？**
 目前未做正式負載測試，不能提供可信同時人數；只能說架構使用 connection pool 與 Windows 服務，仍需壓力測試量測。
 
-**Q39：為何後端推薦 API 是 501？**
+**Q41：為何後端推薦 API 是 501？**
 目前商品與會員資料由雲端提供，但排序保留在 App；501 是刻意避免把未完成端點誤認成正式雲端推薦服務。
 
-**Q40：未來 AI 如何升級？**
+**Q42：未來 AI 如何升級？**
 取得足夠且經同意的互動資料後，可研究學習排序、協同過濾或混合式推薦，並用 Precision、Recall、NDCG、採納率及滿意度評估。
 
 ## 九、答辯時的統一說法
@@ -522,7 +530,7 @@ Resend 是交易郵件服務，使用已驗證自有網域、SPF/DKIM 與 API Ke
 - [ ] 架構圖補上 Node.js、Express、MySQL、Cloudflare、Resend 及綠界。
 - [ ] 類別圖依目前資料表或 domain model 重畫。
 - [ ] 功能規格刪除 SMS、第三方登入、自動補完、碳排量及 GPS。
-- [ ] 測試章節補上實際命令、通過數量、日期與跳過原因。
+- [x] 測試章節補上實際命令、通過數量、日期與跳過原因。
 - [ ] 使用者手冊以 `1.0.0+36` APK 重新逐張核對，並補網站與管理後台。
 - [ ] 更新 Word 全部目錄、圖目錄及表目錄。
 - [ ] 六位組員各自熟悉 AI、前端、後端、資料庫、資安及部署至少一類問題。
