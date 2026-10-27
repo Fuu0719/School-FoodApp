@@ -2,8 +2,7 @@
 
 ## 驗證基準
 
-2026-10-15：Flutter tests 125 項通過、2 項跳過；後端 `npm.cmd test` 60 項通過、3 項需真實 MySQL 的整合測試跳過。學校伺服器的 migration `001` 至 `010` 及 MySQL 整合測試已完成。
-本次 `flutter analyze` 因 Windows Developer Mode 未啟用、插件無法建立 symlink 而未完成；修正環境後須重跑。APK 編譯與自動測試都不能取代正式 API 的手機實機驗收。
+2026-10-27：`flutter analyze` 0 issues；Flutter tests 128 項通過、2 項跳過；後端 `npm.cmd test` 77 項通過、4 項需真實 MySQL 的整合測試跳過。GitHub 最新版新增 migration `011`，學校端須另跑 MySQL 整合測試。APK 編譯與自動測試都不能取代正式 API 的手機實機驗收。
 
 ## 範圍與限制
 

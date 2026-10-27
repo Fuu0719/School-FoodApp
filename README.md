@@ -1,8 +1,9 @@
 # 膳解人意 Flutter App
 
-## 最新狀態（2026-10-15）
+## 最新狀態（2026-10-27）
 
-- 原始碼 App 版本為 `1.0.0+34`。會員／商家切換會以交易撤銷來源 session，登出會清除裝置上的兩種登入狀態；新會員即使尚無惜食點數也能查看全體排行榜。正式測試 APK 使用 `https://api.mealmind-app.online/api`，由 Cloudflare Named Tunnel Windows 服務連到學校伺服器。
+- 原始碼與 GitHub 發布版 App 為 `1.0.0+36`，最新版 APK 為根目錄的 `MealMind-latest.apk`。會員／商家切換會撤銷來源 session，登出會清除裝置上的兩種登入狀態；新會員即使尚無惜食點數也能查看排行榜。App 使用 `https://api.mealmind-app.online/api`。
+- 專題網站由同一個 Node.js／Express 服務提供，公開首頁用於專題介紹與 APK 下載；會員與商家完整功能仍在 App。`/login.html` 與 `/admin.html` 是管理員登入及營運主控板，可查詢會員、商家、餐點、訂單與統計報表。
 - 新版註冊在 Email 驗證成功前只保存 10 分鐘有效的待驗證資料，不會建立正式 `users` 會員。忘記密碼改為「驗證 Email」與「設定新密碼」兩個完整頁面。
 - 會員資料可不選頭像直接儲存；支援上傳、移除自訂 JPG／PNG 頭像，未設定時使用系統預設圖示。編輯資料後不會再次跳回 Email 驗證。
 - 全體惜食排行榜由現有會員與已付款訂單計算，顯示會員自訂或預設頭像；刪除會員後不保留排行榜快取。
@@ -10,7 +11,7 @@
 - 底部五個分頁重複點擊目前分頁時會回到頁面頂端。
 - 綠界 Stage 測試付款留在 App 內進行；成功後購買紀錄顯示「模擬訂單，已付款」。這是測試金流，不代表正式收款。
 - 付款成功後寄送會員訂單確認信。模擬商家的 `.test` 信箱不寄信，避免 Gmail 退信；尚未導入真實商家接單流程。
-- 學校資料庫目前已套用 migration `001` 至 `010`；既有資料庫不可重匯 `schema.sql` 或重跑已完成 migration。
+- GitHub 最新版需要 migration `011_order_reservations_and_linked_sessions.sql`；學校資料庫最後已驗證狀態仍為 `001` 至 `010`。部署 `+36` 前必須先備份並確認 `011` 尚未套用，再執行一次；不可重匯 `schema.sql` 或重跑既有 migration。
 - 商家商品可在編輯與上下架區直接刪除未上架商品；商家可編輯帳號資料及變更密碼。會員與商家帳號支援一對一綁定及雙向切換，未設定時維持未綁定狀態。
 - Windows Server 2016 沒有 `winget`，且不在目前 MySQL Workbench 官方支援範圍；資料庫日常管理使用 MySQL CLI，操作步驟見 [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)。
 
@@ -38,6 +39,20 @@
 - 預算及距離設為「不限」時不會套用數值上限；搜尋頁無條件搜尋會列出所有仍上架、有庫存且未過期的商品。推薦頁另外排除目前未營業門市；會員有設定偏好標籤時，餐點必須至少符合其中一項，標籤同時參與排序。首頁則是推薦預覽，優先讓每個商家各顯示一項，最多五項。
 
 「膳解人意」以個人化餐飲推薦與即期食品減廢為目標，已具備 Flutter、Node.js API 與 MySQL 持久化。手機透過 `https://api.mealmind-app.online` 的 Cloudflare Named Tunnel 連到學校 API；Node 與 MySQL 仍只監聽本機。舊 ngrok 與 Cloudflare Quick Tunnel 已退出作用中架構，歷史見 [通道遷移紀錄](docs/tunnel_migration_history.md)。
+
+## 系統組成
+
+| 元件 | 技術與用途 |
+| --- | --- |
+| Android App | Flutter／Dart；會員、推薦、轉盤、購物車、付款與商家管理 |
+| 專題網站 | 原生 HTML／CSS／JavaScript；專題介紹、功能說明、APK 下載、隱私權與服務條款 |
+| 管理後台 | Express 靜態頁面與管理 API；會員、商家、餐點、訂單、期間統計及 CSV 匯出 |
+| 後端 | Node.js／Express REST API；驗證、權限、交易、付款回呼、郵件與資料存取 |
+| 資料庫 | MySQL；會員、商家、門市、餐點、活動、訂單、session 與付款狀態 |
+| 公開連線 | Cloudflare Named Tunnel 與 `mealmind-app.online` 固定網域 |
+| 外部服務 | Resend 交易郵件、綠界 Stage 測試付款 |
+
+網站架構、公開範圍與路由見 [網站架構與功能](docs/website_architecture.md)，部署方式見 [網站部署](backend/WEBSITE_DEPLOY.md)。
 
 ## 目前已完成
 
@@ -149,7 +164,7 @@ npm.cmd start
 | 項目 | 最後已知狀態 |
 | --- | --- |
 | 主機 | 120.125.83.17，Windows Server 2016 x64，遠端桌面管理 |
-| 專案 | C:\School\my_app；已部署目前 GitHub `main` 版本 |
+| 專案 | C:\School\my_app；2026-10-15 曾完成部署驗收，但是否已更新至目前 GitHub `main` 須以 `git log -1` 確認 |
 | API | SchoolFoodAppApi，Running／Auto／LocalService，127.0.0.1:3000 |
 | 專案 MySQL | 3307、shan_jie_ren_yi、food_app 應用帳號 |
 | 原有服務 | AppServ MySQL 3306、Apache 80，與專案分開，勿任意變更 |
@@ -164,7 +179,7 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ### 使用學校資料測試
 
-目前原始碼 App 版本為 `1.0.0+34`，正式測試建置使用 `https://api.mealmind-app.online/api`。Cloudflare Named Tunnel 已安裝成自動啟動的 Windows 服務。Node 只監聽 127.0.0.1:3000，MySQL 只使用本機 3307，兩者都不直接公開。
+目前 GitHub 原始碼 App 版本為 `1.0.0+36`，使用 `https://api.mealmind-app.online/api`。學校端是否已安裝 `+36` 必須另行查核；Cloudflare Named Tunnel 已安裝成自動啟動的 Windows 服務，Node 與 MySQL 都只監聽本機。
 
 ## 待完成與部署順序
 
@@ -179,15 +194,17 @@ API 以 Windows 服務執行，不必一直開著 npm start 視窗；本次已�
 
 ## 驗證與文件
 
-2026-10-15 最新部署已使用固定 Cloudflare Named Tunnel，學校資料庫已套用 migration `010`。Email 寄件者改用經驗證的 `mealmind-app.online` 網域，禁止再以 Gmail 地址作為品牌寄件者。
+學校端最後已驗證部署使用固定 Cloudflare Named Tunnel，資料庫已套用至 migration `010`。GitHub `main` 已新增 `011`，必須完成學校端備份、套用與驗收後，才能把部署紀錄改成已完成。Email 寄件者使用經驗證的 `mealmind-app.online` 網域，禁止再以 Gmail 地址作為品牌寄件者。
 
 文件以「目前程式與部署狀態」為準，不再把早期規劃稿當成已實作規格。建議閱讀順序為：本 README 掌握範圍、部署狀態確認已完成與限制、現行 API 文件確認資料流，最後再依個別操作手冊執行。歷史通道只保留於遷移紀錄，不可重新用於 App 建置。
 
 - [總審技術、報告檢查與答辯總整理](docs/final_review_master_guide.md)
 - [總審人工智慧與推薦問答](docs/final_review_qa.md)
 - [專案收尾稽核與文件索引](docs/project_closeout_audit.md)
+- [網站架構與功能](docs/website_architecture.md)
 - [部署進度與未解決事項](docs/deployment_status.md)
 - [Windows 部署說明](backend/DEPLOY_WINDOWS.md)
+- [網站與管理後台部署](backend/WEBSITE_DEPLOY.md)
 - [網域交易郵件設定](docs/email_delivery.md)
 - [HTTPS 通道遷移紀錄](docs/tunnel_migration_history.md)
 - [資料庫操作手冊](backend/DATABASE_OPERATIONS.md)
