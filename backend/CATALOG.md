@@ -87,4 +87,4 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\api_service.ps1 -A
 
 ## 現況與待驗收
 
-學校 MySQL 目錄、固定 Cloudflare HTTPS、會員活動及商家管理後端均已部署。收尾仍須使用 `1.0.0+34` APK，在 Wi-Fi 與行動網路驗證目錄同步、商家上下架、結帳後庫存更新及跨裝置會員紀錄。詳見 [部署狀態](../docs/deployment_status.md)與[雲端驗收清單](../docs/cloud_activity_verification.md)。
+學校 MySQL 目錄與固定 Cloudflare HTTPS 已有歷史驗收。收尾須部署 migration `011` 與 `1.0.0+36` APK，再於 Wi-Fi 與行動網路驗證目錄同步、商家上下架、訂單保留、付款後庫存更新及跨裝置會員紀錄。詳見 [部署狀態](../docs/deployment_status.md)與[雲端驗收清單](../docs/cloud_activity_verification.md)。

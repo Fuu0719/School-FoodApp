@@ -2,8 +2,8 @@
 
 ## 目前範圍
 
-會員註冊、Email 驗證、登入、登出、個人資料、頭像與飲食偏好已使用 MySQL。雲端模式已串接商品、收藏、瀏覽、排行榜、訂單、綠界 Stage 測試付款及獨立商家商品管理。
-學校現有資料庫已套用 migration `001` 至 `010`，不可重跑，也不可重新匯入 `schema.sql`。
+會員註冊、Email 驗證、登入、登出、個人資料、頭像與飲食偏好已使用 MySQL。雲端模式已串接商品、收藏、瀏覽、排行榜、訂單、綠界 Stage 測試付款及獨立商家商品管理；同一 Node.js 服務也提供專題網站與管理後台。
+GitHub 最新版需要 migration `001` 至 `011`。學校最後已確認至 `010`；部署最新版前須備份並套用 `011` 一次。不可重跑既有 migration，也不可重新匯入 `schema.sql`。
 資料庫查詢、備份及刪除測試會員的完整步驟見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
 
 ## 學校伺服器更新
@@ -38,11 +38,23 @@ SELECT @@port, @@datadir;
 USE shan_jie_ren_yi;
 SHOW TABLES LIKE 'pending_member_registrations';
 SHOW TABLES LIKE 'member_password_reset_tokens';
+SHOW COLUMNS FROM purchase_orders LIKE 'payment_expires_at';
 SHOW TABLES;
 EXIT;
 ```
 
-確認連接的是專案資料目錄與 3307；兩張 `009` 資料表都應存在，不要再次執行 migration。只有全新空白資料庫才使用最新版 `schema.sql`；既有環境一律依尚未套用的 migration 升級。
+確認連接的是專案資料目錄與 3307；兩張 `009` 資料表都應存在。若 `payment_expires_at` 不存在，在已完成備份且 API 已停止的情況下執行一次：
+
+```sql
+USE shan_jie_ren_yi;
+SOURCE C:/School/my_app/backend/database/migrations/011_order_reservations_and_linked_sessions.sql;
+SHOW COLUMNS FROM purchase_orders LIKE 'payment_expires_at';
+SHOW COLUMNS FROM user_sessions LIKE 'switched_from_merchant_id';
+SHOW COLUMNS FROM merchant_sessions LIKE 'switched_from_user_id';
+EXIT;
+```
+
+`011` 會清除既有會員與商家 session，以免無來源資訊的舊切換 session 繼續有效；部署後所有帳號需要重新登入。若欄位已存在，不可重跑。只有全新空白資料庫才使用最新版 `schema.sql`；既有環境一律依尚未套用的 migration 升級。
 
 保留 backend/.env 裡原有密碼，確認以下設定：
 
@@ -127,6 +139,6 @@ Windows 桌面外掛的符號連結錯誤需在開發電腦處理；與伺服器
 
 ## 待完成項目
 
-固定 HTTPS、migration `001` 至 `010`、資料搬移、綠界 Stage、Resend 網域寄件與必要 Windows 服務均已部署。App `1.0.0+34` 尚待重新建置及手機安裝驗收；仍需完成正式金流申請及退款／對帳流程、真實商家接單流程、定期異機備份與還原演練。
+固定 HTTPS、migration `001` 至 `010`、資料搬移、綠界 Stage、Resend 網域寄件與必要 Windows 服務已有歷史驗收。GitHub 最新版的 migration `011`、網站／管理後台與 App `1.0.0+36` 尚待學校端部署及回歸；仍需完成正式金流申請及退款／對帳流程、真實商家接單流程、定期異機備份與還原演練。
 目前登入憑證有效七天，資料庫只存 SHA-256 摘要；每次請求查驗效期，登出即撤銷該憑證。
 App 安全儲存憑證，不保存會員密碼。密碼使用 Node.js scrypt 加上隨機 salt。

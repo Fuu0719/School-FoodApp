@@ -1,18 +1,18 @@
 # App 雲端與實機驗收
 
-更新日期：2026-10-15。
+更新日期：2026-10-27。
 
 本文件是目前版本的驗收清單。歷史測試數量僅代表當次執行結果；GitHub 原始碼、學校部署、APK 建置及手機安裝必須分別確認。
 
 ## 已知測試基準
 
-- App 原始碼版本：`1.0.0+34`。
-- `flutter analyze`：本次 Windows 環境因未啟用 Developer Mode，無法建立插件 symlink，尚未取得新版靜態分析結果；這是開發環境阻擋，不可記為 0 issues。
-- Flutter tests：125 passed、2 skipped。
-- Node.js tests：60 passed、3 skipped；跳過項目為需要真實 MySQL 的整合測試。
+- App 原始碼版本：`1.0.0+36`。
+- `flutter analyze`：0 issues。
+- Flutter tests：128 passed、2 skipped。
+- Node.js tests：77 passed、4 skipped；跳過項目為需要真實 MySQL 的整合測試。
 - 學校伺服器 `npm.cmd run test:mysql`：27 passed、0 failed、0 skipped。
 - 固定公開 API：`https://api.mealmind-app.online/api`。
-- 學校 MySQL migration：`001` 至 `010` 已完成，不得重跑。
+- GitHub 最新版需要 migration `001` 至 `011`；學校最後已確認至 `010`，部署前須備份並套用 `011` 一次。
 
 測試通過不能取代實機操作；Skipped 也不能寫成通過。
 
@@ -62,6 +62,8 @@ Resolve-DnsName api.mealmind-app.online
 ```
 
 三個服務都應為 Running，兩個 health request 都應回應 `status: ok`。`cloudflared` 應執行 Named Tunnel，不可另開 Quick Tunnel。Node.js 與 MySQL 只監聽本機，不對外開放 3000 或 3307。
+
+網站另須驗證 `https://mealmind-app.online/`、APK 下載、隱私權、條款、管理員登入、四類資料查詢、期間報表、CSV 匯出與登出。管理 API 必須拒絕未登入請求；API 服務重啟後，舊管理員 session 應失效。
 
 ## App 實機驗收
 

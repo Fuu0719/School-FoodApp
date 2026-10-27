@@ -1,57 +1,49 @@
 # 部署進度與未解決事項
 
-更新日期：2026-10-15。
+更新日期：2026-10-27。
 
-## 學校伺服器現況
+## 版本與環境
 
-| 項目 | 最後已知狀態 |
-| --- | --- |
-| 主機 | `120.125.83.17`，Windows Server 2016 Standard，遠端桌面管理 |
-| 專案 | `C:\School\my_app`，由 GitHub `main` 更新 |
-| API | `SchoolFoodAppApi` Windows 服務，自動啟動，監聽 `127.0.0.1:3000` |
-| MySQL | `MySQLFoodApp` Windows 服務，`127.0.0.1:3307`，資料庫 `shan_jie_ren_yi` |
-| HTTPS | Cloudflare Named Tunnel Windows 服務，固定入口 `https://api.mealmind-app.online` |
-| App | 最新原始碼為 `1.0.0+34`；固定 API 網址及完整品牌識別 |
-| Migration | 學校已套用 `001` 至 `010`，不得重跑 |
-| SMTP | Resend 已驗證 `mealmind-app.online`；寄件者為 `MealMind <noreply@mealmind-app.online>` |
-| 測試付款 | 綠界 Stage；App 內完成流程，成功訂單標記 `paid` |
-| 資料庫管理 | 使用 MySQL CLI；自製資料庫檢視器已撤銷，不再部署 |
+| 項目 | GitHub 最新版 | 學校端最後已驗證狀態 |
+| --- | --- | --- |
+| App | `1.0.0+36`、`MealMind-latest.apk` | 舊紀錄為 `+34`；`+36` 尚待安裝回歸 |
+| Database | schema 與 migration `001–011` | 已確認至 `010`；`011` 尚待套用與查核 |
+| API | Node.js／Express、`127.0.0.1:3000` | `SchoolFoodAppApi` Windows 服務 |
+| MySQL | `shan_jie_ren_yi`、`127.0.0.1:3307` | `MySQLFoodApp` Windows 服務 |
+| 網域 | `mealmind-app.online` 與 `api.mealmind-app.online` | Cloudflare Named Tunnel 已建立；網站新版待驗收 |
+| 郵件 | Resend、`MealMind <noreply@mealmind-app.online>` | 網域與寄件金鑰已設定，改動後須重驗三類郵件 |
+| 付款 | 綠界 Stage、付款金額與 MerchantID 驗證 | 僅測試付款，不是正式收款 |
 
-Node.js 與 MySQL 僅監聽本機，不直接對外開放。手機流量由同機 Cloudflare Named Tunnel 建立 HTTPS 通道轉送至 API。ngrok 與 Cloudflare Quick Tunnel 已退出作用中架構。Windows 服務不會自動拉取 GitHub 更新，每次部署仍須人工停止 API、拉取、安裝依賴、檢查並重啟。
+最後已知的學校狀態不是即時監控。GitHub 更新、伺服器拉取、migration、服務重啟、APK 安裝與實機驗收是不同步驟，不得只依版本庫推定已部署。
 
-## 已完成
+## GitHub 最新版已完成
 
-- 會員註冊、6 位數 Email 驗證、重新寄送驗證碼、登入、登出及忘記密碼。
-- 驗證完成後寄送新版歡迎信；Email 驗證成功後才建立登入 session。
-- 會員資料與偏好儲存；未選頭像可使用預設圖示，也可上傳或移除 JPG／PNG 自訂頭像。
-- 編輯會員資料後維持已驗證狀態，不再返回 Email 驗證畫面。
-- 收藏、最近瀏覽、訂單、偏好、登入 session、驗證碼及排行榜資料由 MySQL 依會員隔離。
-- 排行榜只查詢目前存在的會員，依已付款訂單積分排序並顯示正確頭像。
-- 商家註冊、登入、多門市、營業時間、商品草稿、上下架、自訂分類及邏輯刪除門市。
-- 六類模擬餐點由後端提供穩定分類圖片；搜尋同義關鍵字與首頁「小確幸」入口已補強。
-- 底部五個分頁重複點擊目前分頁時回到頁面頂端。
-- 綠界 Stage 測試付款與 App 內導覽；成功後顯示「模擬訂單，已付款」。
-- 付款成功後寄送會員訂單確認信；模擬商家 `.test` 信箱不寄送，避免退信。
-- 刪除 `users` 會員時，由資料庫外鍵連鎖刪除該會員訂單、明細、瀏覽、搜尋、收藏、偏好、session、驗證碼及推薦回饋。
+- App `1.0.0+36`，修正登入、購物車導向、帳號切換 session 與付款後同步。
+- 訂單建立後保留庫存；未付款逾期訂單會取消並只恢復一次庫存。
+- migration `011` 記錄付款到期與釋放時間，並保存會員／商家切換 session 的來源。
+- 專題網站、APK 下載、隱私權政策、服務條款與管理員入口。
+- 管理後台的會員、商家、餐點、訂單、期間報表、搜尋、分頁與 CSV 匯出。
+- 管理員 scrypt 密碼雜湊、短效 HttpOnly Cookie、登入限流、CSP、限制 CORS 與安全標頭。
+- 綠界回呼檢查 MerchantID、簽章、訂單金額與嚴格數值格式。
 
-## 尚未完成或不可宣稱
+## 部署前必做
 
-- `1.0.0+34` APK 尚待重新建置及手機安裝驗收；學校 API、固定網域與 migration `010` 已部署完成。
-- 綠界目前是 Stage 測試環境，不是正式收款；尚未完成正式商店申請、退款及對帳流程。
-- Resend 網域已驗證並取得寄信金鑰；學校端只可由受控的 `.env` 保存金鑰，不得提交 Git。每次改動寄件設定後仍須驗證註冊、重設密碼及訂單信。
-- 商家資料目前仍以模擬資料為主，尚未導入真實商家接單狀態與營運通知流程。
-- 模擬餐點使用六類共用分類圖片，不是真實餐點逐筆照片。
-- 後端 `/api/recommendations` 仍回應 501，推薦由 App 現有規則與目錄資料完成，不能宣稱完整雲端 AI 推薦引擎。
-- 購物車、搜尋紀錄與推薦星級回饋仍保存在裝置端。
-- 已做手動 SQL 備份及跨主機搬移；定期異機備份與實際還原演練仍待完成。
+1. 在專案外建立 MySQL 完整備份，確認檔案存在且大小合理。
+2. 停止 API、執行 `git pull --ff-only origin main` 與 `npm.cmd ci`。
+3. 查詢 `purchase_orders.payment_expires_at`；不存在時才執行 migration `011` 一次。`011` 會清除既有會員與商家 session，所有帳號需要重新登入。
+4. 執行 `db:check`、一般測試及 `test:mysql`，必須零失敗且 MySQL 測試零略過。
+5. 設定管理員帳號雜湊與 APK 路徑，啟動 API 後驗證網站、管理後台、API、付款及郵件。
+6. 安裝 `+36` APK，以 Wi-Fi 與行動網路跑完會員、商家、切換、購物車與付款流程。
+
+## 仍屬限制或未完成
+
+- 後端 `/api/recommendations` 仍回應 501，推薦排序在 Flutter App 執行。
+- 便利商店商品、價格、庫存與即期時間是展示資料，不是官方即時資料。
+- 綠界仍為 Stage；尚無正式收款、退款、對帳與真實商家接單流程。
+- App 購物車、搜尋紀錄與推薦星級回饋仍保存在裝置端。
+- Android applicationId 仍為 `com.example.my_app`，release 仍使用 debug signing，不能直接上架商店。
+- 管理員 session 保存在單一 Node.js 程序記憶體，API 重啟後需重新登入。
+- 尚未完成定期異機備份與還原演練、正式負載測試及第三方滲透測試。
 - 學校主機借用期限依現有資料為 2026-12-31，需提前續借或完成搬移。
 
-## 部署與驗收原則
-
-1. 更新前先建立專案外的資料庫備份，並確認檔案存在且大小大於 0。
-2. 不覆蓋 `backend/.env`，不把 SMTP、資料庫或綠界密鑰提交到 Git。
-3. 現有 `001` 至 `010` 均已完成，不得重跑；只有新版明確新增 migration 才在備份後執行。
-4. `npm.cmd run db:check`、後端測試與服務狀態都成功後，再驗證公開 `/api/health`。
-5. 編譯成功不等於手機驗收；會員、商家、付款與 Email 流程仍需以實機操作確認。
-
-完整更新步驟見 [Windows 部署說明](../backend/DEPLOY_WINDOWS.md)，資料庫日常操作見 [資料庫操作手冊](../backend/DATABASE_OPERATIONS.md)。
+完整操作見 [Windows 部署](../backend/DEPLOY_WINDOWS.md)、[網站部署](../backend/WEBSITE_DEPLOY.md)、[資料庫操作](../backend/DATABASE_OPERATIONS.md)與[雲端驗收](cloud_activity_verification.md)。

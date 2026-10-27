@@ -1,71 +1,52 @@
 # 專案收尾稽核與文件索引
 
-更新日期：2026-10-15。
+更新日期：2026-10-27。
 
-本文件是收尾階段的文件入口。現況判定依序以「原始碼與自動測試、學校伺服器實際驗收、部署狀態文件、功能手冊、歷史紀錄」為準；規劃稿與歷史紀錄不得覆蓋現行實作。
+本文件是收尾階段的單一入口。現況判定優先順序為：原始碼與當次測試、學校伺服器實際驗收、部署狀態、功能手冊、歷史紀錄。規劃稿與舊截圖不能覆蓋現行實作。
 
-## 現行基準
+## 現行技術基準
 
-| 項目 | 現況 |
+| 層級 | 技術與狀態 |
 | --- | --- |
-| App | Flutter／Dart，版本 `1.0.0+34`，Android applicationId 仍為 `com.example.my_app` |
-| 後端 | Node.js REST API，僅監聽學校主機 `127.0.0.1:3000` |
-| 資料庫 | MySQL `shan_jie_ren_yi`，port 3307，migration `001` 至 `010` 已完成 |
-| 公開入口 | Cloudflare Named Tunnel：`https://api.mealmind-app.online/api` |
-| 郵件 | Resend；`MealMind <noreply@mealmind-app.online>` |
-| 付款 | 綠界 Stage 模擬付款，不是正式收款 |
-| 推薦 | App 端可解釋規則式內容推薦；後端 `/api/recommendations` 仍為 501 |
-| 測試 | Node.js 60 passed／3 skipped；Flutter 125 passed／2 skipped |
+| App | Flutter／Dart `1.0.0+36`；會員與商家正式操作介面 |
+| Website | HTML／CSS／JavaScript；專題介紹、APK、法律文件及管理入口 |
+| Backend | Node.js／Express REST API；網站與 API 共用程序 |
+| Database | MySQL；最新結構需要 migration `001–011` |
+| Infrastructure | Windows Server、Windows Service、Cloudflare Named Tunnel |
+| External | Resend 交易郵件、綠界 Stage 測試付款 |
+| Security | scrypt、雜湊 session、Secure Storage、HttpOnly Cookie、CSP、CORS、HSTS、交易與冪等 |
+| Test | `flutter analyze` 0 issues；Flutter 128 passed／2 skipped；Node 77 passed／4 skipped |
 
-2026-10-15 的 `flutter analyze` 因 Windows Developer Mode 未啟用、插件無法建立 symlink 而未完成。這是收尾前必補的環境驗證，不能引用舊版 0 issues 取代。
+一般 Node 測試略過 4 項真實 MySQL 整合案例是預期行為；學校部署時必須另跑 `npm.cmd run test:mysql`，且不可略過。上述測試為 2026-10-27 本機結果。
 
-## 文件閱讀順序
+## 文件地圖
 
-1. [README](../README.md)：功能範圍、展示資料及整體入口。
-2. [部署進度](deployment_status.md)：學校伺服器已完成、限制與待辦。
-3. [雲端與實機驗收](cloud_activity_verification.md)：部署及手機逐項驗收清單。
-4. [Windows 部署](../backend/DEPLOY_WINDOWS.md)與[資料庫操作](../backend/DATABASE_OPERATIONS.md)：伺服器操作唯一依據。
-5. [後端 API](../backend/README.md)、[商品目錄](../backend/CATALOG.md)、[會員活動](../backend/MEMBER_ACTIVITY.md)、[商家管理](../backend/MERCHANT_MANAGEMENT.md)：實作細節。
-6. [總審技術與答辯總整理](final_review_master_guide.md)及[AI 問答](final_review_qa.md)：口試準備。
-7. [通道遷移歷史](tunnel_migration_history.md)：只供追溯，ngrok 與 Quick Tunnel 不可恢復為正式入口。
+1. [README](../README.md)：專案介紹、系統組成、功能與文件入口。
+2. [網站架構](website_architecture.md)：網站定位、路由、管理後台與安全邊界。
+3. [部署狀態](deployment_status.md)：GitHub 與學校端差異、待辦與限制。
+4. [Windows 部署](../backend/DEPLOY_WINDOWS.md)、[網站部署](../backend/WEBSITE_DEPLOY.md)、[資料庫操作](../backend/DATABASE_OPERATIONS.md)：實際操作。
+5. [後端 API](../backend/README.md)、[商品目錄](../backend/CATALOG.md)、[會員活動](../backend/MEMBER_ACTIVITY.md)、[商家管理](../backend/MERCHANT_MANAGEMENT.md)：技術細節。
+6. [總審技術整理](final_review_master_guide.md)與[答辯問答](final_review_qa.md)：報告及口試依據。
+7. [郵件](email_delivery.md)與[通道歷史](tunnel_migration_history.md)：專項設定及歷史追溯。
 
-## 已完成與可展示
+## 收尾優先順序
 
-- 會員註冊、Email 驗證、歡迎信、登入、登出、兩頁式忘記密碼、個人資料與頭像。
-- 偏好、搜尋、收藏、瀏覽、購物車、模擬付款、購買紀錄與惜食排行榜。
-- 商家帳號、資料與密碼管理、多門市、商品草稿、上下架、刪除及分類。
-- 會員與商家一對一綁定及雙向切換，切換時撤銷來源 session。
-- 固定 HTTPS 網域、Windows 自動服務、MySQL 持久化及 Resend 網域交易郵件。
-
-## 尚待收尾
-
-1. 啟用開發電腦 Windows Developer Mode 後重跑 `flutter analyze`。
-2. 建置 `1.0.0+34` APK，確認 release 簽章；目前 Android release 仍使用 debug signing，不適合正式上架。
-3. 用實機依驗收清單跑完會員、商家、付款及三類郵件，保留截圖與版本號。
-4. 重新核對總審 PDF 的封面換頁、目錄頁碼、系統架構圖、功能敘述與 `1.0.0+34` 實機畫面。
-5. 建立異機定期備份並實際演練還原。
-
-## 總審 PDF 最新檢查
-
-2026-10-15 20:04 的 69 頁版本已修正摘要、技術架構、規則式推薦、固定校園距離、資安限制與部署結果。仍須修改以下項目：
-
-- 封面第六位組員與日期落到目錄頁。
-- 目錄頁碼未隨使用者手冊擴頁更新；目錄寫第八章 43 頁，但本文第八章已在印刷頁 60。
-- 第 24 頁把瀏覽與收藏寫成推薦依據；目前排序採偏好、距離、預算、減廢及直接評分回饋。
-- 第 25 頁仍以 Username 描述登入識別；實際使用 Email。
-- 第 52、62 頁密碼規則寫成「6-18 個數字」；實作為 8-16 字元。
-- 第 53 頁把會員資料編輯誤寫成商家註冊；第 60 頁把購物車誤寫成由註冊介面進入。
-- 第 66 頁仍用預期完成、持續建置及初步試作描述已完成系統，且提到尚未實作的留言機制。
-- 測試章應補最新 Node 60/3、Flutter 125/2，並註明本次 `flutter analyze` 尚待解除 symlink 環境阻擋後補跑。
+1. 在學校伺服器備份資料庫並部署 migration `011`，確認 session 全部失效後可重新登入。
+2. 部署網站與管理後台，驗證主網域、API 子網域、APK 下載及管理功能。
+3. 安裝 `1.0.0+36`，完成會員、商家、身分切換、訂單保留、付款、郵件與跨網路回歸。
+4. 將學校端實際 commit、migration、測試數字與驗收日期回填部署紀錄。
+5. 修正總審 PDF 的封面、目錄、密碼規則、頁面敘述、網站架構與新版實機畫面。
+6. 正式上架前更換 applicationId、release signing，完成備份還原、隱私程序與安全測試。
 
 ## 不可過度宣稱
 
-- 沒有訓練機器學習模型，也沒有完成後端雲端推薦引擎；AI 是可解釋的規則式多條件評分。
-- 沒有 GPS 即時定位，距離基準固定為銘傳大學桃園校區。
-- 模擬便利商店商品不是官方即時庫存，分類圖片也不是每項商品的實拍照片。
-- 綠界 Stage 不是正式交易；尚無退款、對帳與真實商家接單流程。
-- 尚未完成大量使用者研究、壓力測試或專業滲透測試。
+- AI 是 App 端可解釋規則式內容推薦，沒有訓練機器學習模型，後端推薦端點仍是 501。
+- 網站目前是專題介紹、APK 與管理後台；會員／商家完整工作流程在 App。
+- 管理後台是單一專題管理帳號，不是完整 RBAC、多管理員稽核平台。
+- 便利商店資料不是官方即時庫存，分類圖片不是逐項實拍。
+- 綠界 Stage 不是正式交易；尚無退款、對帳或真實商家接單。
+- 自動測試通過不等於已完成大量使用者研究、壓力測試或專業滲透測試。
 
-## 學校伺服器與資料庫影響
+## 工作目錄注意事項
 
-本次文件稽核不含程式、migration 或資料庫變更。文件合併至 GitHub `main` 後，學校伺服器只需視需要執行 `git pull --ff-only origin main`；不需停止 API、不需執行 `npm ci`、不需重啟服務，也不得重跑任何 migration。
+根目錄內舊 APK、畫面 XML、未追蹤影片及 IDE／Flutter 產生檔不是本次文件整理的一部分。發布前應另行決定哪些是成果證據、哪些移至封存區、哪些加入 `.gitignore`；不可直接批次刪除或提交。

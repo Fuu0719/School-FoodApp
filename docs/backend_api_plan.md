@@ -1,6 +1,6 @@
 # 現行後端 API 與資料流
 
-更新日期：2026-10-15。
+更新日期：2026-10-27。
 
 本文件原為早期 API 規劃稿，現已依實際程式更新。正式測試環境不是純前端 mock：Flutter App 透過 `https://api.mealmind-app.online/api` 呼叫部署在學校 Windows Server 的 Node.js REST API，會員、商家、商品與活動資料保存於 MySQL。展示模式及分類共用圖片仍保留給離線畫面測試。
 
@@ -9,6 +9,8 @@
 ```text
 Flutter Android App
   -> HTTPS / JSON / Bearer token
+Public Website + Admin Console
+  -> HTTPS / same-origin API / HttpOnly admin cookie
 Cloudflare DNS + TLS + Named Tunnel
   -> 127.0.0.1:3000
 Node.js + Express API
@@ -31,6 +33,8 @@ Node.js 與 MySQL 不直接開放至 Internet。Cloudflare Tunnel 是唯一公�
 - 會員與商家一對一綁定及雙向身分切換；切換時撤銷來源 session。
 - 公開商品與門市目錄、庫存與期限檢查。
 - 綠界 Stage App 內付款、訂單冪等、交易鎖定與付款後 Email。
+- 15 分鐘待付款庫存保留、逾期取消及單次庫存恢復。
+- 專題網站、APK 下載、法律文件與管理員營運後台。
 
 ### 尚未完成或僅供測試
 
@@ -87,6 +91,21 @@ https://api.mealmind-app.online/api
 | GET | `/payments/ecpay/:token` | 開啟綠界 Stage 付款頁 |
 | POST | `/payments/ecpay/return` | 接收付款頁回傳並導回 App |
 | POST | `/payments/ecpay/result` | 驗證付款結果並更新訂單 |
+
+待付款訂單會記錄 `payment_expires_at`。背景清理程序取消逾期訂單、設定 `released_at` 並在交易中恢復庫存；重複清理不會重複加回庫存。
+
+### 網站管理
+
+| Method | Path | 用途 |
+| --- | --- | --- |
+| POST | `/admin/auth/login` | 管理員登入並設定短效 HttpOnly Cookie |
+| POST | `/admin/auth/logout` | 撤銷目前管理 session |
+| GET | `/admin/dashboard` | 日／週／月營運摘要 |
+| GET | `/admin/users` | 會員分頁查詢 |
+| GET/PUT | `/admin/merchants`、`/admin/merchants/:id/status` | 商家查詢與狀態管理 |
+| GET | `/admin/foods` | 餐點分頁查詢 |
+| GET | `/admin/orders` | 訂單分頁查詢 |
+| GET | `/admin/:resource.csv` | 匯出管理資料 CSV |
 
 ### 會員與商家連結
 

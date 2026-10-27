@@ -1,9 +1,9 @@
 # 膳解人意 Backend
 
 會員、商品目錄、會員活動與商家管理 API 使用 MySQL；推薦 API 尚未完成。商家可自行註冊並直接啟用，登入後再新增一間或多間門市。舊版客戶端在註冊時附帶首間門市的格式仍相容。
-初始化或升級請依部署文件核對結構，勿重匯 schema。學校現有環境已套用 migration `001` 至 `010`，不得重跑。通過 db:check 才啟動新版 API。
+初始化或升級請依部署文件核對結構，勿重匯 schema。GitHub 最新版需要 migration `001` 至 `011`；學校最後已驗證至 `010`，部署新版前須備份並套用 `011` 一次。通過 db:check 才啟動新版 API。
 
-部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)，網域寄件設定見 [Email 設定](../docs/email_delivery.md)，日常查詢、備份與測試會員刪除見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
+部署、驗收與 App 連線步驟見 [Windows 部署說明](DEPLOY_WINDOWS.md)，網站見 [網站部署](WEBSITE_DEPLOY.md)及[網站架構](../docs/website_architecture.md)，網域寄件設定見 [Email 設定](../docs/email_delivery.md)，日常查詢、備份與測試會員刪除見 [資料庫操作手冊](DATABASE_OPERATIONS.md)。
 
 ## 啟動
 
@@ -62,6 +62,10 @@ MySQL 收藏、瀏覽與訂單端點已提供，詳見 [會員活動 API 與遷�
 其他尚未實作正式驗證的原型寫入與回饋端點仍回應 501；僅舊原型測試顯式開啟。
 App 預設保留展示商品；Cloud Catalog 版改讀 MySQL 目錄、雲端收藏、瀏覽、排行榜及訂單。綠界 Stage 成功回傳後訂單標記為 `paid`，App 顯示「模擬訂單，已付款」；這不等於正式金流或商家接單。購物車、搜尋紀錄與推薦星級回饋仍在裝置端。
 學校伺服器已透過 Cloudflare Named Tunnel 與固定網址 `https://api.mealmind-app.online` 供手機測試，狀態追蹤見 [部署進度](../docs/deployment_status.md)。
+
+## 網站與管理 API
+
+Express 同時提供專題首頁、APK 下載、隱私權、服務條款及管理員後台。公開網站不開放會員／商家完整網頁工作台；正式操作仍在 Flutter App。管理員使用伺服器環境變數設定的單一帳號登入，session 以短效 Secure HttpOnly Cookie 保存，可查詢會員、商家、餐點、訂單與日／週／月統計，並匯出 CSV。完整路由與限制見 [網站架構](../docs/website_architecture.md)。
 
 ## 實作參考
 

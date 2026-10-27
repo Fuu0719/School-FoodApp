@@ -185,7 +185,7 @@ cd C:\School\my_app\backend
 npm.cmd run db:check
 ```
 
-只有新版明確要求且已確認尚未套用時，才能執行對應 migration。學校現有資料庫已完成 `001` 至 `010`；既有 migration 不可重跑，也不可重新匯入 `schema.sql`。
+只有新版明確要求且已確認尚未套用時，才能執行對應 migration。學校最後已確認完成 `001` 至 `010`；GitHub 最新版另需 `011_order_reservations_and_linked_sessions.sql`。既有 migration 不可重跑，也不可重新匯入 `schema.sql`。
 
 ## 清理舊版留下的未驗證會員
 

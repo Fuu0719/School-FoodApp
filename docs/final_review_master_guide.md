@@ -1,6 +1,6 @@
 # 膳解人意總審技術與答辯總整理
 
-更新日期：2026-10-15。
+更新日期：2026-10-27。
 
 本文件依目前原始碼、測試、部署紀錄與總審 PDF 整理。用途包括：修正總審文件、製作簡報、分配組員答辯範圍，以及統一「已完成、模擬、尚未完成」的說法。
 
@@ -12,7 +12,8 @@
 
 ### 已完成
 
-- Android Flutter App 與品牌識別，原始碼版本 `1.0.0+34`。
+- Android Flutter App 與品牌識別，原始碼版本 `1.0.0+36`。
+- 專題網站、APK 下載、隱私權與服務條款，以及受保護的營運管理後台。
 - 會員註冊、Email 驗證、登入、登出、忘記密碼及個人資料與偏好。
 - 預設頭像、自訂 JPG/PNG 頭像上傳與移除。
 - MySQL 商品目錄、搜尋、篩選、收藏、瀏覽及訂單；搜尋紀錄目前保存在裝置端。
@@ -71,6 +72,7 @@ Windows Server 2016
   ├─ Catalog：商店與餐點目錄
   ├─ Activity：收藏、瀏覽、訂單、排行榜
   ├─ Merchant：商家、門市與商品管理
+  ├─ Website/Admin：專題網站、APK 下載與營運主控板
   ├─ ECPay：Stage 測試付款與 CheckMacValue
   └─ SMTP：Resend 交易郵件
             │
@@ -126,13 +128,15 @@ Node.js 是後端 JavaScript 執行環境，Express 負責路由與 middleware�
 
 | 套件 | 用途 |
 | --- | --- |
-| `express` | REST API、middleware、靜態圖片服務及錯誤處理 |
+| `express` | REST API、網站、管理後台、middleware、靜態檔案及錯誤處理 |
 | `mysql2` | Prepared statement、Connection Pool 及資料庫交易 |
 | `nodemailer` | 透過 Resend SMTP 寄送交易郵件 |
 | `express-rate-limit` | 限制登入、註冊及敏感操作嘗試次數 |
 | `dotenv` | 從 `.env` 載入密鑰與環境設定 |
-| `cors` | 處理跨來源請求；目前設定較寬鬆，正式營運前應縮限 |
+| `cors` | 瀏覽器跨來源限制；只允許 MealMind 主網域 |
 | Node `crypto` | scrypt、隨機碼、Token Hash 與綠界雜湊 |
+
+網站使用原生 HTML、CSS 與 JavaScript，由 Express 直接提供；Git／GitHub 管理版本，PowerShell 與 Windows Service 負責學校伺服器部署及服務生命週期。
 
 ### 5. MySQL 與資料模型
 
@@ -239,7 +243,7 @@ Node.js 是後端 JavaScript 執行環境，Express 負責路由與 middleware�
 - `cloudflared`：Cloudflare Tunnel 服務。
 - 三項服務皆設定 Automatic，但 Git 程式碼不會自動更新。
 - 更新流程仍需人工備份、停止 API、`git pull`、安裝依賴、檢查資料庫、測試及重啟。
-- Migration `001` 至 `010` 已套用，不可重跑；新增 migration 才能在備份後執行。
+- GitHub 最新版需要 Migration `001` 至 `011`；學校最後已確認至 `010`。`011` 只能在備份、停 API 且確認欄位不存在後執行一次。
 
 ### 14. Git、GitHub 與版本控制
 
@@ -249,9 +253,9 @@ Node.js 是後端 JavaScript 執行環境，Express 負責路由與 middleware�
 
 ### 15. 測試技術
 
-- `flutter analyze`：2026-10-15 本機因 Windows Developer Mode 未啟用、插件無法建立 symlink 而未完成；修正環境後須重跑，不可把舊結果當成本版結果。
-- `flutter test`：目前 123 項通過、2 項依雲端條件跳過。
-- Node `node:test`：本機 59 項通過、3 項真實 MySQL 測試跳過。
+- `flutter analyze`：2026-10-27 為 0 issues。
+- `flutter test`：128 項通過、2 項跳過。
+- Node `node:test`：77 項通過、4 項真實 MySQL 測試跳過。
 - 學校伺服器歷史驗收：27 項 MySQL 整合測試通過。
 - 測試涵蓋表單、畫面導向、推薦分數、權限、交易回滾、帳號隔離、冪等、庫存鎖及商家所有權。
 - 尚未完成正式負載測試、滲透測試、完整裝置矩陣及推薦準確率研究。
@@ -288,12 +292,15 @@ App 購物車 + Idempotency-Key
 → API 鎖定商品與庫存
 → 驗證價格、期限、營業狀態與庫存
 → Transaction 建立訂單、明細、扣庫存
+→ 設定 15 分鐘付款期限並保留庫存
 → 建立綠界 Stage 付款頁
 → WebView 付款
 → 綠界後端回呼 + CheckMacValue
 → 訂單標記 paid
 → 寄送訂單 Email
 ```
+
+若期限內未付款，背景程序會將訂單改為 `cancelled`，並在交易中只恢復一次庫存。
 
 ## 六、資安措施與剩餘風險
 
@@ -313,10 +320,10 @@ App 購物車 + Idempotency-Key
 
 ### 尚待改善
 
-- Express CORS 目前較寬鬆，正式營運應限制允許來源。
+- 瀏覽器 CORS 已限制為 MealMind 主網域；新增網域時不得放寬成萬用來源。
 - Android applicationId 仍為範例值，release 仍使用 debug signing。
 - 尚無自動異機備份、還原演練及金鑰輪替制度。
-- 尚無正式隱私政策、資料保存期限及帳號自助刪除流程。
+- 網站已有初版隱私權政策與服務條款；仍缺完整資料保存期限、管理程序及帳號自助刪除流程。
 - WebView 啟用 JavaScript，正式營運應限制可載入網域與導向。
 - 沒有完成第三方滲透測試或正式弱點掃描。
 - 一般偏好及活動資料未做欄位層級加密，報告不可宣稱全部加密儲存。
@@ -334,12 +341,12 @@ App 購物車 + Idempotency-Key
 | 第 25 頁會員中心 | 仍以 Username 作登入唯一辨識 | 改成 Email 登入；密碼只保存雜湊，不是可讀屬性 |
 | 第 28 頁距離 | 已正確寫成固定銘傳桃園校區基準 | 保留，不可在答辯稱為 GPS 即時定位 |
 | 第 39 頁類別圖 | 圖偏小且需再次核對目前資料表 | 依目前 API domain/schema 放大並確認關聯 |
-| 第 43 頁法律 | 已正確區分密碼／Token／HTTPS 與一般欄位未加密 | 保留，並說明正式營運前仍需隱私政策與保存期限 |
-| 第 44-51 頁測試 | 流程與部署結果大致符合現況，但缺少最新自動測試數量與後端推薦 501 限制 | 補 Node 60/3、Flutter 125/2；註明 analyze 尚待補跑及推薦在 App 端 |
+| 第 43 頁法律 | 已正確區分密碼／Token／HTTPS 與一般欄位未加密 | 補充網站已有初版隱私權政策與條款，但仍需資料保存期限及正式管理程序 |
+| 第 44-51 頁測試 | 流程與部署結果大致符合現況，但缺少網站、管理後台、migration 011 與最新測試數量 | 補 Node 77/4、Flutter 128/2、analyze 0 issues，並註明推薦在 App 端 |
 | 第 52、62 頁手冊 | 密碼寫成「6-18 個數字」，與實作 8-16 字元不符 | 改成 8-16 字元，並依畫面補充允許的字元規則 |
 | 第 53 頁手冊 | 編輯會員資料誤寫成進入商家註冊介面 | 改成會員資料與偏好設定介面 |
 | 第 60 頁手冊 | 購物車誤寫為由註冊介面進入 | 改成由首頁購物車按鈕或餐點加入購物車後進入 |
-| 第 52-65 頁手冊 | 截圖與區域編號仍需逐張實機核對 | 使用 `1.0.0+34` APK 重拍或確認文字、按鈕及導向 |
+| 第 52-65 頁手冊 | 截圖與區域編號仍需逐張實機核對 | 使用 `1.0.0+36` APK 重拍或確認文字、按鈕及導向，另補網站與管理後台 |
 | 第 66 頁結語 | 仍使用「預期完成、持續建置、初步試作」，並提到未實作的留言機制 | 改成已完成成果；留言功能刪除或列為未來方向 |
 | 目錄與圖表目錄 | 目錄仍寫第八章 43 頁、第十章 45 頁，但本文第八章已在印刷頁 60 | 更新整個目錄、圖目錄與表目錄後再輸出 PDF |
 
@@ -499,7 +506,7 @@ Resend 是交易郵件服務，使用已驗證自有網域、SPF/DKIM 與 API Ke
 
 ### 30 秒技術版
 
-> 我們以 Flutter 建置 Android App，透過 HTTPS 呼叫部署在學校 Windows Server 的 Node.js REST API，資料集中存放於 MySQL。外部連線由 Cloudflare Named Tunnel 提供固定網域，會員密碼使用 scrypt 雜湊，Token 放在手機安全儲存區。推薦採可解釋的規則式內容推薦，先篩選再依五項權重排序；付款使用綠界 Stage，郵件使用 Resend 自有網域。
+> 我們以 Flutter 建置 Android App，並以原生網頁提供專題介紹、APK 下載及管理後台；兩者共用部署在學校 Windows Server 的 Node.js REST API 與 MySQL。外部連線由 Cloudflare Named Tunnel 提供固定網域，密碼使用 scrypt 雜湊，推薦採可解釋的規則式內容推薦；付款使用綠界 Stage，郵件使用 Resend 自有網域。
 
 ### 不能說錯的五件事
 
@@ -516,7 +523,7 @@ Resend 是交易郵件服務，使用已驗證自有網域、SPF/DKIM 與 API Ke
 - [ ] 類別圖依目前資料表或 domain model 重畫。
 - [ ] 功能規格刪除 SMS、第三方登入、自動補完、碳排量及 GPS。
 - [ ] 測試章節補上實際命令、通過數量、日期與跳過原因。
-- [ ] 使用者手冊以 `1.0.0+34` APK 重新逐張核對。
+- [ ] 使用者手冊以 `1.0.0+36` APK 重新逐張核對，並補網站與管理後台。
 - [ ] 更新 Word 全部目錄、圖目錄及表目錄。
 - [ ] 六位組員各自熟悉 AI、前端、後端、資料庫、資安及部署至少一類問題。
 - [ ] 展示前驗證三個 Windows 服務、公開 health、Email、會員、商家及付款流程。
