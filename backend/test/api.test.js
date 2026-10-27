@@ -37,6 +37,53 @@ test('health endpoint returns ok', async () => {
   assert.equal(body.status, 'ok');
 });
 
+test('public website is project-only and exposes only the admin login', async () => {
+  const [homeResponse, loginResponse, loginScriptResponse, homeScriptResponse,
+    cartPageResponse] = await Promise.all([
+    fetch(`${baseUrl}/`),
+    fetch(`${baseUrl}/login.html`),
+    fetch(`${baseUrl}/admin-login.js`),
+    fetch(`${baseUrl}/home.js`),
+    fetch(`${baseUrl}/cart.html`, { redirect: 'manual' }),
+  ]);
+  const [homePage, loginPage, loginScript, homeScript] = await Promise.all([
+    homeResponse.text(),
+    loginResponse.text(),
+    loginScriptResponse.text(),
+    homeScriptResponse.text(),
+  ]);
+
+  assert.equal(homeResponse.status, 200);
+  assert.equal(loginResponse.status, 200);
+  assert.match(homePage, /App 核心功能/);
+  assert.match(homePage, /管理員登入/);
+  assert.match(homePage, /\/download\/android/);
+  assert.doesNotMatch(homePage, /id="food-list"|id="cart-link"|會員中心|商家登入/);
+  assert.match(loginResponse.headers.get('cache-control') || '', /no-store/);
+  assert.match(loginPage, /id="admin-login"/);
+  assert.doesNotMatch(loginPage, /id="member-login"|id="merchant-login"|建立會員帳號/);
+  assert.match(loginScript, /\/api\/admin\/auth\/login/);
+  assert.match(loginScript, /location\.replace\('\/admin\.html'\)/);
+  assert.match(homeScript, /history\.replaceState/);
+  assert.equal(cartPageResponse.status, 302);
+  assert.equal(cartPageResponse.headers.get('location'), '/');
+});
+
+test('admin console is a separate non-cacheable page', async () => {
+  const [response, scriptResponse] = await Promise.all([
+    fetch(`${baseUrl}/admin.html`), fetch(`${baseUrl}/admin.js`),
+  ]);
+  const [html, script] = await Promise.all([response.text(), scriptResponse.text()]);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('cache-control') || '', /no-store/);
+  assert.match(html, /營運主控板/);
+  assert.match(html, /\/admin-csv\.js\?v=1/);
+  assert.match(html, /\/admin\.js\?v=6/);
+  assert.match(html, /id="admin-date-range"[\s\S]+class="period-switch"/);
+  assert.match(script, /view === 'orders'/);
+  assert.match(script, /function applyOrderPeriod\(period\)/);
+});
+
 test('backend-owned food images are publicly cacheable', async () => {
   const response = await fetch(`${baseUrl}/food-images/bento.jpg`);
   assert.equal(response.status, 200);

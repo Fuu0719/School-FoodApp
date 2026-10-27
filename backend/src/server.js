@@ -12,6 +12,7 @@ async function start() {
   await require('./activity/check_schema')(pool);
   await require('./merchant/check_schema')(pool);
   const stopTestFoodRefresh = await require('./catalog/refresh_test_foods').startTestFoodRefresh(pool);
+  const stopReservationCleanup = await require('./activity/reservation_cleanup').startReservationCleanup(pool);
   const app = createApp({ userRepository: new UserRepository(pool) });
   app.set('trust proxy', 'loopback');
   const server = app.listen(port, process.env.HOST || '127.0.0.1', () => {
@@ -19,6 +20,7 @@ async function start() {
   });
   const shutdown = () => {
     stopTestFoodRefresh();
+    stopReservationCleanup();
     server.close(() => { pool.end().then(() => process.exit(0)); });
   };
   process.once('SIGINT', shutdown);
@@ -32,7 +34,7 @@ async function start() {
 
 start().catch(async (error) => {
   console.error('Database startup check failed:', error.code,
-    'Check DB settings and apply all missing database migrations through 010.');
+    'Check DB settings and apply all missing database migrations through 011.');
   await pool.end();
   process.exitCode = 1;
 });

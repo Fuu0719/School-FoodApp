@@ -101,7 +101,7 @@ class UserActivityService extends ChangeNotifier {
 
     for (final entry in _cartQuantities.entries) {
       final food = _findFood(entry.key);
-      if (food != null && entry.value > 0) {
+      if (food != null && !food.isExpired && entry.value > 0) {
         items.add(CartItem(food: food, quantity: entry.value));
       }
     }
@@ -309,7 +309,9 @@ class UserActivityService extends ChangeNotifier {
   }
 
   bool addToCart(FoodItem food) {
-    if (isCloud && !food.isOpenAt(DateTime.now())) return false;
+    if (food.isExpired || (isCloud && !food.isOpenAt(DateTime.now()))) {
+      return false;
+    }
     setCartQuantity(food, cartQuantity(food.id) + 1);
     return true;
   }
@@ -324,6 +326,13 @@ class UserActivityService extends ChangeNotifier {
 
   void setCartQuantity(FoodItem food, int quantity) {
     if (cartLocked) return;
+    if (quantity > 0 && food.isExpired) {
+      if (_cartQuantities.remove(food.id) != null) {
+        _persistCartItems();
+        notifyListeners();
+      }
+      return;
+    }
     final nextQuantity = quantity.clamp(0, food.stockCount).toInt();
 
     if (nextQuantity == 0) {
@@ -334,6 +343,19 @@ class UserActivityService extends ChangeNotifier {
 
     _persistCartItems();
     notifyListeners();
+  }
+
+  int removeExpiredCartItems() {
+    final expiredIds = _cartQuantities.keys
+        .where((id) => _findFood(id)?.isExpired ?? true)
+        .toList();
+    if (expiredIds.isEmpty) return 0;
+    for (final id in expiredIds) {
+      _cartQuantities.remove(id);
+    }
+    _persistCartItems();
+    notifyListeners();
+    return expiredIds.length;
   }
 
   bool get canCheckout =>

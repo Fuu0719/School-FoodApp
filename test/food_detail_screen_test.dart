@@ -115,6 +115,27 @@ void main() {
     expect(find.text(food.name), findsOneWidget);
   });
 
+  testWidgets('expired food cannot be added to cart', (tester) async {
+    final food = MockFoodRepository.allFoods.first.copyWith(
+      expiresAt: DateTime.now().subtract(const Duration(minutes: 1)),
+      isExpiringSoon: true,
+    );
+
+    await tester.pumpWidget(MaterialApp(home: FoodDetailScreen(food: food)));
+    await tester.scrollUntilVisible(
+      find.text('餐點已過期'),
+      180,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+
+    final button = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, '餐點已過期'),
+    );
+    expect(button.onPressed, isNull);
+    expect(UserActivityService.instance.cartItems, isEmpty);
+  });
+
   testWidgets('saves rating feedback in food detail', (
     WidgetTester tester,
   ) async {

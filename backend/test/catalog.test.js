@@ -59,7 +59,7 @@ test('catalogue SQL binds keyword and tags, escapes LIKE wildcards and maps only
   assert.match(calls[0].sql, /f.status = 'active'/);
   assert.match(calls[0].sql, /m.status = 'active'/);
   assert.match(calls[0].sql, /f.stock_count > 0/);
-  assert.match(calls[0].sql, /UTC_TIMESTAMP/);
+  assert.match(calls[0].sql, /f\.expires_at > NOW\(\)/);
   assert.match(calls[0].sql, /LIMIT 51/);
   assert.equal(result.items[0].id, '1');
   assert.equal(result.items[0].storeId, '42');

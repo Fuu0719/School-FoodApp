@@ -95,3 +95,21 @@ test('same request key and payload returns the existing order without a second s
   assert.equal(result.order.id, '42');
   assert.equal(writes.length, 0);
 });
+
+test('expired pending reservations are cancelled and stock is restored once', async () => {
+  const events = [];
+  const connection = {
+    beginTransaction: async () => events.push('begin'), commit: async () => events.push('commit'),
+    rollback: async () => events.push('rollback'), release: () => events.push('release'),
+    execute: async (sql, args) => {
+      if (sql.startsWith('SELECT id FROM purchase_orders')) return [[{ id: '8' }]];
+      if (sql.startsWith('UPDATE purchase_orders')) { assert.deepEqual(args, ['8']); events.push('cancel'); return [{}]; }
+      if (sql.startsWith('SELECT food_id')) return [[{ foodId: '3', quantity: 2 }]];
+      if (sql.startsWith('UPDATE foods')) { assert.deepEqual(args, [2, '3']); events.push('restore'); return [{}]; }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  };
+  const repository = new ActivityRepository({ getConnection: async () => connection });
+  assert.equal(await repository.releaseExpiredReservations(), 1);
+  assert.deepEqual(events, ['begin', 'cancel', 'restore', 'commit', 'release']);
+});

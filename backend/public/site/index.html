@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="MealMind 膳解人意，整合健康推薦、即期優惠與商家餐點管理。">
+  <title>MealMind 膳解人意</title>
+  <link rel="stylesheet" href="/styles.css?v=2">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#home"><img src="/brand-assets/mealmind_logo.png" alt="MealMind"><span>MealMind<br><small>膳解人意</small></span></a>
+    <nav aria-label="主要導覽">
+      <a href="#foods">餐點</a><a href="#features">功能</a><a href="#workspace">工作區</a><a href="#about">關於</a>
+    </nav>
+    <a class="button compact" href="#workspace">登入</a>
+  </header>
+
+  <main>
+    <section id="home" class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">健康選擇與惜食行動</p>
+        <h1>MealMind 膳解人意</h1>
+        <p>依健康需求探索餐點，掌握附近即期優惠；商家也能在同一套系統管理門市、商品與庫存。</p>
+        <div class="actions"><a class="button" href="#foods">查看供應餐點</a><a class="button secondary" href="/download/android">下載 Android App</a></div>
+      </div>
+      <img class="hero-logo" src="/brand-assets/mealmind_logo.png" alt="MealMind 應用程式標誌">
+    </section>
+
+    <section id="foods" class="section">
+      <div class="section-heading"><div><p class="eyebrow">目前供應</p><h2>餐點與即期優惠</h2></div><button id="reload-foods" class="icon-button" title="重新整理" aria-label="重新整理">↻</button></div>
+      <form id="food-search" class="filterbar"><label>關鍵字<input name="keyword" placeholder="餐點或商家"></label><label>類型<select name="mode"><option value="">全部餐點</option><option value="expiring">即期優惠</option></select></label><label>最高價格<input name="maxPrice" type="number" min="0" step="1" placeholder="不限"></label><button class="button" type="submit">搜尋</button></form>
+      <p id="food-status" class="status" role="status"></p><div id="food-list" class="food-grid"></div>
+    </section>
+
+    <section id="features" class="feature-band">
+      <div><strong>個人化飲食</strong><span>健康資料、飲食偏好與每日摘要</span></div>
+      <div><strong>減少浪費</strong><span>即期優惠、減廢點數與排行榜</span></div>
+      <div><strong>商家營運</strong><span>門市、商品、庫存與上下架管理</span></div>
+      <div><strong>安全帳號</strong><span>Email 驗證、工作階段與角色分離</span></div>
+    </section>
+
+    <section id="workspace" class="section workspace">
+      <div class="section-heading"><div><p class="eyebrow">線上服務</p><h2>選擇工作區</h2></div></div>
+      <div class="tabs" role="tablist"><button class="tab active" data-tab="member">會員</button><button class="tab" data-tab="merchant">商家</button><button class="tab" data-tab="admin">管理員</button></div>
+
+      <div id="member-panel" class="panel active">
+        <div id="member-auth" class="auth-layout">
+          <form id="member-login"><h3>會員登入</h3><label>Email<input name="email" type="email" required autocomplete="email"></label><label>密碼<input name="password" type="password" required autocomplete="current-password"></label><button class="button" type="submit">登入</button><button class="link-button" type="button" data-dialog="member-register-dialog">建立帳號</button><button class="link-button" type="button" data-dialog="reset-dialog">忘記密碼</button></form>
+          <div class="auth-note"><h3>登入後可使用</h3><p>個人資料、收藏、瀏覽紀錄、點餐紀錄、健康摘要與減廢排行榜。</p></div>
+        </div>
+        <div id="member-app" hidden>
+          <div class="workspace-header"><div><p class="eyebrow">會員中心</p><h3 id="member-name"></h3><span id="member-email"></span></div><button id="member-logout" class="button secondary">登出</button></div>
+          <div class="subtabs"><button data-member-view="profile" class="active">個人資料</button><button data-member-view="health">健康摘要</button><button data-member-view="favorites">收藏</button><button data-member-view="history">瀏覽紀錄</button><button data-member-view="cart">購物車</button><button data-member-view="orders">點餐紀錄</button><button data-member-view="leaderboard">排行榜</button></div>
+          <div id="member-content" class="data-region"></div>
+        </div>
+      </div>
+
+      <div id="merchant-panel" class="panel">
+        <div id="merchant-auth" class="auth-layout"><form id="merchant-login"><h3>商家登入</h3><label>Email<input name="email" type="email" required autocomplete="email"></label><label>密碼<input name="password" type="password" required autocomplete="current-password"></label><button class="button" type="submit">登入</button></form><div class="auth-note"><h3>商家工作台</h3><p>修改商家資料、管理門市與商品，並即時控制庫存和上架狀態。</p></div></div>
+        <div id="merchant-app" hidden><div class="workspace-header"><div><p class="eyebrow">商家工作台</p><h3 id="merchant-name"></h3><span id="merchant-email"></span></div><button id="merchant-logout" class="button secondary">登出</button></div><div class="subtabs"><button data-merchant-view="account" class="active">商家資料</button><button data-merchant-view="stores">門市</button><button data-merchant-view="products">商品</button><button data-merchant-view="new-product">新增商品</button></div><div id="merchant-content" class="data-region"></div></div>
+      </div>
+
+      <div id="admin-panel" class="panel">
+        <div id="admin-auth" class="auth-layout"><form id="admin-login"><h3>管理員驗證</h3><label>管理存取金鑰<input name="token" type="password" required autocomplete="off"></label><button class="button" type="submit">進入管理後台</button></form><div class="auth-note warning"><h3>限制區域</h3><p>此區僅供系統管理者使用。操作會直接影響正式服務資料。</p></div></div>
+        <div id="admin-app" hidden><div class="workspace-header"><div><p class="eyebrow">系統管理</p><h3>MealMind 營運概況</h3></div><button id="admin-logout" class="button secondary">離開</button></div><div class="subtabs"><button data-admin-view="dashboard" class="active">總覽</button><button data-admin-view="users">會員</button><button data-admin-view="merchants">商家</button><button data-admin-view="foods">餐點</button><button data-admin-view="orders">訂單</button></div><div id="admin-content" class="data-region"></div></div>
+      </div>
+      <p id="workspace-status" class="status" role="status"></p>
+    </section>
+
+    <section id="about" class="about-band"><div><p class="eyebrow">關於專題</p><h2>讓每一餐更適合自己，也讓食物更少被浪費。</h2></div><div><p>MealMind 由銘傳大學專題團隊開發，整合會員健康需求、餐點推薦、即期優惠、商家管理與減廢紀錄。</p><p><a href="mailto:support@mealmind-app.online">support@mealmind-app.online</a></p></div></section>
+  </main>
+  <footer><span>© 2026 MealMind 膳解人意</span><span><a href="/privacy.html">隱私權政策</a>　<a href="/terms.html">服務條款</a></span></footer>
+
+  <dialog id="member-register-dialog"><form id="member-register" method="dialog"><div class="dialog-head"><h3>建立會員帳號</h3><button type="button" class="icon-button close-dialog" aria-label="關閉">×</button></div><label>姓名<input name="name" maxlength="80" required></label><label>Email<input name="email" type="email" required></label><label>密碼<input name="password" type="password" minlength="8" maxlength="16" required></label><div id="verify-fields" hidden><label>6 位數驗證碼<input name="code" inputmode="numeric" pattern="[0-9]{6}"></label></div><button class="button" type="submit">寄送驗證碼</button></form></dialog>
+  <dialog id="reset-dialog"><form id="reset-form" method="dialog"><div class="dialog-head"><h3>重設密碼</h3><button type="button" class="icon-button close-dialog" aria-label="關閉">×</button></div><label>Email<input name="email" type="email" required></label><div id="reset-code-fields" hidden><label>驗證碼<input name="code" inputmode="numeric" pattern="[0-9]{6}"></label></div><div id="reset-password-fields" hidden><label>新密碼<input name="password" type="password" minlength="8" maxlength="16"></label></div><button class="button" type="submit">寄送驗證碼</button></form></dialog>
+  <script src="/app.js?v=2" defer></script>
+</body>
+</html>

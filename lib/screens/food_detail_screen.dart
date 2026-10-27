@@ -558,6 +558,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
     final isOpen =
         !FoodCatalogRepository.instance.useCloud ||
         food.isOpenAt(DateTime.now());
+    final isExpired = food.isExpired;
 
     return Column(
       children: [
@@ -606,7 +607,7 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: food.stockCount <= 0
+            onPressed: isExpired || food.stockCount <= 0
                 ? null
                 : !isOpen
                 ? _showStoreClosed
@@ -619,7 +620,9 @@ class _FoodDetailScreenState extends State<FoodDetailScreen> {
                   : Icons.add_shopping_cart_rounded,
             ),
             label: Text(
-              food.stockCount <= 0
+              isExpired
+                  ? '餐點已過期'
+                  : food.stockCount <= 0
                   ? '已售完'
                   : !isOpen
                   ? '店家尚未營業'

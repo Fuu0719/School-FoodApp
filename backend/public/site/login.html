@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#173426"><title>管理員登入｜MealMind</title><link rel="stylesheet" href="/site-v3.css?v=4"></head>
+<body class="login-page">
+  <header class="topbar"><a class="brand" href="/"><img src="/brand-assets/mealmind_logo.png" alt="MealMind"><span><strong>MealMind</strong><small>膳解人意</small></span></a><a class="back-link" href="/">返回專題網站</a></header>
+  <main class="login-main">
+    <section class="workspace-shell login-shell admin-login-shell">
+      <div class="workspace-intro"><p class="eyebrow light">Administration</p><h1>管理員登入</h1><p>此入口僅供 MealMind 系統管理人員使用。會員與商家請由行動 App 登入。</p><dl><div><dt>營運總覽</dt><dd>查看會員、商家、餐點與訂單統計</dd></div><div><dt>狀態管理</dt><dd>處理帳號狀態與營運資料</dd></div><div><dt>安全性</dt><dd>管理憑證僅保留於目前瀏覽分頁</dd></div></dl></div>
+      <div class="workspace-surface">
+        <form id="admin-login" class="admin-login-form" autocomplete="off">
+          <div class="form-heading"><p class="eyebrow">Secure access</p><h2>進入營運主控板</h2><p>請使用管理員帳號驗證身分。</p></div>
+          <label>Email<input name="email" type="email" required autocomplete="off" inputmode="email"></label>
+          <label>密碼<input name="password" type="password" required autocomplete="new-password"></label>
+          <button class="button full" type="submit">登入管理後台</button>
+        </form>
+        <p id="workspace-status" class="status workspace-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+  </main>
+  <script src="/admin-login.js?v=1" defer></script>
+</body>
+</html>

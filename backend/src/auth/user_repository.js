@@ -60,7 +60,7 @@ class UserRepository {
   }
 
   async savePendingRegistration({ name, email, passwordHash, codeHash, expiresAt }) {
-    await this.pool.execute('DELETE FROM pending_member_registrations WHERE expires_at <= UTC_TIMESTAMP()');
+    await this.pool.execute('DELETE FROM pending_member_registrations WHERE expires_at <= NOW()');
     await this.pool.execute(`INSERT INTO pending_member_registrations
       (email, name, password_hash, code_hash, expires_at, attempts)
       VALUES (?, ?, ?, ?, ?, 0)
@@ -164,7 +164,7 @@ class UserRepository {
   async resetPasswordWithToken(resetTokenHash, passwordHash) {
     return this.transaction(async (connection) => {
       const [rows] = await connection.execute(`SELECT user_id FROM member_password_reset_tokens
-        WHERE token_hash = ? AND expires_at > UTC_TIMESTAMP() FOR UPDATE`, [resetTokenHash]);
+        WHERE token_hash = ? AND expires_at > NOW() FOR UPDATE`, [resetTokenHash]);
       if (!rows.length) return false;
       const userId = rows[0].user_id;
       await connection.execute('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, userId]);
@@ -195,13 +195,13 @@ class UserRepository {
   }
 
   async createSession(id, hash, expiresAt) {
-    await this.pool.execute('DELETE FROM user_sessions WHERE user_id = ? AND expires_at <= UTC_TIMESTAMP()', [id]);
+    await this.pool.execute('DELETE FROM user_sessions WHERE user_id = ? AND expires_at <= NOW()', [id]);
     await this.pool.execute('INSERT INTO user_sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)', [hash, id, expiresAt]);
   }
 
   async session(hash) {
     const [rows] = await this.pool.execute(
-      'SELECT user_id FROM user_sessions WHERE token_hash = ? AND expires_at > UTC_TIMESTAMP()', [hash]);
+      'SELECT user_id FROM user_sessions WHERE token_hash = ? AND expires_at > NOW()', [hash]);
     return rows[0] ? this.get(rows[0].user_id) : null;
   }
 
@@ -221,20 +221,44 @@ class UserRepository {
   async switchToMerchant(userId, merchantId, memberSessionHash, merchantSessionHash, expiresAt, { link = false } = {}) {
     return this.transaction(async (connection) => {
       if (link) {
+        const [oldLinks] = await connection.execute(
+          'SELECT merchant_id FROM member_merchant_links WHERE user_id = ? FOR UPDATE', [userId]);
+        if (oldLinks.length) {
+          const oldMerchantId = oldLinks[0].merchant_id;
+          await connection.execute(`DELETE FROM merchant_sessions
+            WHERE merchant_id = ? AND switched_from_user_id = ?`, [oldMerchantId, userId]);
+          await connection.execute(`DELETE FROM user_sessions
+            WHERE user_id = ? AND switched_from_merchant_id = ?`, [userId, oldMerchantId]);
+        }
         await connection.execute('DELETE FROM member_merchant_links WHERE user_id = ?', [userId]);
         await connection.execute('INSERT INTO member_merchant_links (user_id, merchant_id) VALUES (?, ?)',
           [userId, merchantId]);
+      } else {
+        const [links] = await connection.execute(`SELECT merchant_id FROM member_merchant_links
+          WHERE user_id = ? AND merchant_id = ? FOR UPDATE`, [userId, merchantId]);
+        if (!links.length) throw Object.assign(new Error('尚未綁定可使用的商家帳號'), { statusCode: 404 });
       }
       await connection.execute(
-        'INSERT INTO merchant_sessions (merchant_id, token_hash, expires_at) VALUES (?, ?, ?)',
-        [merchantId, merchantSessionHash, expiresAt]);
+        `INSERT INTO merchant_sessions
+          (merchant_id, switched_from_user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)`,
+        [merchantId, userId, merchantSessionHash, expiresAt]);
       await connection.execute('DELETE FROM user_sessions WHERE user_id = ? AND token_hash = ?',
         [userId, memberSessionHash]);
     });
   }
 
   async unlinkMerchant(userId) {
-    await this.pool.execute('DELETE FROM member_merchant_links WHERE user_id = ?', [userId]);
+    await this.transaction(async (connection) => {
+      const [links] = await connection.execute(
+        'SELECT merchant_id FROM member_merchant_links WHERE user_id = ? FOR UPDATE', [userId]);
+      if (!links.length) return;
+      const merchantId = links[0].merchant_id;
+      await connection.execute(`DELETE FROM merchant_sessions
+        WHERE merchant_id = ? AND switched_from_user_id = ?`, [merchantId, userId]);
+      await connection.execute(`DELETE FROM user_sessions
+        WHERE user_id = ? AND switched_from_merchant_id = ?`, [userId, merchantId]);
+      await connection.execute('DELETE FROM member_merchant_links WHERE user_id = ?', [userId]);
+    });
     return this.get(userId);
   }
 

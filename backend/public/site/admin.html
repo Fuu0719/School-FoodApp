@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="theme-color" content="#173426"><title>營運主控板｜MealMind</title><link rel="stylesheet" href="/site-v3.css"></head>
+<body class="admin-page">
+  <div class="admin-shell">
+    <aside class="admin-sidebar">
+      <a class="admin-brand" href="/"><img src="/brand-assets/mealmind_logo.png" alt=""><span><strong>MealMind</strong><small>營運主控板</small></span></a>
+      <nav aria-label="管理功能">
+        <button class="active" data-admin-view="dashboard"><span>總覽</span><small>營運摘要</small></button>
+        <button data-admin-view="users"><span>會員</span><small>帳號與驗證</small></button>
+        <button data-admin-view="merchants"><span>商家</span><small>權限與狀態</small></button>
+        <button data-admin-view="foods"><span>餐點</span><small>庫存與銷售</small></button>
+        <button data-admin-view="orders"><span>訂單</span><small>付款與減廢</small></button>
+      </nav>
+      <div class="admin-sidebar-foot"><a href="/">查看網站</a><button id="admin-logout" type="button">登出</button></div>
+    </aside>
+    <main class="admin-main">
+      <header class="admin-header"><div><p class="eyebrow">Operations</p><h1 id="admin-title">營運總覽</h1><p id="admin-subtitle">掌握今天需要處理的營運狀況</p></div><div class="admin-health"><span class="health-dot" aria-hidden="true"></span><div><strong>系統連線正常</strong><small id="admin-updated">尚未更新</small></div><button id="admin-reload" class="icon-button" title="重新整理" aria-label="重新整理">↻</button></div></header>
+      <section id="admin-tools" class="admin-tools"><div id="admin-date-range" class="admin-date-range" hidden><label>開始日期<input id="admin-from" type="date"></label><span>至</span><label>結束日期<input id="admin-to" type="date"></label></div><div class="period-switch" role="group" aria-label="報表期間"><button data-admin-period="day" class="active">今日</button><button data-admin-period="week">本週</button><button data-admin-period="month">本月</button></div><label class="admin-search">搜尋目前資料<input id="admin-search" type="search" placeholder="輸入名稱、Email 或編號"></label><label class="admin-page-size">每頁<select id="admin-page-size"><option value="25">25 筆</option><option value="50">50 筆</option><option value="100">100 筆</option></select></label><button id="admin-export" class="button secondary" type="button">匯出本頁 CSV</button></section>
+      <div id="admin-alert" class="admin-alert" role="status"></div>
+      <div id="admin-content" class="admin-content"><p>載入中…</p></div><nav id="admin-pagination" class="admin-pagination" aria-label="資料分頁" hidden></nav>
+    </main>
+  </div>
+  <script src="/admin-csv.js?v=1" defer></script>
+  <script src="/admin.js?v=6" defer></script>
+</body>
+</html>

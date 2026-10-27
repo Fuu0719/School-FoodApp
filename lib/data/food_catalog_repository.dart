@@ -93,6 +93,7 @@ class FoodCatalogRepository {
         .where(
           (food) =>
               food.isExpiringSoon &&
+              !food.isExpired &&
               storeIds.contains(food.storeId) &&
               (maxDistanceMeters == null ||
                   food.distanceMeters <= maxDistanceMeters),
@@ -101,6 +102,9 @@ class FoodCatalogRepository {
   }
 
   List<FoodItem> expiringFoodsByStore(String storeId) => allFoods
-      .where((food) => food.isExpiringSoon && food.storeId == storeId)
+      .where(
+        (food) =>
+            food.isExpiringSoon && !food.isExpired && food.storeId == storeId,
+      )
       .toList();
 }
